@@ -1,0 +1,35 @@
+# Local Supabase settings for development and CI (`supabase start`, `supabase test db`).
+# The cloud project (region Mumbai, ap-south-1) is created later by admin@oksy.in.
+project_id = "oksy-portal"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = false
+
+[studio]
+enabled = false
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+# No self sign-up: users are added by an ADMIN (M2). Google sign-in is configured in M2.
+enable_signup = false
+
+[auth.email]
+enable_signup = false

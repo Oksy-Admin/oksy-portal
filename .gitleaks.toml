@@ -1,0 +1,53 @@
+# Secret scan rules (CLAUDE.md hard rule 1). Runs before every commit and in CI.
+# Starts from gitleaks' built-in rules and adds the secrets this project uses.
+title = "oksy-portal secret scan"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "google-service-account-key"
+description = "Google service account JSON key (the robot's key)"
+regex = '''"private_key"\s*:\s*"-----BEGIN (RSA )?PRIVATE KEY-----'''
+keywords = ["private_key"]
+
+[[rules]]
+id = "google-service-account-key-id"
+description = "Google service account private_key_id"
+regex = '''"private_key_id"\s*:\s*"[a-f0-9]{40}"'''
+keywords = ["private_key_id"]
+
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase secret API key (new format)"
+regex = '''sb_secret_[A-Za-z0-9_-]{20,}'''
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "supabase-service-role-assignment"
+description = "Supabase service role key written into a file"
+regex = '''SUPABASE_SERVICE_ROLE_KEY\s*[=:]\s*["']?[A-Za-z0-9._-]{20,}'''
+keywords = ["supabase_service_role_key"]
+
+[[rules]]
+id = "trigger-dev-secret-key"
+description = "Trigger.dev secret key"
+regex = '''tr_(dev|prod|stg|preview)_[A-Za-z0-9]{16,}'''
+keywords = ["tr_dev_", "tr_prod_", "tr_stg_", "tr_preview_"]
+
+[[rules]]
+id = "base64-service-account-key"
+description = "Base64-encoded service account key in an env assignment"
+regex = '''GOOGLE_SERVICE_ACCOUNT_KEY_B64\s*[=:]\s*["']?[A-Za-z0-9+/=]{40,}'''
+keywords = ["google_service_account_key_b64"]
+
+[allowlist]
+description = "Template file holds names only; build output and installed packages are git-ignored"
+paths = [
+  '''\.env\.example$''',
+  '''pnpm-lock\.yaml$''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.next/''',
+  '''(^|/)dist/''',
+  '''(^|/)coverage/''',
+]

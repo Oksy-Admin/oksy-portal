@@ -1,0 +1,42 @@
+# Secrets: never commit (CLAUDE.md hard rule 1)
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+# Google service account keys and any downloaded credential JSON
+*service-account*.json
+*serviceaccount*.json
+*credentials*.json
+oksy-data-cleanse-*.json
+
+# Register and master-list workbooks hold staff phone numbers (personal data, hard rule 10).
+# They stay on this computer and are uploaded through the portal at M4, never stored in Git.
+docs/*.xlsx
+
+# Dependencies and builds
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Tools
+.vercel/
+.trigger/
+supabase/.temp/
+supabase/.branches/
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+
+# Claude Code local permission settings (per person, not shared)
+.claude/settings.local.json
+
+# Local holding area for removed files (Anoop empties it by hand; git history keeps every version)
+_to_delete/

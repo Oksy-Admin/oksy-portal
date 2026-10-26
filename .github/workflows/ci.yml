@@ -1,0 +1,54 @@
+# CI: runs on every push and pull request. Nothing here deploys anything.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # scan the full history, not only the last commit
+      - name: Install gitleaks 8.30.1 (checksum verified)
+        run: |
+          set -euo pipefail
+          v=8.30.1
+          base=https://github.com/gitleaks/gitleaks/releases/download/v$v
+          curl -sSfLO "$base/gitleaks_${v}_linux_x64.tar.gz"
+          curl -sSfLO "$base/gitleaks_${v}_checksums.txt"
+          grep " gitleaks_${v}_linux_x64.tar.gz$" "gitleaks_${v}_checksums.txt" | sha256sum -c -
+          tar -xzf "gitleaks_${v}_linux_x64.tar.gz" gitleaks
+          sudo mv gitleaks /usr/local/bin/
+      - run: bash scripts/secret-scan.sh
+
+  checks:
+    name: Typecheck, lint, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+  database:
+    name: Migrations and database security tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      # Throwaway Supabase Postgres container; no cloud project and no login are used.
+      # Same script as on a developer computer.
+      - run: bash scripts/db-test-local.sh

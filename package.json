@@ -1,0 +1,22 @@
+{
+  "name": "oksy-portal",
+  "private": true,
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @oksy/web dev",
+    "worker": "pnpm --filter @oksy/worker start",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "secret-scan": "bash scripts/secret-scan.sh",
+    "secret-scan:staged": "bash scripts/secret-scan.sh --staged",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "9.1.7"
+  }
+}

@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Blocks the commit if a secret is staged (CLAUDE.md hard rule 1).
+bash scripts/secret-scan.sh --staged
