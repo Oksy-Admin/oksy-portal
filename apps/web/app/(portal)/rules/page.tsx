@@ -14,7 +14,7 @@ interface RuleVersionRecord {
   parameter_value: number | null;
   condition_text: string;
   action: string | null;
-  needs_review: boolean;
+  // needs_review is not selected: the live database has no such column (migration 0018 not applied; stage0_report.md).
   hospital_filter: string | null;
   scheme_filter: string | null;
   insurer_filter: string | null;
@@ -52,7 +52,6 @@ async function RulesPage() {
         parameter_value,
         condition_text,
         action,
-        needs_review,
         hospital_filter,
         scheme_filter,
         insurer_filter
@@ -70,7 +69,7 @@ async function RulesPage() {
       rule_id: r.rule_id,
       rule_type: r.rule_type,
       title: r.title,
-      latest_version: latest,
+      latest_version: latest ? { ...latest, needs_review: false } : null,
       shadow_count: 0,
     };
   });
