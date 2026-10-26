@@ -12,10 +12,11 @@ async function HospitalsPage() {
 
   const supabase = await createClient();
   const [hosp, sheets] = await Promise.all([
-    supabase.from("hospitals").select("hospital_code, hospital_name, district, status, needs_review, missing_from_register_since"),
+    // needs_review is not selected: the live database has no such column (migration 0018 not applied; stage0_report.md).
+    supabase.from("hospitals").select("hospital_code, hospital_name, district, status, missing_from_register_since"),
     supabase
       .from("hospital_sheets")
-      .select("sheet_key, hospital_code, scheme, sheet_status, spreadsheet_id, sheet_url, sync, read_skip_reason, check_flag, access_status, access_error, last_checked_at, needs_review")
+      .select("sheet_key, hospital_code, scheme, sheet_status, spreadsheet_id, sheet_url, sync, read_skip_reason, check_flag, access_status, access_error, last_checked_at")
       .is("missing_from_register_since", null)
       .order("hospital_code"),
   ]);
@@ -41,7 +42,7 @@ async function HospitalsPage() {
       access_error: s.access_error,
       last_checked_at: s.last_checked_at,
       status: h?.status ?? "ACTIVE",
-      needs_review: (h?.needs_review || s.needs_review) ?? false,
+      needs_review: false,
     };
   });
 
@@ -89,7 +90,7 @@ async function HospitalsPage() {
       {loadError && (
         <div className="notice warn" role="alert">
           <strong>Cannot load.</strong>
-          <span>The Hospital Master tables could not be read (code {loadError.code}). Migration 0007 may not be applied yet.</span>
+          <span>The Hospital Master tables could not be read (code {loadError.code}): {loadError.message}</span>
         </div>
       )}
 
