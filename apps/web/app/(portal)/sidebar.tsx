@@ -2,30 +2,64 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { can, type Permission, type Role } from "@/lib/roles";
+import { can, hasTick, type AccessTicks, type Role } from "@/lib/roles";
 import { icons, Logo } from "./icons";
 
-type NavItem = { href: string; label: string; icon: keyof typeof icons; need?: Permission; match: string[] };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: keyof typeof icons;
+  tick?: keyof AccessTicks;
+  requireAdminOrOwner?: boolean;
+  match: string[];
+};
 
-// Menu of the mockups. Items a role may not use are hidden; each page checks the role again
-// and the database (RLS) is what actually enforces access.
+// 7 pages from requirements_v2 section 2:
+// 1. Dashboard (/)
+// 2. Hospitals (/hospitals)
+// 3. Questions (/questions)
+// 4. Clean Data (/claims or /reports)
+// 5. Rule Library (/rules)
+// 6. Audit & Runs (currently /reports until stage 8)
+// 7. Settings › Users and Access (/settings/users-and-access)
 const NAV: NavItem[] = [
-  { href: "/", label: "Home", icon: "home", match: ["/"] },
-  { href: "/hospitals", label: "Hospitals", icon: "hospital", need: "helper_work", match: ["/hospitals", "/admin/tabs"] },
-  { href: "/mappings", label: "Column Mappings (G1)", icon: "sheet", need: "helper_work", match: ["/mappings"] },
-  { href: "/claims", label: "Claims & Payments", icon: "claims", need: "see_cleaned_data", match: ["/claims"] },
-  { href: "/questions", label: "Questions", icon: "questions", need: "helper_work", match: ["/questions"] },
-  { href: "/reports", label: "Reports", icon: "reports", need: "see_cleaned_data", match: ["/reports"] },
-  { href: "/rules", label: "Rule Library", icon: "rules", need: "view_rule_library", match: ["/rules"] },
-  { href: "/admin/users", label: "Settings", icon: "settings", need: "manage_users", match: ["/admin/users"] },
+  { href: "/", label: "Dashboard", icon: "home", tick: "dashboard_view", match: ["/"] },
+  { href: "/hospitals", label: "Hospitals", icon: "hospital", tick: "hospitals_view", match: ["/hospitals", "/admin/tabs"] },
+  { href: "/mappings", label: "Column Mappings", icon: "sheet", tick: "hospitals_view", match: ["/mappings"] },
+  { href: "/claims", label: "Clean Data", icon: "claims", tick: "clean_data_view", match: ["/claims"] },
+  { href: "/questions", label: "Questions", icon: "questions", tick: "questions_view", match: ["/questions"] },
+  { href: "/reports", label: "Audit & Runs", icon: "reports", tick: "audit_runs_view", match: ["/reports"] },
+  { href: "/rules", label: "Rule Library", icon: "rules", tick: "rule_library_view", match: ["/rules"] },
+  {
+    href: "/settings/users-and-access",
+    label: "Settings",
+    icon: "settings",
+    requireAdminOrOwner: true,
+    match: ["/settings/users-and-access", "/admin/users"],
+  },
 ];
 
 function isCurrent(pathname: string, item: NavItem) {
   return item.match.some((m) => (m === "/" ? pathname === "/" : pathname === m || pathname.startsWith(`${m}/`)));
 }
 
-export function Sidebar({ role }: { role: Role | null }) {
+export function Sidebar({ role, ticks }: { role: Role | null; ticks?: AccessTicks }) {
   const pathname = usePathname();
+
+  const isVisible = (item: NavItem) => {
+    if (role === null) return false;
+    if (role === "OWNER") return true;
+    if (item.requireAdminOrOwner) {
+      return can(role, "manage_users");
+    }
+    if (role === "ADMIN") return true;
+    // For USER: checked by access ticks
+    if (item.tick) {
+      return hasTick(ticks, item.tick, role);
+    }
+    return true;
+  };
+
   return (
     <aside className="sidebar">
       <Link href="/" className="brand">
@@ -36,7 +70,7 @@ export function Sidebar({ role }: { role: Role | null }) {
         </span>
       </Link>
       <nav className="nav" aria-label="Main">
-        {NAV.filter((item) => role !== null && (!item.need || can(role, item.need))).map((item) => (
+        {NAV.filter(isVisible).map((item) => (
           <Link key={item.href} href={item.href} aria-current={isCurrent(pathname, item) ? "page" : undefined}>
             {icons[item.icon]}
             {item.label}

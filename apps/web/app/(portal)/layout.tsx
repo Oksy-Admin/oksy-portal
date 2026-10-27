@@ -17,7 +17,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
 
   return (
     <div className="shell">
-      <Sidebar role={me.role} />
+      <Sidebar role={me.role} ticks={me.ticks} />
       <div className="main">
         <header className="topbar">
           <div className="run" style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -33,7 +33,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
             <div>
               {name}
               <br />
-              <small>{me.role ?? "no access"}</small>
+              <small>{me.role ?? (me.isPending ? "Waiting for approval" : "No access")}</small>
             </div>
             <form action="/auth/signout" method="post">
               <button type="submit" className="link-button">
@@ -44,9 +44,24 @@ export default async function PortalLayout({ children }: { children: ReactNode }
         </header>
         <main className="content">
           {me.role === null ? (
-            <div className="card">
-              <h1>No access</h1>
-              <p>Your access is not active. Ask Anoop (ADMIN).</p>
+            <div className="card" style={{ maxWidth: 540, margin: "6vh auto", padding: 32 }}>
+              {me.isPending ? (
+                <>
+                  <h1>Waiting for approval</h1>
+                  <p style={{ marginTop: 12, lineHeight: 1.6 }}>
+                    Your sign-in with <strong>{me.email}</strong> is recorded.
+                  </p>
+                  <p style={{ color: "#666", lineHeight: 1.6 }}>
+                    An Admin (Muhammed Ali) or the Owner (Anoop Das) will approve your account and configure your access permissions.
+                    Please check back once you have been approved.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1>No access</h1>
+                  <p style={{ marginTop: 12 }}>Your access is not active or has been retired. Contact an Admin if you need access restored.</p>
+                </>
+              )}
             </div>
           ) : (
             children

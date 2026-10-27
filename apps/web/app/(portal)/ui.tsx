@@ -56,10 +56,12 @@ export function EmptyTable({ columns, message }: { columns: string[]; message: s
 }
 
 const TONES: Record<string, string> = {
+  OWNER: "tone-purple",
   ADMIN: "tone-green",
   APPROVER: "tone-amber",
   HELPER: "tone-purple",
   USER: "tone-grey",
+  Pending: "tone-amber",
   ALLOW: "tone-green",
   DENY: "tone-red",
   REVIEW: "tone-amber",
