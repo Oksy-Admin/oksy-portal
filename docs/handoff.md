@@ -62,7 +62,7 @@ Known typical problems: year typos, mixed / and - in dates, text in date columns
 
 Phase 1 done when the 3 pilots clean daily and on Run now, questions reach Question Sheets and answers come back, Dashboard is live, and a full correct monthly report can be downloaded before the 10th.
 
-## 8. Current stage: STAGE 0 (only this now)
+## 8. Current stage: STAGE 1 (in progress; Stage 0 approved)
 Tasks:
 a. Check the local repo: git status, branch, last commits. Report it.
 b. Check Supabase: list tables and columns. Compare with what the UI expects.
