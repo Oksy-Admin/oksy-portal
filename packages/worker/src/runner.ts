@@ -49,6 +49,8 @@ export async function runOne(db: Db, job: Job & { attempts: number }): Promise<s
       read,
       events,
       suggest: suggestFromEnv(),
+      // REFRESH_PROPOSALS=1: re-propose unconfirmed column mappings (after the field list grew).
+      refreshProposals: process.env.REFRESH_PROPOSALS === "1",
       timing: (step, ms) => console.info(`[timing] job sheet-run ${step} ${ms}ms`),
     });
     const ok = summary.result === "WRITTEN" || summary.result === "DRY_RUN";

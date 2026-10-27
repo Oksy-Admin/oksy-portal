@@ -74,7 +74,7 @@ export function layoutOf(tab: RawTab, extraHeaders: Record<string, CanonicalFiel
   return { tab: tab.name, headerRow, headers, fingerprint: headerFingerprint(headers), map: mapHeaders(headers, extraHeaders) };
 }
 
-/** Source rows below the header. Duplicate-header and unmatched columns go to extra (never dropped). */
+/** Source rows below the header. Duplicate-header and unmatched columns go to extra (never dropped); ignored columns are skipped. */
 export function sourceRows(tab: RawTab, layout: TabLayout): SourceRow[] {
   if (layout.headerRow === null) return [];
   const out: SourceRow[] = [];
@@ -84,6 +84,7 @@ export function sourceRows(tab: RawTab, layout: TabLayout): SourceRow[] {
     const cells: SourceRow["cells"] = {};
     const extra: Record<string, string> = {};
     for (const m of layout.map) {
+      if (m.ignored) continue; // "Ignore (not needed)": not part of the data, not in extra_fields
       const c = raw[m.column];
       if (m.field) cells[m.field] = cell(c);
       else if (c?.[0] != null && c[0].trim() !== "") {

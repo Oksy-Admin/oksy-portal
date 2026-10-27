@@ -7,7 +7,7 @@
 // A person's own decision on a tab (set_tab_policy) is never changed here.
 // Logs counts and tab names only, never a cell value (hard rule 10).
 import { policyForNewTab, toEventRows, type createReadPath, type GoogleEvent, type TabPolicy } from "@oksy/google";
-import { classifyTabs, newestFirst, type CanonicalField, type ColumnMap } from "@oksy/rules";
+import { classifyTabs, newestFirst, readChoice, type CanonicalField, type ColumnMap } from "@oksy/rules";
 import type { Db } from "./db.ts";
 import { layoutOf, toRawTabs, type RawTab, type TabLayout } from "./sheet-data.ts";
 
@@ -24,6 +24,12 @@ export interface DiscoveryDeps {
   today: string; // ISO date, IST
   extraHeaders?: Record<string, CanonicalField>;
   suggest?: SuggestFn;
+  /**
+   * Re-propose layouts that are not confirmed yet, for example after the field list grew
+   * (REFRESH_PROPOSALS=1 on the runner). Only PROPOSED rows change; a person's APPROVED
+   * columns are kept as they are and their fields are not proposed again.
+   */
+  refresh?: boolean;
 }
 
 export interface DiscoverySummary {
@@ -37,6 +43,8 @@ export interface DiscoverySummary {
   waiting: Array<{ tab: string; reason: string }>;
   /** Header layouts proposed for confirmation in this run (one per new layout). */
   proposedLayouts: Array<{ tab: string; columns: number; aliasMapped: number; aiMapped: number }>;
+  /** Layouts re-proposed in this run (refresh), with how many PROPOSED rows changed. */
+  refreshedLayouts?: Array<{ tab: string; columns: number; aliasMapped: number; aiMapped: number; changed: number }>;
 }
 
 interface TabRow {
@@ -54,6 +62,8 @@ export interface MappingRow {
   source_column: number;
   canonical_field: string | null;
   status: string;
+  method?: string;
+  confidence?: number;
   approved_by: string | null;
   approved_at: string | null;
 }
@@ -83,14 +93,18 @@ export function confirmedLayouts(rows: MappingRow[]): Map<string, MappingRow[]> 
   return out;
 }
 
-/** The confirmed mapping applied to a layout: columns not confirmed go to extra_fields. */
+/**
+ * The confirmed mapping applied to a layout: columns not confirmed go to extra_fields;
+ * columns a person set to Ignore are marked ignored and never read (decision 27-Oct-2026).
+ */
 export function applyConfirmed(layout: TabLayout, confirmed: MappingRow[]): TabLayout {
   const byCol = new Map(confirmed.map((c) => [c.source_column, c]));
   return {
     ...layout,
     map: layout.map.map((m) => {
       const c = byCol.get(m.column);
-      return { ...m, field: (c?.canonical_field ?? null) as CanonicalField | null, confidence: c ? 1 : 0 };
+      const { field, ignored } = readChoice(c?.canonical_field ?? null);
+      return { ...m, field, confidence: c ? 1 : 0, ...(ignored ? { ignored } : {}) };
     }),
   };
 }
@@ -106,7 +120,38 @@ export function mappingRow(hospital: string, fileId: string, l: TabLayout, m: Co
     canonical_field: m.field,
     confidence: m.confidence,
     method: m.method,
+    status: "PROPOSED", // also the database default; never APPROVED by the worker or the AI
   };
+}
+
+/**
+ * The base for re-proposing a layout that already has rows: a person's APPROVED columns
+ * stay as they are (method MANUAL), and a field one of them holds is taken off any other
+ * column, so the alias list or the AI cannot propose it twice.
+ */
+export function refreshBase(l: TabLayout, stored: MappingRow[]): ColumnMap[] {
+  const approved = new Map(stored.filter((r) => r.status === "APPROVED").map((r) => [r.source_column, r]));
+  const held = new Set<string>();
+  for (const r of approved.values()) if (r.canonical_field) held.add(r.canonical_field);
+  return l.map.map((m) => {
+    const a = approved.get(m.column);
+    if (a) return { ...m, field: readChoice(a.canonical_field).field, confidence: 1, method: "MANUAL" };
+    if (m.field && held.has(m.field)) return { ...m, field: null, confidence: 0, method: "UNMATCHED" };
+    return m;
+  });
+}
+
+/** PROPOSED rows whose proposal differs from the new map: the patch for each. */
+export function proposalChanges(stored: MappingRow[], map: ColumnMap[]): Array<{ id: string; patch: { canonical_field: string | null; method: string; confidence: number } }> {
+  const byCol = new Map(map.map((m) => [m.column, m]));
+  const out: Array<{ id: string; patch: { canonical_field: string | null; method: string; confidence: number } }> = [];
+  for (const r of stored) {
+    const m = byCol.get(r.source_column);
+    if (r.status !== "PROPOSED" || !m || m.method === "MANUAL") continue;
+    if (r.canonical_field === m.field && r.method === m.method && Number(r.confidence) === m.confidence) continue;
+    out.push({ id: r.id, patch: { canonical_field: m.field, method: m.method, confidence: m.confidence } });
+  }
+  return out;
 }
 
 /** Stores a layout for confirmation (status PROPOSED), once per sheet and header. */
@@ -180,10 +225,11 @@ export async function discoverTabs(sheet: { hospital_code: string; spreadsheet_i
   const probe = toRawTabs(await deps.read.readHeaderRows(fileId, open.map((m) => m.tab)));
   await db.insert("google_events", toEventRows(deps.events.splice(0), deps.jobId));
   const mappings = await db.select<MappingRow>(
-    `column_mappings?spreadsheet_id=eq.${enc(fileId)}&status=neq.RETIRED&select=id,tab_name,header_fp,source_column,canonical_field,status,approved_by,approved_at`,
+    `column_mappings?spreadsheet_id=eq.${enc(fileId)}&status=neq.RETIRED&select=id,tab_name,header_fp,source_column,canonical_field,status,method,confidence,approved_by,approved_at`,
   );
   const confirmed = confirmedLayouts(mappings);
   const proposedFps = new Set(mappings.map((m) => m.header_fp));
+  const refreshedFps = new Set<string>();
 
   for (const m of open) {
     const raw = probe.find((t) => t.name === m.tab) ?? { name: m.tab, rows: [] };
@@ -220,6 +266,20 @@ export async function discoverTabs(sheet: { hospital_code: string; spreadsheet_i
         columns: map.length,
         aliasMapped: map.filter((x) => x.method === "ALIAS" && x.field).length,
         aiMapped: map.filter((x) => x.method === "AI" && x.field).length,
+      });
+    } else if (deps.refresh && !refreshedFps.has(l.fingerprint)) {
+      refreshedFps.add(l.fingerprint);
+      const stored = mappings.filter((r) => r.header_fp === l.fingerprint);
+      const base = { ...l, map: refreshBase(l, stored) };
+      const map = deps.suggest ? await deps.suggest(base, raw) : base.map;
+      const changes = proposalChanges(stored, map);
+      for (const c of changes) await db.update(`column_mappings?id=eq.${c.id}&status=eq.PROPOSED`, c.patch);
+      (summary.refreshedLayouts ??= []).push({
+        tab: m.tab,
+        columns: map.length,
+        aliasMapped: map.filter((x) => x.method === "ALIAS" && x.field).length,
+        aiMapped: map.filter((x) => x.method === "AI" && x.field).length,
+        changed: changes.length,
       });
     }
   }

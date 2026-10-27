@@ -33,6 +33,8 @@ export interface RunDeps {
   timing?: (step: string, ms: number) => void;
   /** AI column suggestions for a new header layout (Stage 3); alias list only when absent. */
   suggest?: SuggestFn;
+  /** Re-propose layouts not confirmed yet with the current field list (see discovery.ts). */
+  refreshProposals?: boolean;
 }
 
 export interface RunSummary {
@@ -126,7 +128,7 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   const today = istDate(now());
   const extraHeaders = fileId === HMS_SHEET ? HMS_HEADERS : {};
   const discovery = await step("discover", () =>
-    discoverTabs({ hospital_code: sheet.hospital_code, spreadsheet_id: fileId }, { db, read: deps.read, events: deps.events, jobId: job.id, today, extraHeaders, suggest: deps.suggest }),
+    discoverTabs({ hospital_code: sheet.hospital_code, spreadsheet_id: fileId }, { db, read: deps.read, events: deps.events, jobId: job.id, today, extraHeaders, suggest: deps.suggest, refresh: deps.refreshProposals }),
   );
   const tabRows = await db.select<{ tab_name: string; policy: TabPolicy; kind: string | null }>(
     `sheet_tabs?spreadsheet_id=eq.${enc(fileId)}&missing_since=is.null&select=tab_name,policy,kind`,
