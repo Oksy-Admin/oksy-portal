@@ -1,6 +1,6 @@
 # CLAUDE.md – Oksy Data Cleanse portal
 
-**Current stage: Stage 2 complete (awaiting Stage 2 report approval before Stage 3).**
+**Current stage: Stage 3 (Stage 0, 1 and 2 approved; Stage 2 checks open, see handoff section 8).**
 
 ## Source of truth (read in this order)
 1. `handoff.md` – current stage, decisions, pilot hospitals, working rules
