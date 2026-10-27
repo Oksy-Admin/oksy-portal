@@ -82,13 +82,13 @@ The live database does not match the repo in **either direction**. It is not sim
 | `CLAUDE.md` (new) | Points to handoff.md and requirements_v2.md as the source of truth; "Stage 0 only until Anoop approves stage0_report.md"; hard rules. No secrets. |
 | `stage0_report.md` (new) | This report |
 
-## 6. Commits made (local `main`, not pushed)
+## 6. Commits made (pushed to `origin/main`, f3e5b47..0d0a659)
 | Hash | Message |
 |---|---|
 | `7bd0920` | fix(hospitals): stop selecting needs_review so the page loads |
 | `55fbcca` | fix(rules): stop selecting rule_versions.needs_review so the Rule Library loads |
 | `523d02a` | docs: add CLAUDE.md pointing to handoff.md and requirements_v2.md |
-| (see `git log -1`) | docs: add Stage 0 report |
+| `0d0a659` | docs: add Stage 0 report |
 
 All commits carry the trailers `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>` and `Claude-Session: https://claude.ai/code/session_01NDBoAfd4A8pWVLBKApoLMG`.
 
