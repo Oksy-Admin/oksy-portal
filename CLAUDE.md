@@ -1,6 +1,6 @@
 # CLAUDE.md – Oksy Data Cleanse portal
 
-**Stage 0 only until Anoop approves stage0_report.md.**
+**Current stage: Stage 1 (Stage 0 approved).**
 
 ## Source of truth (read in this order)
 1. `handoff.md` – current stage, decisions, pilot hospitals, working rules
