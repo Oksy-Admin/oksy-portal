@@ -1,7 +1,14 @@
 "use client";
 
+import { CANONICAL_FIELDS, IGNORE_FIELD } from "@oksy/rules/fields";
 import { useState, useTransition } from "react";
 import { approveMappingAction, approveVersionGroupAction } from "./actions";
+
+/** How a stored choice reads on the page. */
+function choiceLabel(field: string | null): string {
+  if (field === IGNORE_FIELD) return "Ignore (not needed)";
+  return field ?? "extra_fields (not decided yet)";
+}
 
 export interface ColumnMappingItem {
   id: string;
@@ -18,39 +25,6 @@ export interface ColumnMappingItem {
   status: "PROPOSED" | "APPROVED" | "RETIRED";
   approved_at: string | null;
 }
-
-const CANONICAL_FIELDS = [
-  "serial_no",
-  "patient_name",
-  "patient_ip_no",
-  "policy_or_card_no",
-  "preauth_or_claim_no",
-  "insurer_name",
-  "tpa_name",
-  "admission_date",
-  "discharge_date",
-  "treatment_or_surgery",
-  "department",
-  "doctor_name",
-  "room_no",
-  "bill_amount",
-  "claimed_amount",
-  "approved_amount",
-  "copay_amount",
-  "deduction_amount",
-  "discount_amount",
-  "casesheet_sent_date",
-  "courier_no",
-  "followup_log",
-  "status_text",
-  "rejection_reason",
-  "cancellation_reason",
-  "payment_date",
-  "payment_amount",
-  "payment_utr",
-  "tds_amount_stated",
-  "remarks",
-];
 
 export function MappingTable({
   items,
@@ -94,7 +68,7 @@ export function MappingTable({
       const field = selectedFields[m.id] || null;
       const res = await approveMappingAction(m.id, field);
       if (res.ok) {
-        setMessage({ text: `Approved column "${m.source_header}" -> ${field ?? "(extra_fields)"}`, ok: true });
+        setMessage({ text: `Approved column "${m.source_header}" -> ${choiceLabel(field)}`, ok: true });
       } else {
         setMessage({ text: res.error ?? "Failed to approve", ok: false });
       }
@@ -160,6 +134,9 @@ export function MappingTable({
           const first = cols[0];
           if (!first) return null;
           const hasProposed = cols.some((c) => c.status === "PROPOSED");
+          // "Approve All" stores the saved proposals; a changed dropdown must be approved on its own row first.
+          const unsaved = cols.filter((c) => c.status === "PROPOSED" && (selectedFields[c.id] ?? "") !== (c.canonical_field ?? "")).length;
+          const ignoredCount = cols.filter((c) => c.canonical_field === IGNORE_FIELD).length;
           const lowConfCount = cols.filter((c) => c.confidence < 0.85).length;
           const hospName = hospitalNames[first.hospital_code] ?? first.hospital_code;
 
@@ -171,7 +148,8 @@ export function MappingTable({
                     {hospName} ({first.hospital_code}) · Tab: <span className="pill">{first.tab_name}</span>
                   </h3>
                   <div className="muted" style={{ fontSize: "0.85rem", marginTop: 4 }}>
-                    Version Group: <strong>{first.version_group}</strong> | Columns: {cols.length} |
+                    Version Group: <strong>{first.version_group}</strong> | Columns: {cols.length}
+                    {ignoredCount > 0 ? ` (${ignoredCount} ignored)` : ""} |
                     {lowConfCount > 0 ? (
                       <span className="pill tone-amber" style={{ marginLeft: 6 }}>
                         {lowConfCount} low confidence
@@ -185,13 +163,20 @@ export function MappingTable({
                 </div>
 
                 {hasProposed && (
-                  <button
-                    className="btn secondary"
-                    onClick={() => handleApproveGroup(first.spreadsheet_id, first.header_fp, `${first.hospital_code} ${first.tab_name}`)}
-                    disabled={isPending}
-                  >
-                    {isPending ? "Approving..." : "Approve All Proposed (G1)"}
-                  </button>
+                  <div style={{ textAlign: "right" }}>
+                    <button
+                      className="btn secondary"
+                      onClick={() => handleApproveGroup(first.spreadsheet_id, first.header_fp, `${first.hospital_code} ${first.tab_name}`)}
+                      disabled={isPending || unsaved > 0}
+                    >
+                      {isPending ? "Approving..." : "Approve All Proposed (G1)"}
+                    </button>
+                    {unsaved > 0 && (
+                      <div className="muted" style={{ fontSize: "0.8rem", marginTop: 4 }}>
+                        {unsaved} changed column{unsaved === 1 ? "" : "s"}: press Approve on {unsaved === 1 ? "that row" : "those rows"} first
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -214,7 +199,13 @@ export function MappingTable({
                       const isLow = m.confidence < 0.85;
 
                       return (
-                        <tr key={m.id} style={{ background: isLow && m.status === "PROPOSED" ? "rgba(255, 193, 7, 0.08)" : undefined }}>
+                        <tr
+                          key={m.id}
+                          style={{
+                            background: isLow && m.status === "PROPOSED" ? "rgba(255, 193, 7, 0.08)" : undefined,
+                            opacity: curVal === IGNORE_FIELD ? 0.6 : undefined,
+                          }}
+                        >
                           <td className="muted">{m.source_column + 1}</td>
                           <td>
                             <strong>{m.source_header || <span className="muted">(blank header)</span>}</strong>
@@ -225,7 +216,8 @@ export function MappingTable({
                               onChange={(e) => handleFieldChange(m.id, e.target.value)}
                               style={{ width: "100%", padding: "4px 8px", fontSize: "0.9rem" }}
                             >
-                              <option value="">(extra_fields - unmapped)</option>
+                              <option value="">extra_fields (not decided yet)</option>
+                              <option value={IGNORE_FIELD}>Ignore (not needed)</option>
                               {CANONICAL_FIELDS.map((f) => (
                                 <option key={f} value={f}>
                                   {f}

@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // The shared column-mapping field list (packages/rules/src/fields.ts) is TypeScript source.
+  transpilePackages: ["@oksy/rules"],
   async headers() {
     return [
       {

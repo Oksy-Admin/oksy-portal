@@ -8,7 +8,7 @@ import { MappingTable, type ColumnMappingItem } from "./mapping-table";
 async function ColumnMappingsPage() {
   const me = await getMe();
   if (!can(me?.role, "helper_work")) {
-    return <NoAccess title="Column Mappings" who="HELPER, APPROVER or ADMIN" />;
+    return <NoAccess title="Column Mappings" who="Owner or Admin" />;
   }
 
   const supabase = await createClient();
@@ -65,7 +65,7 @@ async function ColumnMappingsPage() {
     <div className="stack">
       <PageHead
         title="Column Mapping Review (G1)"
-        subtitle="Review and confirm column mappings per version group and tab. Low-confidence (< 85%) or unmatched columns require G1 review before locking."
+        subtitle="Confirm each header layout once. For every column choose a field, Ignore (not needed: never read, never in a report), or extra_fields (not decided yet). A layout counts as confirmed only when no column is PROPOSED."
       />
 
       <div className="grid grid-4">
