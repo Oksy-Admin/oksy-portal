@@ -311,13 +311,21 @@ export async function uploadHospitalListAction(
     accepted++;
   }
 
-  // Record upload batch in rule_upload_batches
-  await supabase.from("rule_upload_batches").insert({
-    file_name: file.name || "hospital_list_upload.csv",
-    uploaded_by: me?.userId ?? null,
-    total_rows: dataRows.length,
-    accepted_rows: accepted,
-    rejected_rows: rejected,
+  // Record upload batch in audit_log
+  await supabase.from("audit_log").insert({
+    actor_user_id: me?.userId ?? null,
+    actor_email: me?.email ?? null,
+    action: "UPLOAD",
+    table_name: "hospitals",
+    record_id: file.name || "hospital_list_upload.csv",
+    before: null,
+    after: {
+      file_name: file.name || "hospital_list_upload.csv",
+      total_rows: dataRows.length,
+      accepted_rows: accepted,
+      rejected_rows: rejected,
+    },
+    reason: `Bulk upload hospital list: ${accepted} accepted, ${rejected} rejected`,
   });
 
   revalidatePath("/hospitals");
