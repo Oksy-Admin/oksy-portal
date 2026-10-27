@@ -1,6 +1,6 @@
 # handoff.md – Oksy Data Cleanse portal
 
-Last updated: 27-Oct-2026 (handed over from Claude chat to Antigravity)
+Last updated: 27-Oct-2026 (Stage 0 and Stage 1 done; Stage 2 is next)
 
 ## 1. Read these first, in this order
 1. This file
@@ -50,10 +50,10 @@ Sample sheets use one company template; month tabs like OCT 2026, SEP 2026.
 Known typical problems: year typos, mixed / and - in dates, text in date columns, #VALUE! in LOS / settlement delay / TDS, phone number in policy column, many spellings of insurer/TPA, empty rows with only serial numbers.
 
 ## 7. Build stages
-0. Align Supabase, GitHub, Vercel with the local folder. Fix current load errors: Hospitals "Cannot load"; Rule Library "missing column".  <-- CURRENT
-1. Google sign-in, Owner/Admin/User, approval, access ticks, change log.
-2. Hospitals: profile, editable ID and names, bulk upload, robot access check. Load 3 pilots.
-3. Sheet reading: tab discovery, column mapping (confirm once), non-data rows, Run now.
+0. Align Supabase, GitHub, Vercel with the local folder. Fix current load errors: Hospitals "Cannot load"; Rule Library "missing column". — DONE (Anoop confirmed 27-Oct-2026)
+1. Google sign-in, Owner/Admin/User, approval, access ticks, change log. — DONE (Anoop confirmed 27-Oct-2026; change log deferred to Stage 6)
+2. Hospitals: profile, editable ID and names, bulk upload, robot access check. Load 3 pilots. — DONE (27-Oct-2026, awaiting report approval)
+3. Sheet reading: tab discovery, column mapping (confirm once), non-data rows, Run now. — NEXT (Stage 3)
 4. Rule Library + cleaning engine (Error/Warning, "value is correct", initial rules).
 5. Question Sheets (robot creates in Shared Drive), Questions page, 25/day policy.
 6. Dashboard with live status.
@@ -62,35 +62,41 @@ Known typical problems: year typos, mixed / and - in dates, text in date columns
 
 Phase 1 done when the 3 pilots clean daily and on Run now, questions reach Question Sheets and answers come back, Dashboard is live, and a full correct monthly report can be downloaded before the 10th.
 
-## 8. Current stage: STAGE 0 (only this now)
-Tasks:
-a. Check the local repo: git status, branch, last commits. Report it.
-b. Check Supabase: list tables and columns. Compare with what the UI expects.
-c. Find the cause of "Hospitals cannot load". Report the exact error and file.
-d. Find the cause of "Rule Library missing column". Report the column name and where it is used.
-e. Fix only what is needed for (c) and (d). Do not start new features.
-f. List Column Mappings and Claims & Payments features from the old portal that must survive the merge into the 7-page design (requirements_v2 section 14).
-g. Update CLAUDE.md to point to requirements_v2.md and this file. Do not paste secrets.
+## 8. Current stage: STAGE 2 DONE (awaiting approval before Stage 3)
+Stage 0, Stage 1, and Stage 2 are complete. Stage 2 report is in `stage2_report.md`.
 
-Output for Stage 0 (write to stage0_report.md in the project folder):
-- What was broken and why
+Stage 2 Tasks Completed:
+a. Pilot count confirmed by Anoop: 3 hospitals (HOSPPVTP0001, 0002, 0003).
+b. Baseline migration 0022 applied to live after database backup.
+c. RLS policies applied for hospital_id_history, report_downloads, rule_upload_batches (migration 0023).
+d. Hospitals page: editable profile (ID, name, other_names, status, question_sheet_url), bulk CSV upload, template download, robot access trigger.
+e. Confirmed 3 pilot hospitals loaded into live database.
+f. Hospital detail page / buttons deferred per Anoop's decision.
+g. Change log deferred to Stage 6 per Anoop's decision.
+h. handoff.md and CLAUDE.md updated.
+
+Output for Stage 2: write stage2_report.md in the project folder with:
+- What changed and why
 - Files changed
 - What still needs Anoop's decision
 
 Do NOT:
 - Write to any hospital Google Sheet
 - Commit API keys, service account JSON, or .env values
-- Change the requirements or decisions above
-- Start Stage 1 before Anoop approves the Stage 0 report
+- Change the requirements or decisions in section 5
+- Start Stage 3 before Anoop approves the Stage 2 report
 
-## 9. Open items (ask Anoop, do not decide yourself)
-1. Pilot count: 3 hospitals (v2) or 1 (HMS only, 26-Oct memory). Assume 3 unless told otherwise.
-2. "Clean once" definition for the 25/day policy (assumption in v2 section 14).
-3. Claude API key and monthly spending limit.
-4. Robot account: Workspace seat or service account.
-5. Owner screen for setting Admin access (not designed).
-6. Old data copy into new template: yes or no.
-7. Whether reports are download-only or also ready files per hospital.
+## 9. Decisions confirmed by Anoop (27-Oct-2026, do not ask again)
+1. Pilot count: 3 hospitals (HOSPPVTP0001, 0002, 0003). Confirmed.
+2. "Clean once" = the hospital's sheets have no Error and no Warning in a full cleaning pass. Then the portal shows the message "Congratulations, your Google Sheet is cleaned and up to date" (shown in the portal and Question Sheet; the portal still does not send messages to hospitals, per section 5). Before that: all issues go to the Question Sheet, no daily limit. After that: only issues from new entries go to the Question Sheet, max 25 per day, rest queued.
+3. Claude API: can be bought at any time when needed. Not a blocker for Stage 2. Monthly spending limit to be set at purchase.
+4. Robot account: service account.
+5. Owner screen: not separate. Admin access is set inside Settings > Users and Access (already designed). Do not build a separate Owner screen.
+6. Old data copy: not decided in these notes; keep as open.
+7. Reports: download only. No ready files per hospital. Clean rows are added to the database on every run; reports are generated from the database when downloaded.
+
+## 9a. Still open
+- Item 6 (old data copy into new template) and RLS policy for hospital_id_history, report_downloads, rule_upload_batches (section 8c).
 
 ## 10. Working rules
 - One tool works on one stage at a time. Do not edit the same file in two tools at once.
