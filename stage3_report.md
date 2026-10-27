@@ -66,3 +66,39 @@ Suggested commits (Anoop commits from his Mac): (1) `feat(rules): month tab disc
 6. **SDK version.** `@anthropic-ai/sdk` pinned at 1.3.0, released 23-Oct-2026 (4 days old). Keep or pin an older one?
 
 Also noted, not changed: the Claims page "Run now" panel still points at the old HMS code (HOSP32P000107), and the "Check Access" button cannot work on Vercel (see the Stage 2 close-out).
+
+## 7. Follow-up 27-Oct-2026: field list, Ignore choice (decisions in handoff 9d)
+Status: **built, Stage 3 still awaiting Anoop's approval.** No mapping was approved by me. No Stage 4 work.
+
+**What changed**
+- **One field list.** `packages/rules/src/fields.ts` is now the only list (35 fields). The worker, the AI prompt and the Column Mappings page all import it; the copy in `mapping-table.tsx` is gone (the web app now depends on `@oksy/rules` and loads only `@oksy/rules/fields`).
+- **Five fields added:** `phone_number`, `policy_holder_name`, `room_category`, `followup_date`, `preauth_approved_amount`. `followup_log` is kept. Aliases added: Phone / Phone No / Phone Number / Mobile / Mobile No / Mobile Number / Contact No / Contact Number; Policy Holder / Policy Holder Name / Insured Name / Card Holder / Card Holder Name; Room Category / Room Type; Follow Up Date / Follow-up Date / Next Follow Up / Next Follow Up Date; Pre-auth Approval Amount / Pre-auth Approved Amount / Preauth Approved Amount / Pre Auth Approved Amount / Preauth Approval Amount. None is on the never-on-name-alone list (tested). AI help text: `room_no` is now "room or bed number" only; `room_category` and `followup_date` have their own entries.
+- **Ignore (not needed)** on Column Mappings, next to "extra_fields (not decided yet)". Stored as `canonical_field = 'IGNORE'`, status APPROVED. An ignored column is skipped when rows are read: never in `claims_staging.extra_fields`, never in a report (tested). A layout counts as confirmed only when no column is PROPOSED; Ignore counts as decided (tested). The web action refuses any value that is not a field, Ignore or empty. "Approve All Proposed" is disabled while a dropdown in that layout was changed but not yet approved on its row (before, such a change was silently lost).
+- **Refresh of proposals.** A layout already proposed was never proposed again, so the new fields would not show. New runner flag `REFRESH_PROPOSALS=1`: discovery re-proposes layouts that are not confirmed. Only PROPOSED rows change; a person's APPROVED columns stay, and a field they hold is not proposed for another column.
+
+**Database**
+- Checked on live: `canonical_field` is plain text (no CHECK, enum or FK); status is PROPOSED / APPROVED / RETIRED. The new fields and Ignore need **no table change**.
+- `supabase/migrations/20261027000027_mapping_ignore_choice.sql` (functions only, same signatures and grants). **Anoop approved; applied to live 27-Oct-2026**, recorded as version `20261027132229` (`mapping_ignore_choice`). What it does: (1) `approve_column_mapping` stores the choice exactly. Today a NULL choice keeps the old field (`coalesce`), so choosing "extra_fields" on a column the alias list mapped kept the alias field. (2) Both approve functions: Owner and Admin only (`has_role('ADMIN')`, Owner always passes). APPROVER/HELPER no longer exist as live roles.
+- Checked after applying: both functions changed (md5 336b2585… → 0b8298c6…, ecc062ba… → dbd0964f…); `has_role('ADMIN')` gate, no APPROVER/HELPER, no `coalesce`; still SECURITY DEFINER with empty search_path; same arguments; grants unchanged (authenticated, postgres, service_role EXECUTE; anon cannot). A caller with no role is refused by both (42501). Mapping rows unchanged (APPROVED 28, PROPOSED 162).
+- Backup taken first (git-ignored): `supabase/.temp/backup_before_0027_20261027.sql` (both live function definitions, md5 noted, = rollback) and `backup_before_0027_20261027.rows.sql` (the 162 PROPOSED rows before the refresh, as restore SQL).
+
+**Live re-run, 27-Oct-2026** (worker `runSheetJob`, DRY_RUN, refresh on, AI on; no tab was ALLOW, so only tab lists and header rows of month tabs were read). Google events: LIST_TABS and READ_TAB of the month tabs only; no helper tab. `tabsRead` = none. Run ids 8a84aec6, a391b78b, d60a3f15 (one earlier attempt, dd6c2a65, stopped on a network reset after listing tabs).
+
+| Layout | Cols | Approved | Proposed (alias / AI / undecided) | Changed by the refresh |
+|---|---|---|---|---|
+| HOSPPVTP0001 OCT 2026 | 45 | 28 (see below) | 17 (2 / 1 / 12) | POLICY HOLDER NAME → policy_holder_name; PHONE NUMBER → phone_number; PAYMENT FOLLOW UP DATE → followup_date (AI) |
+| HOSPPVTP0001 SEP 2026 | 36 | 0 | 36 (27 / 2 / 5) | the same three, plus ROOM CATEGORY room_no (AI) → room_category (alias) |
+| HOSPPVTP0002 OCT 2026 | 37 | 0 | 37 (28 / 2 / 5) | the same four, plus PREAUTH APPROVA AMOUNT (typo in the sheet) → preauth_approved_amount (AI) |
+| HOSPPVTP0003 OCTOBER 2026 | 36 | 0 | 36 (27 / 2 / 5) | the same four as Badagara SEP |
+| HOSPPVTP0003 sep 26 | 36 | 0 | 36 (27 / 2 / 5) | the same four |
+
+Still extra_fields (undecided) in most layouts: LOS, SETTLEMENT DELAY (the portal calculates these; candidates for Ignore), UHID (the IP column already has `patient_ip_no`), BALANCE AMOUNT, a second TDS AMOUNT / `#VALUE!` header; Badagara OCT also has blank columns 37 to 45. AI proposals are capped at 80% and stay PROPOSED.
+
+**Checks:** `pnpm typecheck`, `pnpm lint`, `pnpm build` pass. `pnpm test` pass: rules 113, google 40, worker 23, web 12 = 188. Secret scan: no leaks (commits, plus every changed and new file).
+
+**Found, needs Anoop**
+1. **28 columns are already APPROVED** on Badagara `OCT 2026`, approved one by one by anoop@oksy.in on 27-Oct-2026 between 11:50 and 12:03 UTC. The other 17 columns are PROPOSED, so this layout is half-confirmed and **not used** (nothing is read). I did not change these rows. Among them: ROOM CATEGORY approved as `room_no` (with the new list it should be `room_category`; press Update on that row), BALANCE AMOUNT approved as extra_fields. Keep them, or should they be put back to PROPOSED?
+2. **Clean-data columns from v1 section 10 with no field** (not added, as instructed): **Query Details** and **Balance Status** (not marked (C), so it may come from the sheet). Hardcopy Sent Date, POD Number and Follow-up Remarks already exist as `casesheet_sent_date`, `courier_no`, `followup_log`. Add these two?
+3. ~~Migration 0027: OK to apply?~~ Anoop said yes; applied and checked (above).
+4. **Stage 4 note:** the cleaning engine (`CleanClaim`) and `claims_staging` have no columns for the five new fields yet, so a WRITE run would not store them. Nothing is lost today (Stage 3 is DRY_RUN). This must be part of Stage 4.
+5. `pnpm-lock.yaml`: besides the workspace link, pnpm re-recorded the optional peer `@opentelemetry/api` (already installed, nothing downloaded).

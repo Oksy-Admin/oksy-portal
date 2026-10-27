@@ -1,6 +1,6 @@
 # handoff.md – Oksy Data Cleanse portal
 
-Last updated: 27-Oct-2026 (Stage 0, 1, 2 approved; Stage 3 done, awaiting approval)
+Last updated: 27-Oct-2026 (Stage 0, 1, 2 approved; Stage 3 done plus field-list follow-up, awaiting approval)
 
 ## 1. Read these first, in this order
 1. This file
@@ -53,7 +53,7 @@ Known typical problems: year typos, mixed / and - in dates, text in date columns
 0. Align Supabase, GitHub, Vercel with the local folder. Fix current load errors: Hospitals "Cannot load"; Rule Library "missing column". — DONE (Anoop confirmed 27-Oct-2026)
 1. Google sign-in, Owner/Admin/User, approval, access ticks, change log. — DONE (Anoop confirmed 27-Oct-2026; change log deferred to Stage 6)
 2. Hospitals: profile, editable ID and names, bulk upload, robot access check. Load 3 pilots. — DONE (Anoop approved 27-Oct-2026; checks open, see section 8)
-3. Sheet reading: tab discovery, column mapping (confirm once), non-data rows, Run now. — DONE, awaiting Anoop's approval (27-Oct-2026). Evidence: stage3_report.md; migration 20261027000026 applied to live (recorded as 20261027110411); live run of the 3 pilots 27-Oct-2026 (month tabs found, 5 mapping layouts proposed); 165 tests pass.
+3. Sheet reading: tab discovery, column mapping (confirm once), non-data rows, Run now. — DONE, awaiting Anoop's approval (27-Oct-2026). Evidence: stage3_report.md; migration 20261027000026 applied to live (recorded as 20261027110411); live run of the 3 pilots 27-Oct-2026 (month tabs found, 5 mapping layouts proposed). Follow-up 27-Oct-2026 (stage3_report.md section 7): one shared field list with 5 new fields, "Ignore (not needed)" choice, proposals refreshed on live; migration 20261027000027 APPLIED to live 27-Oct-2026 after Anoop's OK (recorded as 20261027132229); 188 tests pass.
 4. Rule Library + cleaning engine (Error/Warning, "value is correct", initial rules).
 5. Question Sheets (robot creates in Shared Drive), Questions page, 25/day policy.
 6. Dashboard with live status.
@@ -67,11 +67,15 @@ Stage 3 is built and reported in stage3_report.md (27-Oct-2026). Stage 4 starts 
 
 Stage 2 checks: closed out in stage2_report.md section 6 (bulk upload preview missing; Check Access button only "started", per-sheet result via CLI and pills; role tests pass; aliases: No).
 
-Open before / at approval (see stage3_report.md section 6):
-a. Confirm the 5 proposed column-mapping layouts on Column Mappings (Owner or Admin), then Run now, to see month tabs read and serial-only rows skipped on live.
-b. Status-named tabs (PAID, PENDING, CANCELLED, ...) are not read: are any of them claim data?
-c. Near-identical headers between months: strict (2 confirmations) or tolerant?
-d. Who may confirm mappings; where the runner runs until Stage 8.
+Open before / at approval (see stage3_report.md sections 6 and 7):
+a. Migration 20261027000027 (approve functions: exact choice, Owner/Admin only): APPLIED 27-Oct-2026 after Anoop's OK and checked (definitions, grants, gate). Rollback: supabase/.temp/backup_before_0027_20261027.sql.
+b. Badagara OCT 2026 has 28 of 45 columns APPROVED (by anoop@oksy.in, 27-Oct-2026, 11:50 to 12:03 UTC); half-confirmed, so not used. Keep or put back to PROPOSED? ROOM CATEGORY there is approved as room_no (should be room_category).
+c. v1 section 10 columns with no field yet: Query Details, Balance Status. Add?
+d. Then confirm the 5 layouts on Column Mappings (Owner or Admin; Ignore LOS and Settlement Delay if not needed), then Run now, to see month tabs read and serial-only rows skipped on live.
+e. Status-named tabs (PAID, PENDING, CANCELLED, ...) are not read: are any of them claim data?
+f. Where the runner runs until Stage 8.
+
+Must be in Stage 4: CleanClaim and claims_staging get the 5 new fields (phone_number, policy_holder_name, room_category, followup_date, preauth_approved_amount); today a WRITE run would not store them (Stage 3 runs are DRY_RUN, so nothing is lost).
 
 Do NOT:
 - Write to any hospital Google Sheet. The portal only reads them.
@@ -87,6 +91,14 @@ Do NOT:
 5. Owner screen: not separate. Admin access is set inside Settings > Users and Access (already designed). Do not build a separate Owner screen.
 6. Old data copy: not decided in these notes; keep as open.
 7. Reports: download only. No ready files per hospital. Clean rows are added to the database on every run; reports are generated from the database when downloaded.
+
+## 9d. Decisions recorded 27-Oct-2026 (Stage 3 follow-up, Anoop)
+1. A report has the same columns, in the same order, for every hospital. A hospital without a column shows blank cells.
+2. Field list gets phone_number, policy_holder_name, room_category, followup_date, preauth_approved_amount (v1 section 10 Phone Number; v2 section 7 Policy Holder Name, Room Category, Follow-up Date, Pre-auth Approved Amount). followup_log stays. No other field added without asking.
+3. Column Mappings has an explicit "Ignore (not needed)" choice: the column is not part of the data and not in any report. "extra_fields" is only for columns nobody has decided on yet.
+4. The Yes/No question for unexpected extra columns is NOT built now; it is Stage 6. When built: Yes adds the column to every hospital's report (blank where missing); only the Owner decides.
+5. Header changes between months stay strict: each different header layout is confirmed separately. Only Owner and Admin confirm mappings.
+6. Migration 20261027000027: Anoop said apply (27-Oct-2026). APPLIED to live, recorded as 20261027132229.
 
 ## 9a. Still open
 - Item 6 (old data copy into new template) and RLS policy for hospital_id_history, report_downloads, rule_upload_batches (section 8c).
