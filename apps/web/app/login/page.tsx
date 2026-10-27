@@ -3,8 +3,6 @@ import { GoogleSignInButton } from "./google-sign-in-button";
 import { withTiming } from "@/lib/timing";
 
 const MESSAGES: Record<string, string> = {
-  not_registered:
-    "This Google account is not registered for the Oksy portal. Ask Anoop (ADMIN) to add your email.",
   failed: "Sign-in did not complete. Please try again.",
 };
 
@@ -19,7 +17,10 @@ async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: str
       ) : (
         <p>Login is not set up yet: the Supabase project does not exist.</p>
       )}
-      <p>Only people added by an ADMIN can sign in. Hospital staff do not use this portal.</p>
+      <p style={{ marginTop: 16, color: "#666", fontSize: "0.9rem" }}>
+        Anyone can sign in with their Google account to request access.
+        New users see no data until approved by an Admin or the Owner.
+      </p>
     </main>
   );
 }
