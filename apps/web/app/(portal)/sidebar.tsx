@@ -26,6 +26,8 @@ const NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: "home", tick: "dashboard_view", match: ["/"] },
   { href: "/hospitals", label: "Hospitals", icon: "hospital", tick: "hospitals_view", match: ["/hospitals", "/admin/tabs"] },
   { href: "/mappings", label: "Column Mappings", icon: "sheet", tick: "hospitals_view", match: ["/mappings"] },
+  // Field list for column mapping: Owner and Admin only (decision 27-Oct-2026).
+  { href: "/fields", label: "Fields", icon: "fields", requireAdminOrOwner: true, match: ["/fields"] },
   { href: "/claims", label: "Clean Data", icon: "claims", tick: "clean_data_view", match: ["/claims"] },
   { href: "/questions", label: "Questions", icon: "questions", tick: "questions_view", match: ["/questions"] },
   { href: "/reports", label: "Audit & Runs", icon: "reports", tick: "audit_runs_view", match: ["/reports"] },

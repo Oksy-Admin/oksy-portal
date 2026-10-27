@@ -13,7 +13,7 @@ import {
   type RuleVersion,
 } from "@oksy/rules";
 import { chunks, type Db } from "./db.ts";
-import { applyConfirmed, confirmedLayouts, discoverTabs, proposeLayout, type DiscoverySummary, type MappingRow, type SuggestFn } from "./discovery.ts";
+import { applyConfirmed, confirmedLayouts, discoverTabs, loadFields, proposeLayout, type DiscoverySummary, type MappingRow, type SuggestFn } from "./discovery.ts";
 import { defaultProfile, doctorAliasesFrom, HMS_CODE, HMS_HEADERS, HMS_SHEET, hmsProfile } from "./hms-profile.ts";
 import { emptyReconciliation, reconcile, type Reconciliation } from "./reconcile.ts";
 import { layoutOf, legendFrom, sourceRows, toRawTabs, type TabLayout } from "./sheet-data.ts";
@@ -127,8 +127,12 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   //    confirmed header becomes ALLOW. Then only ALLOW tabs are put in the request.
   const today = istDate(now());
   const extraHeaders = fileId === HMS_SHEET ? HMS_HEADERS : {};
+  const fields = await loadFields(db);
   const discovery = await step("discover", () =>
-    discoverTabs({ hospital_code: sheet.hospital_code, spreadsheet_id: fileId }, { db, read: deps.read, events: deps.events, jobId: job.id, today, extraHeaders, suggest: deps.suggest, refresh: deps.refreshProposals }),
+    discoverTabs(
+      { hospital_code: sheet.hospital_code, spreadsheet_id: fileId },
+      { db, read: deps.read, events: deps.events, jobId: job.id, today, extraHeaders, suggest: deps.suggest, refresh: deps.refreshProposals, fields },
+    ),
   );
   const tabRows = await db.select<{ tab_name: string; policy: TabPolicy; kind: string | null }>(
     `sheet_tabs?spreadsheet_id=eq.${enc(fileId)}&missing_since=is.null&select=tab_name,policy,kind`,
@@ -158,7 +162,7 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
 
   // 4. Layouts and the timestamped raw snapshot (never edited).
   const dataTabs = rawTabs.filter((t) => kind[t.name] === "DATA");
-  const found: TabLayout[] = dataTabs.map((t) => layoutOf(t, extraHeaders));
+  const found: TabLayout[] = dataTabs.map((t) => layoutOf(t, extraHeaders, fields));
   const raw = JSON.stringify(rawTabs);
   const [snap] = await step("snapshot", () =>
     db.insert<{ id: string }>(

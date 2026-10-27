@@ -1,7 +1,8 @@
 import { createReadPath, makeLogger, type CellData, type GoogleEvent, type SheetsReader } from "@oksy/google";
 import { describe, expect, it } from "vitest";
-import { IGNORE_FIELD } from "@oksy/rules";
-import { applyConfirmed, confirmedLayouts, proposalChanges, refreshBase, type MappingRow } from "../src/discovery.ts";
+import { coreFieldDefs, IGNORE_FIELD, type FieldDef } from "@oksy/rules";
+import { DbError } from "../src/db.ts";
+import { applyConfirmed, confirmedLayouts, loadFields, proposalChanges, refreshBase, type MappingRow } from "../src/discovery.ts";
 import { layoutOf, sourceRows, type RawTab } from "../src/sheet-data.ts";
 import { runSheetJob } from "../src/sheet-run.ts";
 import { fakeDb } from "./fake-db.ts";
@@ -222,3 +223,44 @@ describe("Ignore choice and proposal refresh", () => {
     expect(s.tabsRead).toEqual([]); // still not confirmed: nothing is read
   });
 });
+
+// Fields page (decisions 27-Oct-2026): a field added there maps and is stored in extra_fields.
+describe("fields from mapping_fields", () => {
+  const balance: FieldDef = { key: "balance_status", label: "Balance Status", data_type: "text", aliases: ["Balance Status"], status: "ACTIVE", is_core: false, sort_order: 360 };
+  const cell = (t: string): [string, null, null] => [t, null, null];
+  const raw: RawTab = {
+    name: "OCT 2026",
+    rows: [["Sl No", "PATIENT NAME", "BALANCE STATUS", "WARD NOTE"].map(cell), ["1", "Fake Patient One", "Fake pending", "fake note"].map(cell)],
+  };
+
+  it("a new field maps and its value is stored in extra_fields under its key", () => {
+    const l = layoutOf(raw, {}, [...coreFieldDefs(), balance]);
+    expect(l.map[2]).toMatchObject({ field: null, custom: "balance_status", method: "ALIAS" });
+    const fp = l.fingerprint;
+    const confirmed: MappingRow[] = [
+      { id: "a", tab_name: "OCT 2026", header_fp: fp, source_column: 0, canonical_field: "serial_no", status: "APPROVED", approved_by: "u", approved_at: null },
+      { id: "b", tab_name: "OCT 2026", header_fp: fp, source_column: 1, canonical_field: "patient_name", status: "APPROVED", approved_by: "u", approved_at: null },
+      { id: "c", tab_name: "OCT 2026", header_fp: fp, source_column: 2, canonical_field: "balance_status", status: "APPROVED", approved_by: "u", approved_at: null },
+      { id: "d", tab_name: "OCT 2026", header_fp: fp, source_column: 3, canonical_field: null, status: "APPROVED", approved_by: "u", approved_at: null },
+    ];
+    const [row] = sourceRows(raw, applyConfirmed(layoutOf(raw), confirmed));
+    expect(row!.extra).toEqual({ balance_status: "Fake pending", "WARD NOTE": "fake note" });
+    expect(Object.keys(row!.cells)).toEqual(["serial_no", "patient_name"]);
+  });
+
+  it("discovery proposes the new field's key for the column", async () => {
+    const db = fakeDb({ ...seed(), mapping_fields: [...coreFieldDefs(), balance].map((f) => ({ ...f })) });
+    const data = tabs();
+    for (const t of ["OCT 2026", "SEP 2026"]) data[t]![1]!.push(v("BALANCE STATUS"));
+    await run(db, data);
+    expect(db.tables.column_mappings!.find((m) => m.source_header === "BALANCE STATUS")).toMatchObject({ canonical_field: "balance_status", method: "ALIAS" });
+  });
+
+  it("before the table exists, the code list is used", async () => {
+    const missing = { select: async () => { throw new DbError("GET", "mapping_fields", 404, "PGRST205"); } } as unknown as Parameters<typeof loadFields>[0];
+    expect(await loadFields(missing)).toEqual([]);
+    const broken = { select: async () => { throw new DbError("GET", "mapping_fields", 500, "?"); } } as unknown as Parameters<typeof loadFields>[0];
+    await expect(loadFields(broken)).rejects.toThrow(DbError);
+  });
+});
+

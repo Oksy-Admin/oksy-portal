@@ -1,6 +1,6 @@
 # CLAUDE.md – Oksy Data Cleanse portal
 
-**Current stage: Stage 3 done (plus field-list / Ignore follow-up of 27-Oct-2026), awaiting Anoop's approval (Stage 0, 1 and 2 approved). Migration 20261027000027 applied to live 27-Oct-2026. Do not start Stage 4 before approval.**
+**Current stage: Stage 3b (Fields page) done, awaiting Anoop's approval, commit, push and the Balance Status test (Stage 0, 1, 2 and 3 approved). Migration 20261027000028 applied to live 27-Oct-2026. Do not start Stage 4 until Anoop says so.**
 
 ## Source of truth (read in this order)
 1. `handoff.md` – current stage, decisions, pilot hospitals, working rules

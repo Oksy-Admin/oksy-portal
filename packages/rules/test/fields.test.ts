@@ -21,11 +21,12 @@ describe("field list", () => {
     expect(isMappingChoice("not_a_field")).toBe(false);
   });
 
-  it("reads a stored choice: Ignore is ignored, unknown text is extra_fields", () => {
+  it("reads a stored choice: Ignore, a core field, a field added on the Fields page, or extra_fields", () => {
     expect(readChoice(IGNORE_FIELD)).toEqual({ field: null, ignored: true });
     expect(readChoice("room_category")).toEqual({ field: "room_category", ignored: false });
+    expect(readChoice("balance_status")).toEqual({ field: null, ignored: false, custom: "balance_status" });
     expect(readChoice(null)).toEqual({ field: null, ignored: false });
-    expect(readChoice("old_field_name")).toEqual({ field: null, ignored: false });
+    expect(readChoice("Not A Key")).toEqual({ field: null, ignored: false });
   });
 });
 

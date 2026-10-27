@@ -102,3 +102,31 @@ Still extra_fields (undecided) in most layouts: LOS, SETTLEMENT DELAY (the porta
 3. ~~Migration 0027: OK to apply?~~ Anoop said yes; applied and checked (above).
 4. **Stage 4 note:** the cleaning engine (`CleanClaim`) and `claims_staging` have no columns for the five new fields yet, so a WRITE run would not store them. Nothing is lost today (Stage 3 is DRY_RUN). This must be part of Stage 4.
 5. `pnpm-lock.yaml`: besides the workspace link, pnpm re-recorded the optional peer `@opentelemetry/api` (already installed, nothing downloaded).
+
+## 8. Fields page and mapping_fields (27-Oct-2026, after Stage 3 approval; decisions in handoff 9e)
+Status: **built and tested; migration 20261027000028 applied to live 27-Oct-2026 after Anoop's OK.** Stage 4 not started. No mapping approved by me.
+
+**What changed**
+- **Field list in the database.** New table `mapping_fields` (key, label, data_type, aliases, status ACTIVE/HIDDEN, is_core, sort_order, created_at/by, updated_at). Seeded with the 35 core fields from `packages/rules/src/fields.ts` (labels, types and aliases now live there as the seed and the fallback). A test checks that the migration seed equals the code list, and that mapping with the seeded list gives exactly the same result as before. Until the migration is applied, the worker and the pages use the code list, so nothing changes.
+- **Fields page** (`/fields`, menu "Fields", Owner and Admin only): list with label, key, type, aliases, status and how many hospital columns use each field (confirmed / proposed); Add (label, type, aliases); Edit (rename = label only, the key stays; type; aliases); Hide / Show; Delete only for an unused field ("In use, hide instead"). Changing the type of a field that columns use asks for confirmation first.
+- **Column Mappings** reads the list from `mapping_fields` and shows labels. Hidden fields are not offered for new mappings (a row that already has one still shows it, marked "hidden"). Each dropdown: extra_fields, Ignore, the active fields, and "+ Create new field" (small form: label, type, aliases; creates the field and maps that column to it).
+- **Worker:** loads `mapping_fields` each run; aliases come from it (hidden fields are never proposed; an alias claimed by two fields maps to neither). A field added on the page is stored in `claims_staging.extra_fields` under its key (no new column). Before the table exists the code list is used.
+- **Reports:** `reportFields` / `reportRow` give every ACTIVE field in the fixed order (`sort_order`), blank where a hospital has no column. The download itself is Stage 7.
+
+**Database (migration `20261027000028_mapping_fields.sql`, applied to live 27-Oct-2026, recorded as `20261027143126`)**
+- Table + unique label (case-insensitive) + audit trigger (insert, update, delete go to `audit_log`) + no truncate.
+- Read: every approved user. Write: only through `create_mapping_field`, `update_mapping_field`, `set_mapping_field_status`, `delete_mapping_field` (Owner / Admin; `anon` cannot execute).
+- `approve_column_mapping` also checks the choice: NULL, IGNORE, an ACTIVE field, or the value the row already has.
+- Backup first: `supabase/.temp/backup_before_0028_20261027.sql` (rollback; live `approve_column_mapping` md5 0b8298c6… checked equal before writing it).
+- **Tested on a throwaway local Postgres 17** (the `supabase/postgres` image already on the Mac; live untouched): `scripts/db-tests/run-local.sh`, 29 checks pass: seed 35/35 core/active; Balance Status added (key `balance_status`, order 360) → **36 fields**; duplicate label and an alias of another field refused; a test column mapped to `balance_status`; rename keeps the key and the mapping; delete refused when a column or a stored claim uses the field, and for core fields; hidden field refused for a new mapping but kept on its row; unknown key refused; no role / USER refused; audit rows written; `authenticated` SELECT only on the table.
+
+- **Checked on live after applying:** 35 rows, all core and ACTIVE, `sort_order` 10..350 (35 distinct), 171 aliases, types amount 9 / date 5 / number 1 / text 20. The live seed checksum equals the code list's (md5 d318b22b…). RLS on; one policy (SELECT for `authenticated`); table grants: `authenticated` SELECT only, nothing for `anon`; triggers `audit` and `no_truncate`; 35 seed inserts in `audit_log`. The 4 field functions and both approve functions run with the owner's rights, have an empty search path and the Owner/Admin gate; `authenticated` can run them, `anon` cannot. The two private helpers cannot be called by `anon`, `authenticated` or `service_role`. On live, a caller with no role is refused create, core delete and core type change (42501), and the count stays 35.
+
+**Step 3 test (Balance Status)**: done in the local database (above: count 36, test column mapped) and in worker tests (a column mapped to `balance_status` is stored as `extra_fields.balance_status`). **Not done on live yet**: mapping a live column means approving a mapping, which is Owner / Admin work. Also no row reaches `extra_fields` on live while runs are DRY_RUN (until Stage 4).
+
+**Checks:** `pnpm typecheck`, `pnpm lint`, `pnpm build` pass. `pnpm test`: rules 121, google 40, worker 27, web 12 = **200 pass**. New tests: rename keeps mappings; delete blocked when in use (and for core); hidden field not offered (alias and choice); new field maps and is stored in extra_fields; seed equals code; report order and blanks; table-missing fallback. Secret scan: no leaks (commits and all 27 changed files). Page not clicked in a browser (needs a Google sign-in).
+
+**Decisions needed (Anoop)**
+1. ~~Apply migration 0028?~~ Anoop said yes; applied and checked (above).
+2. ~~Core field rules~~ Anoop confirmed: core fields cannot be deleted and their type cannot be changed.
+3. Now that 0028 is applied: you (or Admin) add Balance Status on the Fields page and map a column to it, or I add it through the database and you check it on the page?

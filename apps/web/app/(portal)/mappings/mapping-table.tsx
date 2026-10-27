@@ -1,13 +1,18 @@
 "use client";
 
-import { CANONICAL_FIELDS, IGNORE_FIELD } from "@oksy/rules/fields";
+import { IGNORE_FIELD, offeredFields, type FieldDef } from "@oksy/rules/fields";
 import { useState, useTransition } from "react";
-import { approveMappingAction, approveVersionGroupAction } from "./actions";
+import { FieldForm } from "../fields/fields-table";
+import { approveMappingAction, approveVersionGroupAction, createFieldAndMapAction } from "./actions";
+
+/** The dropdown value that opens the small "new field" form. Never stored. */
+const NEW_FIELD = "__new__";
 
 /** How a stored choice reads on the page. */
-function choiceLabel(field: string | null): string {
+function choiceLabel(field: string | null, labels: Record<string, string>): string {
   if (field === IGNORE_FIELD) return "Ignore (not needed)";
-  return field ?? "extra_fields (not decided yet)";
+  if (field === null) return "extra_fields (not decided yet)";
+  return labels[field] ?? field;
 }
 
 export interface ColumnMappingItem {
@@ -29,10 +34,20 @@ export interface ColumnMappingItem {
 export function MappingTable({
   items,
   hospitalNames,
+  fields,
+  canCreateFields,
 }: {
   items: ColumnMappingItem[];
   hospitalNames: Record<string, string>;
+  /** The mapping_fields list (Fields page). Only ACTIVE fields are offered for a new choice. */
+  fields: FieldDef[];
+  /** false while the field list is read from the code (migration 0028 not applied). */
+  canCreateFields: boolean;
 }) {
+  const labels = Object.fromEntries(fields.map((f) => [f.key, f.label]));
+  const hidden = new Set(fields.filter((f) => f.status !== "ACTIVE").map((f) => f.key));
+  const offered = offeredFields(fields);
+  const [newField, setNewField] = useState<{ id: string; label: string; type: string; aliases: string } | null>(null);
   const [filterHospital, setFilterHospital] = useState<string>("ALL");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [onlyLowConfidence, setOnlyLowConfidence] = useState<boolean>(false);
@@ -59,6 +74,10 @@ export function MappingTable({
   }
 
   const handleFieldChange = (id: string, value: string) => {
+    if (value === NEW_FIELD) {
+      setNewField({ id, label: "", type: "text", aliases: "" });
+      return; // the stored choice changes only when the new field is created
+    }
     setSelectedFields((prev) => ({ ...prev, [id]: value }));
   };
 
@@ -68,9 +87,24 @@ export function MappingTable({
       const field = selectedFields[m.id] || null;
       const res = await approveMappingAction(m.id, field);
       if (res.ok) {
-        setMessage({ text: `Approved column "${m.source_header}" -> ${choiceLabel(field)}`, ok: true });
+        setMessage({ text: `Approved column "${m.source_header}" -> ${choiceLabel(field, labels)}`, ok: true });
       } else {
         setMessage({ text: res.error ?? "Failed to approve", ok: false });
+      }
+    });
+  };
+
+  const handleCreateAndMap = (m: ColumnMappingItem) => {
+    if (!newField || newField.id !== m.id) return;
+    setMessage(null);
+    startTransition(async () => {
+      const res = await createFieldAndMapAction(m.id, newField.label, newField.type, newField.aliases);
+      if (res.ok) {
+        setSelectedFields((prev) => ({ ...prev, [m.id]: res.key ?? "" }));
+        setNewField(null);
+        setMessage({ text: `Created field "${newField.label.trim()}" and mapped column "${m.source_header}" to it.`, ok: true });
+      } else {
+        setMessage({ text: res.error, ok: false });
       }
     });
   };
@@ -218,12 +252,29 @@ export function MappingTable({
                             >
                               <option value="">extra_fields (not decided yet)</option>
                               <option value={IGNORE_FIELD}>Ignore (not needed)</option>
-                              {CANONICAL_FIELDS.map((f) => (
-                                <option key={f} value={f}>
-                                  {f}
+                              {/* A hidden field stays visible only on a row that already has it. */}
+                              {curVal && hidden.has(curVal) && <option value={curVal}>{labels[curVal]} (hidden)</option>}
+                              {curVal && curVal !== IGNORE_FIELD && !(curVal in labels) && <option value={curVal}>{curVal} (not in the field list)</option>}
+                              {offered.map((f) => (
+                                <option key={f.key} value={f.key}>
+                                  {f.label}
                                 </option>
                               ))}
+                              {canCreateFields && <option value={NEW_FIELD}>+ Create new field</option>}
                             </select>
+                            {newField?.id === m.id && (
+                              <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+                                <FieldForm draft={newField} onChange={(d) => setNewField({ id: m.id, ...d })} />
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <button className="btn" style={{ padding: "4px 10px" }} disabled={isPending || !newField.label.trim()} onClick={() => handleCreateAndMap(m)}>
+                                    Create and map
+                                  </button>
+                                  <button className="btn secondary" style={{ padding: "4px 10px" }} disabled={isPending} onClick={() => setNewField(null)}>
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </td>
                           <td>
                             <span className={`pill ${m.confidence >= 0.85 ? "tone-green" : "tone-amber"}`}>

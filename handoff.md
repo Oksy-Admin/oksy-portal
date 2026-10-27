@@ -1,6 +1,6 @@
 # handoff.md – Oksy Data Cleanse portal
 
-Last updated: 27-Oct-2026 (Stage 0, 1, 2 approved; Stage 3 done plus field-list follow-up, awaiting approval)
+Last updated: 27-Oct-2026 (Stage 0, 1, 2, 3 approved; Stage 3b Fields page done, awaiting Anoop's approval)
 
 ## 1. Read these first, in this order
 1. This file
@@ -53,7 +53,8 @@ Known typical problems: year typos, mixed / and - in dates, text in date columns
 0. Align Supabase, GitHub, Vercel with the local folder. Fix current load errors: Hospitals "Cannot load"; Rule Library "missing column". — DONE (Anoop confirmed 27-Oct-2026)
 1. Google sign-in, Owner/Admin/User, approval, access ticks, change log. — DONE (Anoop confirmed 27-Oct-2026; change log deferred to Stage 6)
 2. Hospitals: profile, editable ID and names, bulk upload, robot access check. Load 3 pilots. — DONE (Anoop approved 27-Oct-2026; checks open, see section 8)
-3. Sheet reading: tab discovery, column mapping (confirm once), non-data rows, Run now. — DONE, awaiting Anoop's approval (27-Oct-2026). Evidence: stage3_report.md; migration 20261027000026 applied to live (recorded as 20261027110411); live run of the 3 pilots 27-Oct-2026 (month tabs found, 5 mapping layouts proposed). Follow-up 27-Oct-2026 (stage3_report.md section 7): one shared field list with 5 new fields, "Ignore (not needed)" choice, proposals refreshed on live; migration 20261027000027 APPLIED to live 27-Oct-2026 after Anoop's OK (recorded as 20261027132229); 188 tests pass.
+3. Sheet reading: tab discovery, column mapping (confirm once), non-data rows, Run now. — DONE (Anoop approved 27-Oct-2026). Evidence: stage3_report.md; migration 20261027000026 applied to live (recorded as 20261027110411); live run of the 3 pilots 27-Oct-2026 (month tabs found, 5 mapping layouts proposed). Follow-up 27-Oct-2026 (stage3_report.md section 7): one shared field list with 5 new fields, "Ignore (not needed)" choice, proposals refreshed on live; migration 20261027000027 APPLIED to live 27-Oct-2026 after Anoop's OK (recorded as 20261027132229); 188 tests pass.
+3b. Fields page: field list in the `mapping_fields` table, Fields page (Owner / Admin), Column Mappings Ignore and "+ Create new field", new fields stored in extra_fields. — DONE 27-Oct-2026, awaiting Anoop's approval. Evidence: stage3b_report.md; migration 20261027000028 applied to live (recorded as 20261027143126; seed identical to the code list); pnpm typecheck pass, lint pass, test 200 passed, build pass; all 6 done-criteria yes.
 4. Rule Library + cleaning engine (Error/Warning, "value is correct", initial rules).
 5. Question Sheets (robot creates in Shared Drive), Questions page, 25/day policy.
 6. Dashboard with live status.
@@ -62,15 +63,18 @@ Known typical problems: year typos, mixed / and - in dates, text in date columns
 
 Phase 1 done when the 3 pilots clean daily and on Run now, questions reach Question Sheets and answers come back, Dashboard is live, and a full correct monthly report can be downloaded before the 10th.
 
-## 8. Current stage: STAGE 3 – awaiting Anoop's approval
-Stage 3 is built and reported in stage3_report.md (27-Oct-2026). Stage 4 starts only after Anoop approves the Stage 3 report.
+## 8. Current stage: STAGE 3b (Fields page) – awaiting commit, push and the Balance Status test
+Stage 3 approved by Anoop on 27-Oct-2026 (he typed "Stage 3 approved" in the session). Stage 3b is built and reported in stage3b_report.md (27-Oct-2026), awaiting Anoop's approval. Next: Anoop commits and pushes the Fields page code (not live until then), adds Balance Status on the Fields page and maps a test column to it; then Claude checks on live (36 fields, audit entry, mapping row; the field can no longer be deleted). Decisions still needed: stage3b_report.md section 5. Stage 4 is NOT started and needs Anoop's go-ahead.
+
+Fields page status (stage3_report.md section 8): built and tested (200 tests; migration tested on a local throwaway Postgres, 29 checks). Migration 20261027000028 (mapping_fields table, field functions, approve check) APPLIED to live 27-Oct-2026 after Anoop's OK (recorded as 20261027143126) and checked: 35 core fields, seed identical to the code list, RLS, grants, gates. Rollback: supabase/.temp/backup_before_0028_20261027.sql.
+Balance Status: not added yet (Anoop's step).
 
 Stage 2 checks: closed out in stage2_report.md section 6 (bulk upload preview missing; Check Access button only "started", per-sheet result via CLI and pills; role tests pass; aliases: No).
 
-Open before / at approval (see stage3_report.md sections 6 and 7):
+Still open from Stage 3 (see stage3_report.md sections 6 and 7):
 a. Migration 20261027000027 (approve functions: exact choice, Owner/Admin only): APPLIED 27-Oct-2026 after Anoop's OK and checked (definitions, grants, gate). Rollback: supabase/.temp/backup_before_0027_20261027.sql.
 b. Badagara OCT 2026 has 28 of 45 columns APPROVED (by anoop@oksy.in, 27-Oct-2026, 11:50 to 12:03 UTC); half-confirmed, so not used. Keep or put back to PROPOSED? ROOM CATEGORY there is approved as room_no (should be room_category).
-c. v1 section 10 columns with no field yet: Query Details, Balance Status. Add?
+c. v1 section 10 columns with no field yet: decided 27-Oct-2026 (9e): Query Details not needed; Balance Status is added as a field through the Fields page.
 d. Then confirm the 5 layouts on Column Mappings (Owner or Admin; Ignore LOS and Settlement Delay if not needed), then Run now, to see month tabs read and serial-only rows skipped on live.
 e. Status-named tabs (PAID, PENDING, CANCELLED, ...) are not read: are any of them claim data?
 f. Where the runner runs until Stage 8.
@@ -81,7 +85,7 @@ Do NOT:
 - Write to any hospital Google Sheet. The portal only reads them.
 - Commit API keys, service account JSON, or .env values.
 - Apply any schema change to live before Anoop's OK on the SQL.
-- Start Stage 4 before Anoop approves the Stage 3 report.
+- Start Stage 4 before Anoop says so (Stage 3 is approved; the Fields page comes first).
 
 ## 9. Decisions confirmed by Anoop (27-Oct-2026, do not ask again)
 1. Pilot count: 3 hospitals (HOSPPVTP0001, 0002, 0003). Confirmed.
@@ -99,6 +103,18 @@ Do NOT:
 4. The Yes/No question for unexpected extra columns is NOT built now; it is Stage 6. When built: Yes adds the column to every hospital's report (blank where missing); only the Owner decides.
 5. Header changes between months stay strict: each different header layout is confirmed separately. Only Owner and Admin confirm mappings.
 6. Migration 20261027000027: Anoop said apply (27-Oct-2026). APPLIED to live, recorded as 20261027132229.
+
+## 9e. Decisions recorded 27-Oct-2026 (Stage 3 close and fields, Anoop)
+1. Stage 3 approved by Anoop, 27-Oct-2026.
+2. Query Details: not needed, not added.
+3. Balance Status: needed, added as a field (through the Fields page).
+4. Hardcopy Sent Date = casesheet_sent_date; POD Number = courier_no. No new field for these.
+5. Room No and Room Category: both fields stay; Anoop sets those columns to Ignore himself later.
+6. Field list moves to a database table `mapping_fields` (key never changes, label, data type text / number / date / amount, aliases, ACTIVE / HIDDEN, is_core for the 35 existing). Fields page for Owner / Admin: add, edit (rename = label only), hide / show, delete only when no column uses the field ("in use, hide instead"), warning before a type change once data exists.
+7. Column Mappings reads the list from `mapping_fields`; hidden fields are not offered for new mappings; each dropdown has the fields, Ignore and "+ Create new field". New fields store their data in extra_fields (no new claims_staging column). Reports show every ACTIVE field in a fixed order, blank where a hospital has no column.
+8. Core fields cannot be deleted, and a core field's type cannot be changed (Anoop confirmed 27-Oct-2026). Their label and aliases can be edited.
+9. Migration 20261027000028: Anoop said apply (27-Oct-2026). APPLIED to live, recorded as 20261027143126.
+10. The Confirmed Decisions Log is not in the repository; these decisions are also in Claude outputs/oksy_decisions_addendum_27oct_fields.md.
 
 ## 9a. Still open
 - Item 6 (old data copy into new template) and RLS policy for hospital_id_history, report_downloads, rule_upload_batches (section 8c).

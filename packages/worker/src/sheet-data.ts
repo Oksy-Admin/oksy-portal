@@ -11,6 +11,7 @@ import {
   type CanonicalField,
   type ColourMeaning,
   type ColumnMap,
+  type FieldDef,
   type SourceCell,
   type SourceRow,
 } from "@oksy/rules";
@@ -67,14 +68,18 @@ export interface TabLayout {
   map: ColumnMap[];
 }
 
-export function layoutOf(tab: RawTab, extraHeaders: Record<string, CanonicalField> = {}): TabLayout {
+export function layoutOf(tab: RawTab, extraHeaders: Record<string, CanonicalField> = {}, fields?: FieldDef[]): TabLayout {
   const texts = tab.rows.map((r) => r.map((c) => c[0]));
   const headerRow = findHeaderRow(texts);
   const headers = headerRow === null ? [] : (texts[headerRow] ?? []).map((h) => (h ?? "").trim());
-  return { tab: tab.name, headerRow, headers, fingerprint: headerFingerprint(headers), map: mapHeaders(headers, extraHeaders) };
+  return { tab: tab.name, headerRow, headers, fingerprint: headerFingerprint(headers), map: mapHeaders(headers, extraHeaders, fields) };
 }
 
-/** Source rows below the header. Duplicate-header and unmatched columns go to extra (never dropped); ignored columns are skipped. */
+/**
+ * Source rows below the header. Duplicate-header and unmatched columns go to extra under the
+ * header (never dropped); fields added on the Fields page go to extra under their key;
+ * ignored columns are skipped.
+ */
 export function sourceRows(tab: RawTab, layout: TabLayout): SourceRow[] {
   if (layout.headerRow === null) return [];
   const out: SourceRow[] = [];
@@ -87,7 +92,10 @@ export function sourceRows(tab: RawTab, layout: TabLayout): SourceRow[] {
       if (m.ignored) continue; // "Ignore (not needed)": not part of the data, not in extra_fields
       const c = raw[m.column];
       if (m.field) cells[m.field] = cell(c);
-      else if (c?.[0] != null && c[0].trim() !== "") {
+      else if (m.custom) {
+        // A field added on the Fields page: kept in extra_fields under its key (decision 27-Oct-2026).
+        if (c?.[0] != null && c[0].trim() !== "") extra[m.custom] = c[0];
+      } else if (c?.[0] != null && c[0].trim() !== "") {
         // A repeated header whose value equals the first column's value adds nothing.
         const first = layout.map.find((x) => nameKey(x.header) === nameKey(m.header) && x.column !== m.column && x.field);
         if (m.method === "DUPLICATE_HEADER" && first && raw[first.column]?.[0] === c[0]) continue;

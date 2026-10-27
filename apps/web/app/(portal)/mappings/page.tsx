@@ -1,3 +1,4 @@
+import { loadFieldList } from "@/lib/fields";
 import { can } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 import { withTiming } from "@/lib/timing";
@@ -12,7 +13,7 @@ async function ColumnMappingsPage() {
   }
 
   const supabase = await createClient();
-  const [mappingsRes, hospitalsRes] = await Promise.all([
+  const [mappingsRes, hospitalsRes, fieldList] = await Promise.all([
     supabase
       .from("column_mappings")
       .select("id, hospital_code, spreadsheet_id, tab_name, version_group, header_fp, source_header, source_column, canonical_field, confidence, method, status, approved_at")
@@ -20,6 +21,7 @@ async function ColumnMappingsPage() {
       .order("tab_name")
       .order("source_column"),
     supabase.from("hospitals").select("hospital_code, hospital_name"),
+    loadFieldList(supabase),
   ]);
 
   const items = (mappingsRes.data ?? []) as ColumnMappingItem[];
@@ -65,7 +67,7 @@ async function ColumnMappingsPage() {
     <div className="stack">
       <PageHead
         title="Column Mapping Review (G1)"
-        subtitle="Confirm each header layout once. For every column choose a field, Ignore (not needed: never read, never in a report), or extra_fields (not decided yet). A layout counts as confirmed only when no column is PROPOSED."
+        subtitle="Confirm each header layout once. For every column choose a field, Ignore (not needed: never read, never in a report), extra_fields (not decided yet), or create a new field. A layout counts as confirmed only when no column is PROPOSED."
       />
 
       <div className="grid grid-4">
@@ -81,7 +83,7 @@ async function ColumnMappingsPage() {
         ))}
       </div>
 
-      <MappingTable items={items} hospitalNames={hospitalNames} />
+      <MappingTable items={items} hospitalNames={hospitalNames} fields={fieldList.fields} canCreateFields={!fieldList.fromCode} />
     </div>
   );
 }

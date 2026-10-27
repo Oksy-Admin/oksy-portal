@@ -2,66 +2,40 @@
 // hospital's own confirmed headers. Unmatched columns go to extra_fields, never dropped.
 // Ambiguous headers ("Amount", "Date", "Status", "Ref No", "Balance", "Deduction") are
 // never mapped on the header alone.
-import { IGNORE_FIELD, isCanonicalField, type CanonicalField } from "./fields.ts";
+import { coreFieldDefs, FIELD_KEY_RE, IGNORE_FIELD, isCanonicalField, NEVER_ALONE_HEADERS, type CanonicalField, type FieldDef } from "./fields.ts";
 import { normaliseHeader } from "./normalise.ts";
 
 export * from "./fields.ts";
 
-/** Normalised header -> field. Typical headers (file 03 section 3) plus HMS headers confirmed 25-Oct. */
-const ALIASES: Record<string, CanonicalField> = {};
-function alias(field: CanonicalField, ...headers: string[]): void {
-  for (const h of headers) ALIASES[normaliseHeader(h)] = field;
+/** Normalised header -> field key, from a field list. A header used by two fields is left out (never guess). */
+export function aliasIndex(fields: FieldDef[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  const clash = new Set<string>();
+  for (const f of fields) {
+    if (f.status !== "ACTIVE") continue; // a hidden field is not offered for new mappings
+    for (const h of f.aliases) {
+      const k = normaliseHeader(h);
+      if (!k) continue;
+      if (out[k] && out[k] !== f.key) clash.add(k);
+      out[k] = f.key;
+    }
+  }
+  for (const k of clash) delete out[k];
+  return out;
 }
-alias("serial_no", "Sl No", "Sl. No", "S No", "S.No", "Sr No", "No", "Sno", "Slno");
-alias("patient_name", "Patient Name", "Pt Name", "Name of Patient", "Patient", "Name");
-alias("patient_ip_no", "IP No", "IP Number", "UHID", "MR No", "MRD No", "IP", "MRD/ UHID/ IP NUMBER", "MRD / UHID / IP No");
-alias("policy_or_card_no", "Policy No", "Policy Number", "Card No", "Member ID", "Policy No / Card No", "Card Number",
-  "Policy / Card Number", "Card Number / Policy Number");
-alias("phone_number", "Phone", "Phone No", "Phone Number", "Mobile", "Mobile No", "Mobile Number", "Contact No", "Contact Number");
-alias("policy_holder_name", "Policy Holder", "Policy Holder Name", "Insured Name", "Card Holder", "Card Holder Name");
-alias("preauth_or_claim_no", "Pre-auth No", "Preauth No", "Claim No", "Claim Number", "Case No", "Authorisation No",
-  "Authorization No", "CCN", "Claim ID", "AL No", "Pre Auth No");
-alias("insurer_name", "Insurer", "Insurance Company", "Insurance", "Company", "Insurer Name", "Insurance Co", "Insurance Company Name");
-alias("tpa_name", "TPA", "TPA Name");
-alias("admission_date", "DOA", "Adm Date", "Admission Date", "Date of Admission", "Date Of Admission");
-alias("discharge_date", "DOD", "Discharge Date", "Date of Discharge", "Date Of Discharge", "Dis Date");
-alias("treatment_or_surgery", "Treatment", "Procedure", "Package", "Surgery", "Diagnosis", "Treatment / Surgery",
-  "Procedure Name", "Procedure/Treatment", "Procedure / Treatment");
-alias("department", "Department", "Dept", "Speciality", "Specialty");
-alias("doctor_name", "Doctor", "Consultant", "Doctor Name", "Consultant Name", "Treating Doctor", "DR NAME");
-alias("room_no", "Room No", "Room", "Bed No");
-alias("room_category", "Room Category", "Room Type");
-alias("bill_amount", "Bill", "Final Bill", "Bill Amount", "Total Bill", "Bill Amt", "Hospital Bill Amount");
-alias("claimed_amount", "Claimed Amount", "Claim Amount", "Claimed Amt");
-alias("preauth_approved_amount", "Pre-auth Approval Amount", "Pre-auth Approved Amount", "Preauth Approved Amount",
-  "Pre Auth Approved Amount", "Preauth Approval Amount");
-alias("approved_amount", "Final Approved Amount", "Final Approved", "Sanctioned", "Sanctioned Amount",
-  "Approved Amount", "Final Approval");
-alias("copay_amount", "Co-pay", "Copay", "Co Pay", "Patient Share", "Co-Pay Amount");
-alias("discount_amount", "Discount", "Hospital Discount");
-alias("casesheet_sent_date", "Hard Copy Sent", "Courier Date", "Hard Copy Date", "Casesheet Sent", "File Sent Date",
-  "Hard Copy Sent Date");
-alias("courier_no", "POD Number", "POD No", "POD", "Courier No");
-alias("followup_date", "Follow Up Date", "Follow-up Date", "Next Follow Up", "Next Follow Up Date");
-alias("followup_log", "Follow Up", "Followup", "Follow-up", "Follow Up Remarks");
-alias("rejection_reason", "Rejection Reason", "Reason for Rejection", "Denial Reason");
-alias("cancellation_reason", "Cancellation Reason", "Reason for Cancellation");
-alias("payment_date", "Settled Date", "Payment Date", "Paid Date", "Date of Payment", "Settlement Date", "Payment Received Date");
-alias("payment_amount", "Paid Amount", "Amount Received", "Settled Amount", "Received Amount", "Paid Amt");
-alias("payment_utr", "UTR", "UTR No", "UTR Number", "NEFT Ref", "NEFT No", "Transaction No");
-alias("tds_amount_stated", "TDS", "TDS Amount");
-alias("remarks", "Remark", "Remarks", "Claim Remark");
-alias("status_text", "Claim Status", "Status of Claim", "Current Status");
+
+/** The code list's aliases: used when the mapping_fields table cannot be read. */
+const CODE_ALIASES = aliasIndex(coreFieldDefs());
 
 /** Headers never mapped on the name alone (file 03 section 3): they go to extra_fields for G1 review. */
-const NEVER_ON_HEADER_ALONE = new Set(
-  ["Amount", "Date", "Status", "Ref No", "Balance", "Deduction", "Approved", "Ref"].map(normaliseHeader),
-);
+const NEVER_ON_HEADER_ALONE = new Set(NEVER_ALONE_HEADERS.map(normaliseHeader));
 
 export interface ColumnMap {
   column: number;
   header: string;
-  field: CanonicalField | null; // null = extra_fields, unless ignored
+  field: CanonicalField | null; // null = extra_fields, unless ignored or custom
+  /** A field added on the Fields page: its value is stored in extra_fields under this key. */
+  custom?: string;
   confidence: number;
   /** A person chose "Ignore (not needed)": the column is not read at all. */
   ignored?: boolean;
@@ -71,10 +45,13 @@ export interface ColumnMap {
 /**
  * Maps a header row. A repeated header keeps the first column; later copies are
  * DUPLICATE_HEADER (their value goes to extra_fields when it differs; file 03 section 3, HMS).
- * extra lets a hospital add its own confirmed headers (G1).
+ * extra lets a hospital add its own confirmed headers (G1). fields is the mapping_fields
+ * list; without it the code list is used. Hidden fields are never proposed.
  */
-export function mapHeaders(headers: Array<string | null>, extra: Record<string, CanonicalField> = {}): ColumnMap[] {
-  const seenFields = new Set<CanonicalField>();
+export function mapHeaders(headers: Array<string | null>, extra: Record<string, CanonicalField> = {}, fields?: FieldDef[]): ColumnMap[] {
+  const aliases = fields && fields.length > 0 ? aliasIndex(fields) : CODE_ALIASES;
+  const hidden = new Set((fields ?? []).filter((f) => f.status !== "ACTIVE").map((f) => f.key));
+  const seenFields = new Set<string>();
   const seenHeaders = new Set<string>();
   const local: Record<string, CanonicalField> = {};
   for (const [h, f] of Object.entries(extra)) local[normaliseHeader(h)] = f;
@@ -84,20 +61,29 @@ export function mapHeaders(headers: Array<string | null>, extra: Record<string, 
     if (key === "") return { column, header, field: null, confidence: 0, method: "UNMATCHED" };
     if (seenHeaders.has(key)) return { column, header, field: null, confidence: 1, method: "DUPLICATE_HEADER" };
     seenHeaders.add(key);
-    const field = NEVER_ON_HEADER_ALONE.has(key) ? undefined : (local[key] ?? ALIASES[key]);
-    if (!field || seenFields.has(field)) return { column, header, field: null, confidence: 0, method: "UNMATCHED" };
-    seenFields.add(field);
-    return { column, header, field, confidence: 0.95, method: "ALIAS" };
+    const found = NEVER_ON_HEADER_ALONE.has(key) ? undefined : (local[key] ?? aliases[key]);
+    if (!found || hidden.has(found) || seenFields.has(found)) return { column, header, field: null, confidence: 0, method: "UNMATCHED" };
+    seenFields.add(found);
+    if (isCanonicalField(found)) return { column, header, field: found, confidence: 0.95, method: "ALIAS" };
+    return { column, header, field: null, custom: found, confidence: 0.95, method: "ALIAS" };
   });
+}
+
+/** The key a column map stands for (core or custom), as stored in column_mappings.canonical_field. */
+export function mappedKey(m: Pick<ColumnMap, "field" | "custom">): string | null {
+  return m.field ?? m.custom ?? null;
 }
 
 /**
  * A stored choice (column_mappings.canonical_field) for applying a confirmed mapping:
- * IGNORE = not read at all; a known field = that field; NULL or unknown text = extra_fields.
+ * IGNORE = not read at all; a core field = that field; another key = a field added on the
+ * Fields page (stored in extra_fields under the key); NULL = extra_fields under the header.
  */
-export function readChoice(stored: string | null): { field: CanonicalField | null; ignored: boolean } {
+export function readChoice(stored: string | null): { field: CanonicalField | null; ignored: boolean; custom?: string } {
   if (stored === IGNORE_FIELD) return { field: null, ignored: true };
-  return { field: isCanonicalField(stored) ? stored : null, ignored: false };
+  if (isCanonicalField(stored)) return { field: stored, ignored: false };
+  if (stored && FIELD_KEY_RE.test(stored)) return { field: null, ignored: false, custom: stored };
+  return { field: null, ignored: false };
 }
 
 /** Ordered normalised headers joined: the version-group fingerprint (file 03 section 3). */

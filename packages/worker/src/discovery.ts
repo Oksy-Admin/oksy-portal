@@ -7,7 +7,8 @@
 // A person's own decision on a tab (set_tab_policy) is never changed here.
 // Logs counts and tab names only, never a cell value (hard rule 10).
 import { policyForNewTab, toEventRows, type createReadPath, type GoogleEvent, type TabPolicy } from "@oksy/google";
-import { classifyTabs, newestFirst, readChoice, type CanonicalField, type ColumnMap } from "@oksy/rules";
+import { classifyTabs, mappedKey, newestFirst, readChoice, type CanonicalField, type ColumnMap, type FieldDef } from "@oksy/rules";
+import { DbError } from "./db.ts";
 import type { Db } from "./db.ts";
 import { layoutOf, toRawTabs, type RawTab, type TabLayout } from "./sheet-data.ts";
 
@@ -24,6 +25,8 @@ export interface DiscoveryDeps {
   today: string; // ISO date, IST
   extraHeaders?: Record<string, CanonicalField>;
   suggest?: SuggestFn;
+  /** The mapping_fields list (Fields page); the code list when absent or empty. */
+  fields?: FieldDef[];
   /**
    * Re-propose layouts that are not confirmed yet, for example after the field list grew
    * (REFRESH_PROPOSALS=1 on the runner). Only PROPOSED rows change; a person's APPROVED
@@ -68,6 +71,19 @@ export interface MappingRow {
   approved_at: string | null;
 }
 
+/**
+ * The field list from mapping_fields, in order. Empty when the table is not there yet
+ * (before migration 20261027000028): the code list is used then, so nothing changes.
+ */
+export async function loadFields(db: Db): Promise<FieldDef[]> {
+  try {
+    return await db.select<FieldDef>("mapping_fields?select=key,label,data_type,aliases,status,is_core,sort_order&order=sort_order");
+  } catch (e) {
+    if (e instanceof DbError && /status 404/.test(e.message)) return [];
+    throw e;
+  }
+}
+
 /** Rows the worker may set: never decided by a person, or set by the worker before. */
 export function isAutoManaged(t: Pick<TabRow, "policy" | "decided_at" | "decision_note">): boolean {
   if (t.decision_note?.startsWith("auto:")) return true;
@@ -103,8 +119,9 @@ export function applyConfirmed(layout: TabLayout, confirmed: MappingRow[]): TabL
     ...layout,
     map: layout.map.map((m) => {
       const c = byCol.get(m.column);
-      const { field, ignored } = readChoice(c?.canonical_field ?? null);
-      return { ...m, field, confidence: c ? 1 : 0, ...(ignored ? { ignored } : {}) };
+      const { field, ignored, custom } = readChoice(c?.canonical_field ?? null);
+      const { custom: _alias, ...rest } = m;
+      return { ...rest, field, confidence: c ? 1 : 0, ...(ignored ? { ignored } : {}), ...(custom ? { custom } : {}) };
     }),
   };
 }
@@ -117,7 +134,7 @@ export function mappingRow(hospital: string, fileId: string, l: TabLayout, m: Co
     header_fp: l.fingerprint,
     source_header: m.header || `Column ${m.column + 1}`,
     source_column: m.column,
-    canonical_field: m.field,
+    canonical_field: mappedKey(m),
     confidence: m.confidence,
     method: m.method,
     status: "PROPOSED", // also the database default; never APPROVED by the worker or the AI
@@ -135,8 +152,13 @@ export function refreshBase(l: TabLayout, stored: MappingRow[]): ColumnMap[] {
   for (const r of approved.values()) if (r.canonical_field) held.add(r.canonical_field);
   return l.map.map((m) => {
     const a = approved.get(m.column);
-    if (a) return { ...m, field: readChoice(a.canonical_field).field, confidence: 1, method: "MANUAL" };
-    if (m.field && held.has(m.field)) return { ...m, field: null, confidence: 0, method: "UNMATCHED" };
+    if (a) {
+      const { field, custom } = readChoice(a.canonical_field);
+      const { custom: _alias, ...rest } = m;
+      return { ...rest, field, ...(custom ? { custom } : {}), confidence: 1, method: "MANUAL" };
+    }
+    const k = mappedKey(m);
+    if (k && held.has(k)) return { column: m.column, header: m.header, field: null, confidence: 0, method: "UNMATCHED" };
     return m;
   });
 }
@@ -148,8 +170,8 @@ export function proposalChanges(stored: MappingRow[], map: ColumnMap[]): Array<{
   for (const r of stored) {
     const m = byCol.get(r.source_column);
     if (r.status !== "PROPOSED" || !m || m.method === "MANUAL") continue;
-    if (r.canonical_field === m.field && r.method === m.method && Number(r.confidence) === m.confidence) continue;
-    out.push({ id: r.id, patch: { canonical_field: m.field, method: m.method, confidence: m.confidence } });
+    if (r.canonical_field === mappedKey(m) && r.method === m.method && Number(r.confidence) === m.confidence) continue;
+    out.push({ id: r.id, patch: { canonical_field: mappedKey(m), method: m.method, confidence: m.confidence } });
   }
   return out;
 }
@@ -233,7 +255,7 @@ export async function discoverTabs(sheet: { hospital_code: string; spreadsheet_i
 
   for (const m of open) {
     const raw = probe.find((t) => t.name === m.tab) ?? { name: m.tab, rows: [] };
-    const l = layoutOf(raw, deps.extraHeaders);
+    const l = layoutOf(raw, deps.extraHeaders, deps.fields);
     if (l.headerRow === null) {
       summary.waiting.push({ tab: m.tab, reason: "no header row in rows 1 to 10 (empty or pre-made tab)" });
       await setTab(m.tab, { policy: "REVIEW", kind: null, decided_by: null, decided_at: null, decision_note: "auto: no header row found" });
@@ -264,8 +286,8 @@ export async function discoverTabs(sheet: { hospital_code: string; spreadsheet_i
       summary.proposedLayouts.push({
         tab: m.tab,
         columns: map.length,
-        aliasMapped: map.filter((x) => x.method === "ALIAS" && x.field).length,
-        aiMapped: map.filter((x) => x.method === "AI" && x.field).length,
+        aliasMapped: map.filter((x) => x.method === "ALIAS" && mappedKey(x)).length,
+        aiMapped: map.filter((x) => x.method === "AI" && mappedKey(x)).length,
       });
     } else if (deps.refresh && !refreshedFps.has(l.fingerprint)) {
       refreshedFps.add(l.fingerprint);
@@ -277,8 +299,8 @@ export async function discoverTabs(sheet: { hospital_code: string; spreadsheet_i
       (summary.refreshedLayouts ??= []).push({
         tab: m.tab,
         columns: map.length,
-        aliasMapped: map.filter((x) => x.method === "ALIAS" && x.field).length,
-        aiMapped: map.filter((x) => x.method === "AI" && x.field).length,
+        aliasMapped: map.filter((x) => x.method === "ALIAS" && mappedKey(x)).length,
+        aiMapped: map.filter((x) => x.method === "AI" && mappedKey(x)).length,
         changed: changes.length,
       });
     }

@@ -7,7 +7,7 @@
 // it only proposes which field a column is. Every suggestion is stored as PROPOSED with
 // confidence below 1 and is used only after a person confirms the mapping.
 import Anthropic from "@anthropic-ai/sdk";
-import { CANONICAL_FIELDS, isBlank, type CanonicalField, type ColumnMap } from "@oksy/rules";
+import { CANONICAL_FIELDS, isBlank, mappedKey, type CanonicalField, type ColumnMap } from "@oksy/rules";
 import type { RawTab, TabLayout } from "./sheet-data.ts";
 
 export const AI_MODEL = "claude-opus-5-5";
@@ -108,14 +108,14 @@ export interface AiSuggestion {
  * other column already has, confidence capped. Everything else stays unmapped (extra_fields).
  */
 export function mergeSuggestions(map: ColumnMap[], suggestions: AiSuggestion[]): ColumnMap[] {
-  const used = new Set(map.flatMap((m) => (m.field ? [m.field] : [])));
+  const used = new Set(map.flatMap((m) => (mappedKey(m) ? [mappedKey(m)!] : [])));
   const open = new Set(map.filter((m) => m.method === "UNMATCHED").map((m) => m.column));
   const out = map.map((m) => ({ ...m }));
   for (const s of suggestions) {
     if (!open.has(s.column) || !s.field) continue;
     if (!(CANONICAL_FIELDS as readonly string[]).includes(s.field)) continue;
     const field = s.field as CanonicalField;
-    if (used.has(field)) continue;
+    if (used.has(field)) continue; // also a field added on the Fields page that another column holds
     const target = out.find((m) => m.column === s.column)!;
     target.field = field;
     target.method = "AI";
@@ -150,7 +150,7 @@ const SCHEMA = {
 
 export function buildPrompt(layout: TabLayout, shapes: ColumnShape[]): string {
   const open = new Set(layout.map.filter((m) => m.method === "UNMATCHED").map((m) => m.column));
-  const mapped = layout.map.filter((m) => m.field).map((m) => `  column ${m.column}: "${m.header}" = ${m.field}`);
+  const mapped = layout.map.filter((m) => mappedKey(m)).map((m) => `  column ${m.column}: "${m.header}" = ${mappedKey(m)}`);
   const ask = shapes
     .filter((s) => open.has(s.column))
     .map(
