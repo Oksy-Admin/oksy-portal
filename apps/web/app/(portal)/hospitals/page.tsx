@@ -4,6 +4,7 @@ import { createClient, getMe } from "@/lib/supabase/server";
 import { icons } from "../icons";
 import { NoAccess, PageHead } from "../ui";
 import { HospitalTable, type HospitalRowData } from "./hospital-table";
+import { activeSheetRuns } from "../run-now-actions";
 import { withTiming } from "@/lib/timing";
 
 async function HospitalsPage() {
@@ -11,7 +12,7 @@ async function HospitalsPage() {
   if (!can(me?.role, "helper_work")) return <NoAccess title="Hospitals" who="HELPER, APPROVER or ADMIN" />;
 
   const supabase = await createClient();
-  const [hosp, sheets] = await Promise.all([
+  const [hosp, sheets, running] = await Promise.all([
     supabase
       .from("hospitals")
       .select("hospital_key, hospital_code, hospital_name, district, status, other_names, question_sheet_url, missing_from_register_since")
@@ -22,6 +23,7 @@ async function HospitalsPage() {
       .select("sheet_key, hospital_code, scheme, sheet_status, spreadsheet_id, sheet_url, sync, read_skip_reason, check_flag, access_status, access_error, last_checked_at, last_ok_at")
       .is("missing_from_register_since", null)
       .order("hospital_code"),
+    activeSheetRuns(),
   ]);
 
   const loadError = hosp.error ?? sheets.error;
@@ -134,7 +136,7 @@ async function HospitalsPage() {
         ))}
       </div>
 
-      <HospitalTable initialRows={rows} canEdit={can(me?.role, "helper_work")} />
+      <HospitalTable initialRows={rows} canEdit={can(me?.role, "helper_work")} running={running} />
     </div>
   );
 }

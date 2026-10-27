@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getMe } from "@/lib/supabase/server";
 import { icons } from "./icons";
+import { activeSheetRuns } from "./run-now-actions";
+import { RunNowButton } from "./run-now";
 import { Sidebar } from "./sidebar";
 
 function initials(name: string) {
@@ -14,6 +16,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   const me = await getMe();
   if (!me) redirect("/login");
   const name = me.displayName ?? me.email;
+  const running = me.role ? await activeSheetRuns() : [];
 
   return (
     <div className="shell">
@@ -28,6 +31,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
               <strong>none yet (scheduler comes in M9)</strong>
             </span>
           </div>
+          {me.role && <RunNowButton scope="ALL" running={running.length > 0} label="Run now (all hospitals)" />}
           <div className="me">
             <span className="avatar">{initials(name)}</span>
             <div>

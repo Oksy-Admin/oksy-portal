@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
 import { Pill } from "../ui";
+import { RunNowButton } from "../run-now";
 import {
   saveHospitalProfileAction,
   saveHospitalSchemeAction,
@@ -37,9 +38,11 @@ export type HospitalRowData = {
 interface HospitalTableProps {
   initialRows: HospitalRowData[];
   canEdit: boolean;
+  /** Sheet keys with a run queued or running now. */
+  running?: string[];
 }
 
-export function HospitalTable({ initialRows, canEdit }: HospitalTableProps) {
+export function HospitalTable({ initialRows, canEdit, running = [] }: HospitalTableProps) {
   const [schemeFilter, setSchemeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [search, setSearch] = useState("");
@@ -287,6 +290,9 @@ export function HospitalTable({ initialRows, canEdit }: HospitalTableProps) {
                             ) : (
                               <span className="muted">No link</span>
                             )}
+                            {s.sync === "YES" && s.spreadsheet_id && (
+                              <RunNowButton scope="SHEET" sheetKey={s.sheet_key} running={running.includes(s.sheet_key)} small label="Run sheet" />
+                            )}
                           </div>
                         ))}
                       </div>
@@ -323,13 +329,12 @@ export function HospitalTable({ initialRows, canEdit }: HospitalTableProps) {
                           Edit Profile
                         </button>
                       )}
-                      <button
-                        className="btn small"
-                        type="button"
-                        onClick={() => alert(`Run now started for ${r.hospital_name} (${r.hospital_code}).`)}
-                      >
-                        Run now
-                      </button>
+                      <RunNowButton
+                        scope="HOSPITAL"
+                        hospitalCode={r.hospital_code}
+                        running={r.schemes.some((s) => running.includes(s.sheet_key))}
+                        small
+                      />
                     </div>
                   </td>
                 </tr>
