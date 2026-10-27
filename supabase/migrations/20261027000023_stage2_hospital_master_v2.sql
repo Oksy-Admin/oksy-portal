@@ -14,36 +14,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.hospital_id_history,
                                       public.report_downloads,
                                       public.rule_upload_batches TO authenticated;
 
-DROP POLICY IF EXISTS hospital_id_history_read ON public.hospital_id_history;
-CREATE POLICY hospital_id_history_read ON public.hospital_id_history
-  FOR SELECT TO authenticated
-  USING (true);
-
-DROP POLICY IF EXISTS hospital_id_history_manage ON public.hospital_id_history;
-CREATE POLICY hospital_id_history_manage ON public.hospital_id_history
-  FOR ALL TO authenticated
-  USING ((SELECT private.has_role('ADMIN')))
-  WITH CHECK ((SELECT private.has_role('ADMIN')));
-
-DROP POLICY IF EXISTS report_downloads_read ON public.report_downloads;
-CREATE POLICY report_downloads_read ON public.report_downloads
-  FOR SELECT TO authenticated
-  USING (true);
-
-DROP POLICY IF EXISTS report_downloads_manage ON public.report_downloads;
-CREATE POLICY report_downloads_manage ON public.report_downloads
-  FOR ALL TO authenticated
-  USING ((SELECT private.has_role('ADMIN')))
-  WITH CHECK ((SELECT private.has_role('ADMIN')));
-
-DROP POLICY IF EXISTS rule_upload_batches_read ON public.rule_upload_batches;
-CREATE POLICY rule_upload_batches_read ON public.rule_upload_batches
-  FOR SELECT TO authenticated
-  USING (true);
-
-DROP POLICY IF EXISTS rule_upload_batches_manage ON public.rule_upload_batches;
-CREATE POLICY rule_upload_batches_manage ON public.rule_upload_batches
-  FOR ALL TO authenticated
+-- Policies for hospital_id_history, report_downloads, rule_upload_batches are NOT
+-- defined here. They are tick-based and live from migration 20261027000024.
+-- Role-only policies were removed on 27-Oct-2026 (Anoop's decision: tick-based access).
   USING ((SELECT private.has_role('ADMIN')))
   WITH CHECK ((SELECT private.has_role('ADMIN')));
 

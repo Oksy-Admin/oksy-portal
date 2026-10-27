@@ -6,7 +6,7 @@ Date: 27-Oct-2026. Scope: Stage 2 (Hospitals master, editable profile, bulk uplo
 - **Database Backup**: Remote Supabase database schema and data backed up locally to `supabase/.temp/backup_20261027.sql` and `supabase/.temp/backup_data_20261027.sql`.
 - **Baseline Migration Applied**: Applied `supabase/migrations/20261027000022_baseline_v2_tables.sql` to live database (verified idempotent).
 - **Stage 2 Enhancements Migration**: Created and applied `supabase/migrations/20261027000023_stage2_hospital_master_v2.sql`:
-  - **RLS Policies**: Added policies on `hospital_id_history`, `report_downloads`, and `rule_upload_batches` (authenticated read, Admin/Owner insert & manage per Anoop's decision).
+  - **RLS Policies:** NOT in this migration. Tick-based policies on `hospital_id_history`, `report_downloads`, `rule_upload_batches` are in `20261027000024_tick_based_rls_3_tables.sql` (live since 27-Oct-2026). Owner and Admin pass every tick.
   - **Hospital Code Constraint**: Relaxed `hospitals_hospital_code_check` from legacy regex to `CHECK (length(hospital_code) >= 3 AND length(hospital_code) <= 32)` to permit v2 hospital IDs (`HOSPPVTP0001`, etc.).
   - **Hospital Columns**: Added `other_names` (`text[]`) and `question_sheet_url` (`text`) to `public.hospitals`.
   - **Cascading Foreign Keys**: Added `ON UPDATE CASCADE` to all FKs pointing to `hospitals(hospital_code)` (`hospital_sheets`, `claims_staging`, `column_mappings`, `issues`, `payments`, `questions`, `sheet_tabs`).
@@ -43,6 +43,15 @@ Date: 27-Oct-2026. Scope: Stage 2 (Hospitals master, editable profile, bulk uplo
 - `pnpm --filter @oksy/web build`: Passed (all 17 routes compiled successfully).
 - Live Database Queries: Confirmed 3 pilot hospitals and 3 linked sheets exist with `status = ACTIVE` and `sync = YES`.
 
-## 4. What Still Needs Anoop's Action / Decision
-1. **`apps/web/.env.local` lines 7–10**: Lines 7–10 contain stray pasted instructions which cause `SUPABASE_SERVICE_ROLE_KEY` to be parsed incorrectly by Node scripts (such as `check-access.ts`), leading to a 401 error. Anoop should tidy lines 7–10 by hand.
-2. **Approval of Stage 2 Report**: Stage 3 (Sheet reading, tab discovery, column mapping) will not start until Anoop reviews and approves this report.
+## 4. Corrections and status (27-Oct-2026, after review)
+- Alias design: `other_names text[]` column on `hospitals`. No separate `hospital_aliases` table (decided by Anoop).
+- Robot access check (`packages/google`, `pnpm check-access`): **OK 3, ACCESS_PENDING 0, READ_FAILED 0** after `.env.local` was rebuilt from Vercel production env plus a fresh `SUPABASE_SERVICE_ROLE_KEY`.
+- Bulk upload log: still writes to `rule_upload_batches` (wrong table). **Open, must fix in Stage 2.**
+- Access tests (Owner, Admin, approved User with view tick only, approved User with no ticks, unapproved sign-in, Run now for any approved user): **Open, must pass before approval.**
+- Migration history: 0022, 0023, 0024 recorded. `stage1_tick_gaps_hospitals_rules` is recorded live but has no file in the repo. **Open.**
+- Status: Stage 2 **DONE – approval pending**. Not "complete" until Anoop approves.
+
+## 5. What Still Needs Anoop's Action / Decision
+1. Push the local Stage 2 commits to `origin/main` (Anoop, Mac Terminal).
+2. Approve Stage 2 after the open items above are closed.
+3. Claude API key and monthly limit for Stage 3 column mapping (decided: buy, about INR 2,000 per month to start).
