@@ -97,3 +97,21 @@ export function hasTick(ticks: AccessTicks | null | undefined, tick: keyof Acces
   if (!ticks) return false;
   return Boolean(ticks[tick]);
 }
+
+// Determines whether a portal navigation item is visible for a given role and ticks
+export function isNavItemVisible(
+  item: { tick?: keyof AccessTicks; requireAdminOrOwner?: boolean },
+  role: Role | null,
+  ticks?: AccessTicks
+): boolean {
+  if (role === null) return false;
+  if (role === "OWNER") return true;
+  if (item.requireAdminOrOwner) {
+    return can(role, "manage_users");
+  }
+  if (role === "ADMIN") return true;
+  if (item.tick) {
+    return hasTick(ticks, item.tick, role);
+  }
+  return true;
+}

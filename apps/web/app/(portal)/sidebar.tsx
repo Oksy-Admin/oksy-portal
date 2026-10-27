@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { can, hasTick, type AccessTicks, type Role } from "@/lib/roles";
+import { can, hasTick, isNavItemVisible, type AccessTicks, type Role } from "@/lib/roles";
 import { icons, Logo } from "./icons";
 
 type NavItem = {
@@ -46,19 +46,7 @@ function isCurrent(pathname: string, item: NavItem) {
 export function Sidebar({ role, ticks }: { role: Role | null; ticks?: AccessTicks }) {
   const pathname = usePathname();
 
-  const isVisible = (item: NavItem) => {
-    if (role === null) return false;
-    if (role === "OWNER") return true;
-    if (item.requireAdminOrOwner) {
-      return can(role, "manage_users");
-    }
-    if (role === "ADMIN") return true;
-    // For USER: checked by access ticks
-    if (item.tick) {
-      return hasTick(ticks, item.tick, role);
-    }
-    return true;
-  };
+  const isVisible = (item: NavItem) => isNavItemVisible(item, role, ticks);
 
   return (
     <aside className="sidebar">
