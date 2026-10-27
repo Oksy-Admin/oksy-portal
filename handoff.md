@@ -1,6 +1,6 @@
 # handoff.md – Oksy Data Cleanse portal
 
-Last updated: 27-Oct-2026 (Stage 0, 1, 2 done; Stage 3 is current)
+Last updated: 27-Oct-2026 (Stage 0, 1, 2 approved; Stage 3 done, awaiting approval)
 
 ## 1. Read these first, in this order
 1. This file
@@ -53,7 +53,7 @@ Known typical problems: year typos, mixed / and - in dates, text in date columns
 0. Align Supabase, GitHub, Vercel with the local folder. Fix current load errors: Hospitals "Cannot load"; Rule Library "missing column". — DONE (Anoop confirmed 27-Oct-2026)
 1. Google sign-in, Owner/Admin/User, approval, access ticks, change log. — DONE (Anoop confirmed 27-Oct-2026; change log deferred to Stage 6)
 2. Hospitals: profile, editable ID and names, bulk upload, robot access check. Load 3 pilots. — DONE (Anoop approved 27-Oct-2026; checks open, see section 8)
-3. Sheet reading: tab discovery, column mapping (confirm once), non-data rows, Run now. — CURRENT (Stage 3)
+3. Sheet reading: tab discovery, column mapping (confirm once), non-data rows, Run now. — DONE, awaiting Anoop's approval (27-Oct-2026). Evidence: stage3_report.md; migration 20261027000026 applied to live (recorded as 20261027110411); live run of the 3 pilots 27-Oct-2026 (month tabs found, 5 mapping layouts proposed); 165 tests pass.
 4. Rule Library + cleaning engine (Error/Warning, "value is correct", initial rules).
 5. Question Sheets (robot creates in Shared Drive), Questions page, 25/day policy.
 6. Dashboard with live status.
@@ -62,26 +62,16 @@ Known typical problems: year typos, mixed / and - in dates, text in date columns
 
 Phase 1 done when the 3 pilots clean daily and on Run now, questions reach Question Sheets and answers come back, Dashboard is live, and a full correct monthly report can be downloaded before the 10th.
 
-## 8. Current stage: STAGE 3 (only this now)
-Stage 0, Stage 1 and Stage 2 are approved by Anoop (27-Oct-2026). Stage 2 evidence: commits d8220d0 to 2e50c61, Stage 2 report, migrations 20261027000022 to 000025 recorded on live.
+## 8. Current stage: STAGE 3 – awaiting Anoop's approval
+Stage 3 is built and reported in stage3_report.md (27-Oct-2026). Stage 4 starts only after Anoop approves the Stage 3 report.
 
-Stage 2 checks still open (report them in stage3_report.md, do them first):
-a. Bulk upload preview: playbook says "preview before save". Confirm it works; if not, report it.
-b. Robot access check: confirm it reports each sheet's result, not just that it was triggered.
-c. Tests for Owner, Admin, User with ticks, User without ticks, unapproved sign-in (addendum 27-Oct-2026). Confirm they exist and pass.
-d. `hospital_aliases` table: recommended yes in the playbook. Ask Anoop before building it.
-e. Stage 1 change log: confirm it exists (deferred to Stage 6 per section 7).
+Stage 2 checks: closed out in stage2_report.md section 6 (bulk upload preview missing; Check Access button only "started", per-sheet result via CLI and pills; role tests pass; aliases: No).
 
-Stage 3 tasks (playbook "Stage 3 – Reading sheets"):
-1. Tab discovery: month tabs found; helper tabs (for example "TPA LIST") ignored.
-2. Column mapping with AI, confirmed once per hospital and scheme. AI never guesses a missing UTR, date or amount.
-3. Non-data row detection: serial-only rows skipped.
-4. Run now at three levels: all hospitals, one hospital, one sheet. Only one run per sheet at a time.
-5. Run now is open to every approved user, whatever ticks they have (addendum 27-Oct-2026).
-
-Done when: the three pilots' month tabs are found; mapping is confirmed once; serial-only rows are skipped; each Run now level works; only one run per sheet at a time.
-
-Output: write stage3_report.md in the project folder (what changed and why; files changed; decisions still needed; done-criteria check result). Then update section 7, section 8, CLAUDE.md, and section 9.
+Open before / at approval (see stage3_report.md section 6):
+a. Confirm the 5 proposed column-mapping layouts on Column Mappings (Owner or Admin), then Run now, to see month tabs read and serial-only rows skipped on live.
+b. Status-named tabs (PAID, PENDING, CANCELLED, ...) are not read: are any of them claim data?
+c. Near-identical headers between months: strict (2 confirmations) or tolerant?
+d. Who may confirm mappings; where the runner runs until Stage 8.
 
 Do NOT:
 - Write to any hospital Google Sheet. The portal only reads them.
@@ -105,6 +95,11 @@ Do NOT:
 - Hospitals page access: Anoop approved changing the /hospitals gate to the `hospitals_view` tick (Antigravity report, decision 1).
 - Run now permission (`request_sheet_run`): Anoop said YES (27-Oct-2026). Run now is open to everyone who can see the page (requirements v2 section 4). Migration supabase/migrations/20261027000025_run_now_open_to_viewers.sql APPLIED to live 27-Oct-2026 (verified: new gate, ADMIN/APPROVER check removed, authenticated can execute, anon cannot).
 - Claude API key: Anoop bought API credit ($20) and saved the key in the env file. The key is not in chat and not in git. Monthly spending limit: not yet set (handoff open item 3).
+
+## 9c. Decisions recorded 27-Oct-2026 (Stage 3)
+- `hospital_aliases` table: **No.** Keep the `other_names` column (Anoop, 27-Oct-2026).
+- Migration 20261027000026 (AI mapping method, `request_runs`, `active_sheet_runs`): Anoop said apply after backup. APPLIED to live 27-Oct-2026.
+- Stage 3 Run now is read-only for clean data (`DRY_RUN`) until the Stage 4 cleaning engine is approved (Anoop, 27-Oct-2026).
 
 ## 10. Working rules
 - One tool works on one stage at a time. Do not edit the same file in two tools at once.

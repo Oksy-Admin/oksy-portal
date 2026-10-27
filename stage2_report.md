@@ -55,3 +55,18 @@ Date: 27-Oct-2026. Scope: Stage 2 (Hospitals master, editable profile, bulk uplo
 1. Push the local Stage 2 commits to `origin/main` (Anoop, Mac Terminal).
 2. Approve Stage 2 after the open items above are closed.
 3. Claude API key and monthly limit for Stage 3 column mapping (decided: buy, about INR 2,000 per month to start).
+
+## 6. Close-out (27-Oct-2026, start of Stage 3)
+Checks from handoff section 8 (a to e), done before Stage 3 work.
+
+| # | Check | Result |
+|---|---|---|
+| A1 | Bulk upload shows a preview before save (playbook) | **Missing.** `uploadHospitalListAction` (`apps/web/app/(portal)/hospitals/actions.ts`) parses the CSV and writes each row at once; there is no preview step. Not built (needs Anoop's OK). |
+| A2 | Robot access check shows each sheet's result | **Partly.** The check itself is per sheet: `pnpm --filter @oksy/google check-access` prints and stores a result per sheet. Last result on live: HOSPPVTP0001, 0002, 0003 all **OK**, checked 27-Oct-2026 14:55 IST, no error; every call is in `google_events` (CHECK_ACCESS, read path). The portal **Check Access** button only starts a background process and says "started"; the per-sheet result appears as the Robot Access pill after a refresh. The button spawns `pnpm` on the server, which will not work on Vercel (serverless). |
+| A3 | Role tests: Owner, Admin, User with ticks, User without ticks, unapproved sign-in | **Exist and pass** (`apps/web/lib/access.test.ts`, 6 cases; web 12/12). They test the role and tick helpers in code. The Run now case tests a helper inside the test file, not the database gate, so the gate was also checked on live (27-Oct-2026, simulated sign-ins): unapproved sign-in refused (42501); approved User queued a sheet run. `pnpm typecheck`, `lint`, `test`, `build`: all pass. |
+| A4 | Build `hospital_aliases` table? | **Anoop: No** (27-Oct-2026). Keep the `other_names` column. |
+| e | Stage 1 change log | `audit_log` exists and is written (bulk upload logs there since edc8273). The Change log page is deferred to Stage 6 (handoff section 7). |
+
+Found during the close-out (not fixed, Stage 2 scope):
+- The Hospitals page still opens only for Owner and Admin (`can(role, "helper_work")`), not for the `hospitals_view` tick that Anoop approved (handoff 9b). A User with the Hospitals view tick sees "No access".
+- The Hospitals row **Run now** button only showed a browser `alert()`; it started nothing. Fixed in Stage 3 (real Run now).
