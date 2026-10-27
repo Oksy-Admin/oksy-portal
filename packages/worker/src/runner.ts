@@ -5,6 +5,7 @@
 // A later free scheduler (GitHub Actions cron or a Supabase schedule) only queues jobs.
 // Prints job IDs, counts and milliseconds only; never a cell value or a key (hard rules 1, 10).
 import { createReadPath, makeLogger, readClientsFromEnv, SheetNotReadableError, type GoogleEvent } from "@oksy/google";
+import { suggestFromEnv } from "./ai-mapping.ts";
 import { DbError, dbFromEnv, type Db } from "./db.ts";
 import { RunStopped, runSheetJob, type Job } from "./sheet-run.ts";
 
@@ -47,6 +48,7 @@ export async function runOne(db: Db, job: Job & { attempts: number }): Promise<s
       db,
       read,
       events,
+      suggest: suggestFromEnv(),
       timing: (step, ms) => console.info(`[timing] job sheet-run ${step} ${ms}ms`),
     });
     const ok = summary.result === "WRITTEN" || summary.result === "DRY_RUN";

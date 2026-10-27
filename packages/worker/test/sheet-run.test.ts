@@ -38,8 +38,12 @@ function fakeSheets(requested: string[][]): SheetsReader {
       async get(p) {
         if (!p.includeGridData) return { data: { sheets: Object.keys(TABS).map((title, index) => ({ properties: { title, index } })) } };
         requested.push(p.ranges ?? []);
-        const titles = (p.ranges ?? []).map((r) => r.replace(/^'|'$/g, "").replace(/''/g, "'"));
-        return { data: { sheets: titles.map((title) => ({ properties: { title }, data: [{ rowData: (TABS[title] ?? []).map((values) => ({ values })) }] })) } };
+        // A header probe asks for 'TAB'!1:10; a full read for 'TAB'.
+        const asked = (p.ranges ?? []).map((r) => {
+          const [, quoted = "", rows] = r.match(/^'(.*)'(?:!1:(\d+))?$/) ?? [];
+          return { title: quoted.replace(/''/g, "'"), rows: rows ? Number(rows) : undefined };
+        });
+        return { data: { sheets: asked.map(({ title, rows }) => ({ properties: { title }, data: [{ rowData: (TABS[title] ?? []).slice(0, rows).map((values) => ({ values })) }] })) } };
       },
     },
   };
@@ -65,6 +69,17 @@ async function run(db: ReturnType<typeof fakeDb>, requested: string[][], mode: "
   return runSheetJob({ id: crypto.randomUUID(), sheet_key: `${HMS_CODE}|PRIVATE`, mode }, { db, read, events, now: () => new Date("2026-10-26T06:00:00Z") });
 }
 
+/** A sheet whose column mapping was proposed by a first run and then confirmed once by a person. */
+async function confirmedDb() {
+  const db = fakeDb(seed());
+  const first = await run(db, []);
+  expect(first.result).toBe("STOPPED_LAYOUT");
+  for (const m of db.tables.column_mappings ?? []) Object.assign(m, { status: "APPROVED", approved_by: "fake-user-1", approved_at: "2026-10-27T05:00:00Z" });
+  db.tables.snapshots = [];
+  db.tables.reconciliations = [];
+  return db;
+}
+
 describe("one HMS-shaped sheet run (fake data)", () => {
   it("PORTAL LIST is never requested; the read is logged", async () => {
     const db = fakeDb(seed());
@@ -77,11 +92,12 @@ describe("one HMS-shaped sheet run (fake data)", () => {
   });
 
   it("reconciles, writes claims and payments, stores the worked example values", async () => {
-    const db = fakeDb(seed());
+    const db = await confirmedDb();
     const s = await run(db, []);
     expect(s.result).toBe("WRITTEN");
     expect(s.reconciliation.result).toBe("PASS");
     expect(s.reconciliation.counts).toMatchObject({ sourceRows: 4, byClass: { NON_DATA_ROW: 1 } });
+    expect(s.rows).toEqual({ read: 4, nonData: 1, data: 3 });
     expect(s.reconciliation.sums.bill).toMatchObject({ source: "230000.00", cleaned: "230000.00", unexplained: "0.00" });
     const claims = db.tables.claims_staging ?? [];
     expect(claims).toHaveLength(3);
@@ -100,7 +116,7 @@ describe("one HMS-shaped sheet run (fake data)", () => {
   });
 
   it("a second run creates no duplicates and no changes", async () => {
-    const db = fakeDb(seed());
+    const db = await confirmedDb();
     await run(db, []);
     const second = await run(db, []);
     expect(second.sync).toEqual({ new: 0, changed: 0, unchanged: 3, missing: 0 });
@@ -109,18 +125,28 @@ describe("one HMS-shaped sheet run (fake data)", () => {
     expect(db.tables.snapshots).toHaveLength(2); // each run keeps its own snapshot
   });
 
-  it("a PROPOSED mapping stored earlier is corrected to what the run uses", async () => {
+  it("stops until the mapping is confirmed; one confirmation covers both tabs with that header", async () => {
     const db = fakeDb(seed());
+    const s = await run(db, []);
+    expect(s.result).toBe("STOPPED_LAYOUT");
+    expect(s.layoutProblems).toEqual(["PAID: header layout not confirmed (R-Y01)", "PENDING: header layout not confirmed (R-Y01)"]);
+    expect(db.tables.claims_staging ?? []).toHaveLength(0);
+    // Proposed once for the sheet and header, not once per tab.
+    expect(new Set(db.tables.column_mappings!.map((m) => m.tab_name))).toEqual(new Set(["PAID"]));
+  });
+
+  it("the run uses the confirmed field, not the alias list", async () => {
+    const db = await confirmedDb();
+    const m = db.tables.column_mappings!.find((x) => x.source_header === "DEPARTMENT")!;
+    m.canonical_field = null; // a person confirmed: keep DEPARTMENT as an extra column only
     await run(db, []);
-    const m = db.tables.column_mappings!.find((x) => x.tab_name === "PAID" && x.source_header === "DOA")!;
-    m.canonical_field = null; // as if an older dictionary had missed it
-    m.status = "PROPOSED";
-    await run(db, []);
-    expect(db.tables.column_mappings!.find((x) => x.id === m.id)?.canonical_field).toBe("admission_date");
+    const one = (db.tables.claims_staging ?? []).find((c) => c.preauth_or_claim_no === "FAKECLM001")!;
+    expect(one.department ?? null).toBeNull();
+    expect(one.extra_fields).toMatchObject({ DEPARTMENT: "Ortho" });
   });
 
   it("DRY_RUN reads and reconciles but writes no claim", async () => {
-    const db = fakeDb(seed());
+    const db = await confirmedDb();
     const s = await run(db, [], "DRY_RUN");
     expect(s.result).toBe("DRY_RUN");
     expect(db.tables.claims_staging ?? []).toHaveLength(0);

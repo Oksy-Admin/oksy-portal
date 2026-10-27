@@ -3,6 +3,7 @@
 // For each sheet: auto-discovers tabs, records layouts/version groups, maps headers,
 // normalises, validates rules, reconciles (0 unexplained differences), and writes staging.
 import { createReadPath, makeLogger, readClientsFromEnv, type GoogleEvent } from "@oksy/google";
+import { suggestFromEnv } from "./ai-mapping.ts";
 import { dbFromEnv, type Db } from "./db.ts";
 import { runSheetJob, type Job, type RunSummary } from "./sheet-run.ts";
 
@@ -76,7 +77,7 @@ export async function runAllAccessiblePrivateSheets(
       try {
         const summary: RunSummary = await runSheetJob(
           { id: jobId, sheet_key: s.sheet_key, mode },
-          { db, read, events }
+          { db, read, events, suggest: suggestFromEnv() }
         );
 
         const ok = summary.result === "WRITTEN" || summary.result === "DRY_RUN";

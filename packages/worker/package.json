@@ -17,6 +17,7 @@
     "snapshot-analyse": "node scripts/snapshot-analyse.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
     "@oksy/google": "workspace:*",
     "@oksy/rules": "workspace:*"
   },

@@ -10,11 +10,11 @@ import {
   isEmptyRow,
   parseDate,
   type CleanRow,
-  type ColumnMap,
   type RuleVersion,
 } from "@oksy/rules";
 import { chunks, type Db } from "./db.ts";
-import { defaultProfile, doctorAliasesFrom, HMS_CODE, HMS_HEADERS, hmsProfile } from "./hms-profile.ts";
+import { applyConfirmed, confirmedLayouts, discoverTabs, proposeLayout, type DiscoverySummary, type MappingRow, type SuggestFn } from "./discovery.ts";
+import { defaultProfile, doctorAliasesFrom, HMS_CODE, HMS_HEADERS, HMS_SHEET, hmsProfile } from "./hms-profile.ts";
 import { emptyReconciliation, reconcile, type Reconciliation } from "./reconcile.ts";
 import { layoutOf, legendFrom, sourceRows, toRawTabs, type TabLayout } from "./sheet-data.ts";
 
@@ -31,6 +31,8 @@ export interface RunDeps {
   events: Array<GoogleEvent & { at?: string }>;
   now?: () => Date;
   timing?: (step: string, ms: number) => void;
+  /** AI column suggestions for a new header layout (Stage 3); alias list only when absent. */
+  suggest?: SuggestFn;
 }
 
 export interface RunSummary {
@@ -45,6 +47,10 @@ export interface RunSummary {
   /** Tier B fixes per rule, and rows with at least one (AUTO_FIXED explained). */
   fixes?: Record<string, number>;
   layoutProblems?: string[];
+  /** Tab discovery of this run (requirements v2 section 5). */
+  discovery?: DiscoverySummary;
+  /** Rows below the header: read, skipped as non-data (serial-only, totals, banners), data. */
+  rows?: { read: number; nonData: number; data: number };
   ms: Record<string, number>;
 }
 
@@ -115,24 +121,16 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   if (sheet.missing_from_register_since) throw new SheetNotReadableError(sheet.spreadsheet_id, "not in the latest register");
   const fileId = sheet.spreadsheet_id;
 
-  // 2. Tab policies (default deny): only ALLOW tabs are put in the request.
-  let tabRows = await db.select<{ tab_name: string; policy: TabPolicy; kind: string | null }>(
-    `sheet_tabs?spreadsheet_id=eq.${enc(fileId)}&select=tab_name,policy,kind`,
+  // 2. Tab discovery (Stage 3): month tabs found, helper tabs DENY, a month tab with a
+  //    confirmed header becomes ALLOW. Then only ALLOW tabs are put in the request.
+  const today = istDate(now());
+  const extraHeaders = fileId === HMS_SHEET ? HMS_HEADERS : {};
+  const discovery = await step("discover", () =>
+    discoverTabs({ hospital_code: sheet.hospital_code, spreadsheet_id: fileId }, { db, read: deps.read, events: deps.events, jobId: job.id, today, extraHeaders, suggest: deps.suggest }),
   );
-  if (tabRows.length === 0) {
-    const discovered = await deps.read.listTabs(fileId, {});
-    await db.insert("google_events", toEventRows(deps.events.splice(0), job.id));
-    if (discovered.length > 0) {
-      await db.insert("sheet_tabs", discovered.map((t) => ({
-        spreadsheet_id: fileId,
-        hospital_code: sheet.hospital_code,
-        tab_name: t.title,
-      })), { onConflict: "spreadsheet_id,tab_name", ignoreDuplicates: true });
-      tabRows = await db.select<{ tab_name: string; policy: TabPolicy; kind: string | null }>(
-        `sheet_tabs?spreadsheet_id=eq.${enc(fileId)}&select=tab_name,policy,kind`,
-      );
-    }
-  }
+  const tabRows = await db.select<{ tab_name: string; policy: TabPolicy; kind: string | null }>(
+    `sheet_tabs?spreadsheet_id=eq.${enc(fileId)}&missing_since=is.null&select=tab_name,policy,kind`,
+  );
 
   const saved = Object.fromEntries(tabRows.map((t) => [t.tab_name, t.policy]));
   const kind = Object.fromEntries(tabRows.map((t) => [t.tab_name, t.kind]));
@@ -145,6 +143,7 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
       tabsRead: [],
       tabsSkipped: tabRows.map((t) => ({ tab: t.tab_name, policy: t.policy })),
       reconciliation: emptyReconciliation(),
+      discovery,
       ms,
     };
   }
@@ -157,7 +156,7 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
 
   // 4. Layouts and the timestamped raw snapshot (never edited).
   const dataTabs = rawTabs.filter((t) => kind[t.name] === "DATA");
-  const layouts: TabLayout[] = dataTabs.map((t) => layoutOf(t, sheet.hospital_code === HMS_CODE ? HMS_HEADERS : {}));
+  const found: TabLayout[] = dataTabs.map((t) => layoutOf(t, extraHeaders));
   const raw = JSON.stringify(rawTabs);
   const [snap] = await step("snapshot", () =>
     db.insert<{ id: string }>(
@@ -169,7 +168,7 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
           sheet_key: sheet.sheet_key,
           spreadsheet_id: fileId,
           tabs: rawTabs.map((t) => {
-            const l = layouts.find((x) => x.tab === t.name);
+            const l = found.find((x) => x.tab === t.name);
             return { name: t.name, kind: kind[t.name] ?? null, rows: t.rows.length, header_row: l?.headerRow ?? null, header_fp: l?.fingerprint ?? null };
           }),
           raw: JSON.parse(raw),
@@ -181,27 +180,32 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   );
   if (!snap) throw new Error("snapshot not stored");
 
-  // 5. Mapping: a changed header layout stops the sheet (R-Y01, G1 review).
+  // 5. Mapping, confirmed once per sheet (hospital + scheme) and header layout. A tab whose
+  //    header has no confirmed mapping stops the sheet (R-Y01) and its layout is proposed.
   const layoutProblems: string[] = [];
-  const known = await db.select<{ id: string; tab_name: string; header_fp: string; source_column: number; canonical_field: string | null; status: string }>(
-    `column_mappings?spreadsheet_id=eq.${enc(fileId)}&status=neq.RETIRED&select=id,tab_name,header_fp,source_column,canonical_field,status`,
+  const known = await db.select<MappingRow>(
+    `column_mappings?spreadsheet_id=eq.${enc(fileId)}&status=neq.RETIRED&select=id,tab_name,header_fp,source_column,canonical_field,status,approved_by,approved_at`,
   );
-  for (const l of layouts) {
-    if (l.headerRow === null) layoutProblems.push(`${l.tab}: no header row found`);
-    const fps = new Set(known.filter((k) => k.tab_name === l.tab).map((k) => k.header_fp));
-    if (fps.size > 0 && !fps.has(l.fingerprint)) layoutProblems.push(`${l.tab}: header layout changed (R-Y01)`);
-    // A PROPOSED mapping that differs from what this run uses is corrected (migration 0009, audited).
-    for (const m of l.map) {
-      const k = known.find((x) => x.tab_name === l.tab && x.header_fp === l.fingerprint && x.source_column === m.column);
-      if (k && k.status === "PROPOSED" && k.canonical_field !== m.field) {
-        await db.update(`column_mappings?id=eq.${k.id}&status=eq.PROPOSED`, { canonical_field: m.field, confidence: m.confidence, method: m.method });
-      }
+  const confirmed = confirmedLayouts(known);
+  const proposed = new Set(known.map((k) => k.header_fp));
+  const layouts: TabLayout[] = [];
+  for (const l of found) {
+    if (l.headerRow === null) {
+      layoutProblems.push(`${l.tab}: no header row found`);
+      layouts.push(l);
+      continue;
     }
-    if (fps.size === 0 && l.headerRow !== null) {
-      await db.insert("column_mappings", l.map.map((m: ColumnMap) => mappingRow(sheet.hospital_code, fileId, l, m)), {
-        onConflict: "spreadsheet_id,tab_name,header_fp,source_column",
-        ignoreDuplicates: true,
-      });
+    const ok = confirmed.get(l.fingerprint);
+    if (ok) {
+      layouts.push(applyConfirmed(l, ok));
+      continue;
+    }
+    layoutProblems.push(`${l.tab}: header layout not confirmed (R-Y01)`);
+    layouts.push(l);
+    if (!proposed.has(l.fingerprint)) {
+      const raw = dataTabs.find((t) => t.name === l.tab)!;
+      await proposeLayout(db, sheet.hospital_code, fileId, l, deps.suggest ? await deps.suggest(l, raw) : l.map);
+      proposed.add(l.fingerprint);
       if (l.fingerprint) {
         await db.insert("version_groups", [{
           version_group: `VG-${sha256(l.fingerprint).slice(0, 8)}`,
@@ -235,7 +239,6 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     : defaultProfile(sheet.hospital_code, sheet.scheme, legend, doctorAliases);
 
   // 7. Clean every non-empty row; one date order for the sheet (file 02 section 3).
-  const today = istDate(now());
   const [rawRules, rawVersions] = await Promise.all([
     db.select<{ rule_id: string; rule_type: "CHECK" | "PARAMETER" }>("rules?select=rule_id,rule_type"),
     db.select<{
@@ -290,6 +293,8 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     tabsSkipped,
     reconciliation: rec,
     layoutProblems,
+    discovery,
+    rows: { read: srcRows.length, nonData: cleaned.filter((r) => r.rowClass === "NON_DATA_ROW").length, data: cleaned.filter((r) => r.rowClass !== "NON_DATA_ROW").length },
     issues: issueCounts(cleaned),
     fixes: fixCounts(cleaned),
     ms,
@@ -313,20 +318,6 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   // 9. Write by upsert, never plain insert (file 03 section 4.9).
   const written = await step("write", () => writeRows(db, job, sheet, fileId, cleaned, now()));
   return { ...base, result: "WRITTEN", ...written };
-}
-
-function mappingRow(hospital: string, fileId: string, l: TabLayout, m: ColumnMap) {
-  return {
-    hospital_code: hospital,
-    spreadsheet_id: fileId,
-    tab_name: l.tab,
-    header_fp: l.fingerprint,
-    source_header: m.header || `Column ${m.column + 1}`,
-    source_column: m.column,
-    canonical_field: m.field,
-    confidence: m.confidence,
-    method: m.method,
-  };
 }
 
 /** Two rows with one record key: both kept and linked by a suffix, R-Y03 (never merged). */
