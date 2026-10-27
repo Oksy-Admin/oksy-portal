@@ -125,3 +125,19 @@ describe("read path with a fake sheet", () => {
     expect(data.has("PORTAL LIST")).toBe(false);
   });
 });
+
+describe("header probe for tab discovery (Stage 3)", () => {
+  it("asks only rows 1 to 10 of the named tabs", async () => {
+    const { client, calls } = fakeClient();
+    const read = createReadPath(client, () => {});
+    await read.readHeaderRows(FAKE_ID, ["PAID", "O'Brien Ward"]);
+    expect(calls).toEqual([{ fields: READ_TAB_FIELDS, ranges: ["'PAID'!1:10", "'O''Brien Ward'!1:10"] }]);
+  });
+
+  it("refuses a credential-like tab before any Google call", async () => {
+    const { client, calls } = fakeClient();
+    const read = createReadPath(client, () => {});
+    await expect(read.readHeaderRows(FAKE_ID, ["PAID", "PORTAL LIST"])).rejects.toThrow(/DENY/);
+    expect(calls).toHaveLength(0);
+  });
+});

@@ -34,6 +34,9 @@ export const LIST_TABS_FIELDS = "sheets.properties(title,index,hidden)";
 export const READ_TAB_FIELDS =
   "sheets(properties(title),data(rowData(values(formattedValue,effectiveValue,effectiveFormat/backgroundColor))))";
 
+// Header probe for tab discovery: the header is found in rows 1 to 10 (findHeaderRow).
+export const HEADER_PROBE_ROWS = 10;
+
 // Access check (brief A7.5): the spreadsheet ID only. No title, no tab names, no cells.
 export const CHECK_ACCESS_FIELDS = "spreadsheetId";
 
@@ -148,5 +151,28 @@ export function createReadPath(client: SheetsReader, log: (e: GoogleEvent) => vo
     }
   }
 
-  return { listTabs, readAllowedTabs, checkAccess };
+  /**
+   * Tab discovery (requirements v2 section 5): the first rows of month tabs, to find and
+   * compare the header before a person has confirmed the mapping. Only the named tabs, only
+   * rows 1 to HEADER_PROBE_ROWS, and never a credential-like tab (it is refused before the call).
+   */
+  async function readHeaderRows(spreadsheetId: string, tabNames: string[]): Promise<Map<string, CellData[][]>> {
+    const result = new Map<string, CellData[][]>();
+    if (tabNames.length === 0) return result;
+    for (const t of tabNames) {
+      if (effectivePolicy(t, {}) === "DENY") throw new TabNotAllowedError(t, "DENY");
+    }
+    const ranges = tabNames.map((t) => `${wholeTabRange(t)}!1:${HEADER_PROBE_ROWS}`);
+    const res = await client.spreadsheets.get({ spreadsheetId, ranges, fields: READ_TAB_FIELDS, includeGridData: true });
+    for (const sheet of res.data.sheets ?? []) {
+      const title = sheet.properties?.title ?? "";
+      if (!tabNames.includes(title)) continue;
+      const rows = (sheet.data?.[0]?.rowData ?? []).map((r) => r.values ?? []);
+      result.set(title, rows);
+      log({ kind: "READ_TAB", spreadsheetId, tab: title, rowCount: rows.length });
+    }
+    return result;
+  }
+
+  return { listTabs, readAllowedTabs, readHeaderRows, checkAccess };
 }
