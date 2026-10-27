@@ -2,41 +2,10 @@
 // hospital's own confirmed headers. Unmatched columns go to extra_fields, never dropped.
 // Ambiguous headers ("Amount", "Date", "Status", "Ref No", "Balance", "Deduction") are
 // never mapped on the header alone.
+import { IGNORE_FIELD, isCanonicalField, type CanonicalField } from "./fields.ts";
 import { normaliseHeader } from "./normalise.ts";
 
-export const CANONICAL_FIELDS = [
-  "serial_no",
-  "patient_name",
-  "patient_ip_no",
-  "policy_or_card_no",
-  "preauth_or_claim_no",
-  "insurer_name",
-  "tpa_name",
-  "admission_date",
-  "discharge_date",
-  "treatment_or_surgery",
-  "department",
-  "doctor_name",
-  "room_no",
-  "bill_amount",
-  "claimed_amount",
-  "approved_amount",
-  "copay_amount",
-  "deduction_amount",
-  "discount_amount",
-  "casesheet_sent_date",
-  "courier_no",
-  "followup_log",
-  "status_text",
-  "rejection_reason",
-  "cancellation_reason",
-  "payment_date",
-  "payment_amount",
-  "payment_utr",
-  "tds_amount_stated",
-  "remarks",
-] as const;
-export type CanonicalField = (typeof CANONICAL_FIELDS)[number];
+export * from "./fields.ts";
 
 /** Normalised header -> field. Typical headers (file 03 section 3) plus HMS headers confirmed 25-Oct. */
 const ALIASES: Record<string, CanonicalField> = {};
@@ -48,6 +17,8 @@ alias("patient_name", "Patient Name", "Pt Name", "Name of Patient", "Patient", "
 alias("patient_ip_no", "IP No", "IP Number", "UHID", "MR No", "MRD No", "IP", "MRD/ UHID/ IP NUMBER", "MRD / UHID / IP No");
 alias("policy_or_card_no", "Policy No", "Policy Number", "Card No", "Member ID", "Policy No / Card No", "Card Number",
   "Policy / Card Number", "Card Number / Policy Number");
+alias("phone_number", "Phone", "Phone No", "Phone Number", "Mobile", "Mobile No", "Mobile Number", "Contact No", "Contact Number");
+alias("policy_holder_name", "Policy Holder", "Policy Holder Name", "Insured Name", "Card Holder", "Card Holder Name");
 alias("preauth_or_claim_no", "Pre-auth No", "Preauth No", "Claim No", "Claim Number", "Case No", "Authorisation No",
   "Authorization No", "CCN", "Claim ID", "AL No", "Pre Auth No");
 alias("insurer_name", "Insurer", "Insurance Company", "Insurance", "Company", "Insurer Name", "Insurance Co", "Insurance Company Name");
@@ -59,8 +30,11 @@ alias("treatment_or_surgery", "Treatment", "Procedure", "Package", "Surgery", "D
 alias("department", "Department", "Dept", "Speciality", "Specialty");
 alias("doctor_name", "Doctor", "Consultant", "Doctor Name", "Consultant Name", "Treating Doctor", "DR NAME");
 alias("room_no", "Room No", "Room", "Bed No");
+alias("room_category", "Room Category", "Room Type");
 alias("bill_amount", "Bill", "Final Bill", "Bill Amount", "Total Bill", "Bill Amt", "Hospital Bill Amount");
 alias("claimed_amount", "Claimed Amount", "Claim Amount", "Claimed Amt");
+alias("preauth_approved_amount", "Pre-auth Approval Amount", "Pre-auth Approved Amount", "Preauth Approved Amount",
+  "Pre Auth Approved Amount", "Preauth Approval Amount");
 alias("approved_amount", "Final Approved Amount", "Final Approved", "Sanctioned", "Sanctioned Amount",
   "Approved Amount", "Final Approval");
 alias("copay_amount", "Co-pay", "Copay", "Co Pay", "Patient Share", "Co-Pay Amount");
@@ -68,6 +42,7 @@ alias("discount_amount", "Discount", "Hospital Discount");
 alias("casesheet_sent_date", "Hard Copy Sent", "Courier Date", "Hard Copy Date", "Casesheet Sent", "File Sent Date",
   "Hard Copy Sent Date");
 alias("courier_no", "POD Number", "POD No", "POD", "Courier No");
+alias("followup_date", "Follow Up Date", "Follow-up Date", "Next Follow Up", "Next Follow Up Date");
 alias("followup_log", "Follow Up", "Followup", "Follow-up", "Follow Up Remarks");
 alias("rejection_reason", "Rejection Reason", "Reason for Rejection", "Denial Reason");
 alias("cancellation_reason", "Cancellation Reason", "Reason for Cancellation");
@@ -86,9 +61,11 @@ const NEVER_ON_HEADER_ALONE = new Set(
 export interface ColumnMap {
   column: number;
   header: string;
-  field: CanonicalField | null; // null = extra_fields
+  field: CanonicalField | null; // null = extra_fields, unless ignored
   confidence: number;
-  method: "ALIAS" | "DUPLICATE_HEADER" | "UNMATCHED" | "AI";
+  /** A person chose "Ignore (not needed)": the column is not read at all. */
+  ignored?: boolean;
+  method: "ALIAS" | "DUPLICATE_HEADER" | "UNMATCHED" | "AI" | "MANUAL"; // MANUAL = a person's choice
 }
 
 /**
@@ -112,6 +89,15 @@ export function mapHeaders(headers: Array<string | null>, extra: Record<string, 
     seenFields.add(field);
     return { column, header, field, confidence: 0.95, method: "ALIAS" };
   });
+}
+
+/**
+ * A stored choice (column_mappings.canonical_field) for applying a confirmed mapping:
+ * IGNORE = not read at all; a known field = that field; NULL or unknown text = extra_fields.
+ */
+export function readChoice(stored: string | null): { field: CanonicalField | null; ignored: boolean } {
+  if (stored === IGNORE_FIELD) return { field: null, ignored: true };
+  return { field: isCanonicalField(stored) ? stored : null, ignored: false };
 }
 
 /** Ordered normalised headers joined: the version-group fingerprint (file 03 section 3). */
