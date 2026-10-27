@@ -4,37 +4,39 @@
 // never mapped on the header alone.
 import { normaliseHeader } from "./normalise.ts";
 
-export type CanonicalField =
-  | "serial_no"
-  | "patient_name"
-  | "patient_ip_no"
-  | "policy_or_card_no"
-  | "preauth_or_claim_no"
-  | "insurer_name"
-  | "tpa_name"
-  | "admission_date"
-  | "discharge_date"
-  | "treatment_or_surgery"
-  | "department"
-  | "doctor_name"
-  | "room_no"
-  | "bill_amount"
-  | "claimed_amount"
-  | "approved_amount"
-  | "copay_amount"
-  | "deduction_amount"
-  | "discount_amount"
-  | "casesheet_sent_date"
-  | "courier_no"
-  | "followup_log"
-  | "status_text"
-  | "rejection_reason"
-  | "cancellation_reason"
-  | "payment_date"
-  | "payment_amount"
-  | "payment_utr"
-  | "tds_amount_stated"
-  | "remarks";
+export const CANONICAL_FIELDS = [
+  "serial_no",
+  "patient_name",
+  "patient_ip_no",
+  "policy_or_card_no",
+  "preauth_or_claim_no",
+  "insurer_name",
+  "tpa_name",
+  "admission_date",
+  "discharge_date",
+  "treatment_or_surgery",
+  "department",
+  "doctor_name",
+  "room_no",
+  "bill_amount",
+  "claimed_amount",
+  "approved_amount",
+  "copay_amount",
+  "deduction_amount",
+  "discount_amount",
+  "casesheet_sent_date",
+  "courier_no",
+  "followup_log",
+  "status_text",
+  "rejection_reason",
+  "cancellation_reason",
+  "payment_date",
+  "payment_amount",
+  "payment_utr",
+  "tds_amount_stated",
+  "remarks",
+] as const;
+export type CanonicalField = (typeof CANONICAL_FIELDS)[number];
 
 /** Normalised header -> field. Typical headers (file 03 section 3) plus HMS headers confirmed 25-Oct. */
 const ALIASES: Record<string, CanonicalField> = {};
@@ -86,7 +88,7 @@ export interface ColumnMap {
   header: string;
   field: CanonicalField | null; // null = extra_fields
   confidence: number;
-  method: "ALIAS" | "DUPLICATE_HEADER" | "UNMATCHED";
+  method: "ALIAS" | "DUPLICATE_HEADER" | "UNMATCHED" | "AI";
 }
 
 /**
