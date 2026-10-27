@@ -3,7 +3,7 @@ import { can } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 import { icons } from "../icons";
 import { NoAccess, PageHead } from "../ui";
-import { HospitalTable, type SheetRowData } from "./hospital-table";
+import { HospitalTable, type HospitalRowData } from "./hospital-table";
 import { withTiming } from "@/lib/timing";
 
 async function HospitalsPage() {
@@ -12,66 +12,93 @@ async function HospitalsPage() {
 
   const supabase = await createClient();
   const [hosp, sheets] = await Promise.all([
-    // needs_review is not selected: the live database has no such column (migration 0018 not applied; stage0_report.md).
-    supabase.from("hospitals").select("hospital_code, hospital_name, district, status, missing_from_register_since"),
+    supabase
+      .from("hospitals")
+      .select("hospital_key, hospital_code, hospital_name, district, status, other_names, question_sheet_url, missing_from_register_since")
+      .is("missing_from_register_since", null)
+      .order("hospital_code"),
     supabase
       .from("hospital_sheets")
-      .select("sheet_key, hospital_code, scheme, sheet_status, spreadsheet_id, sheet_url, sync, read_skip_reason, check_flag, access_status, access_error, last_checked_at")
+      .select("sheet_key, hospital_code, scheme, sheet_status, spreadsheet_id, sheet_url, sync, read_skip_reason, check_flag, access_status, access_error, last_checked_at, last_ok_at")
       .is("missing_from_register_since", null)
       .order("hospital_code"),
   ]);
-  const loadError = hosp.error ?? sheets.error;
-  const hospitalMap = new Map((hosp.data ?? []).map((h) => [h.hospital_code, h]));
-  const allSheets = (sheets.data ?? []);
 
-  const rows: SheetRowData[] = allSheets.map((s) => {
-    const h = hospitalMap.get(s.hospital_code);
+  const loadError = hosp.error ?? sheets.error;
+  const hospitalList = hosp.data ?? [];
+  const allSheets = sheets.data ?? [];
+
+  // Group sheets by hospital_code
+  const sheetsByHospital = new Map<string, typeof allSheets>();
+  for (const s of allSheets) {
+    const list = sheetsByHospital.get(s.hospital_code) ?? [];
+    list.push(s);
+    sheetsByHospital.set(s.hospital_code, list);
+  }
+
+  const rows: HospitalRowData[] = hospitalList.map((h) => {
+    const hospitalSheets = sheetsByHospital.get(h.hospital_code) ?? [];
     return {
-      sheet_key: s.sheet_key,
-      hospital_code: s.hospital_code,
-      hospital_name: h?.hospital_name ?? "",
-      district: h?.district ?? "",
-      scheme: s.scheme,
-      sheet_status: s.sheet_status,
-      spreadsheet_id: s.spreadsheet_id,
-      sheet_url: s.sheet_url,
-      sync: s.sync,
-      read_skip_reason: s.read_skip_reason,
-      check_flag: s.check_flag,
-      access_status: s.access_status,
-      access_error: s.access_error,
-      last_checked_at: s.last_checked_at,
-      status: h?.status ?? "ACTIVE",
-      needs_review: false,
+      hospital_key: h.hospital_key,
+      hospital_code: h.hospital_code,
+      hospital_name: h.hospital_name,
+      district: h.district ?? "",
+      status: h.status,
+      other_names: Array.isArray(h.other_names) ? h.other_names : [],
+      question_sheet_url: h.question_sheet_url ?? null,
+      schemes: hospitalSheets.map((s) => ({
+        sheet_key: s.sheet_key,
+        scheme: s.scheme,
+        spreadsheet_id: s.spreadsheet_id,
+        sheet_url: s.sheet_url,
+        sheet_status: s.sheet_status,
+        sync: s.sync,
+        access_status: s.access_status,
+        access_error: s.access_error,
+        last_checked_at: s.last_checked_at,
+        last_ok_at: s.last_ok_at,
+      })),
     };
   });
 
   const activeCount = rows.filter((r) => r.status === "ACTIVE").length;
-  const referenceCount = rows.filter((r) => r.status === "REFERENCE").length;
-  const accessOkCount = rows.filter((r) => r.access_status === "OK" && r.sync === "YES").length;
-  const pendingCount = rows.filter((r) => r.access_status === "ACCESS_PENDING").length;
+  const stoppedCount = rows.filter((r) => r.status === "STOPPED" || r.status === "INACTIVE").length;
+  const totalSheets = allSheets.length;
+  const linkedSheets = allSheets.filter((s) => s.sheet_url || s.spreadsheet_id).length;
+  const syncYesCount = allSheets.filter((s) => s.sync === "YES").length;
+  const syncHoldCount = allSheets.filter((s) => s.sync === "HOLD").length;
+  const accessOkCount = allSheets.filter((s) => s.access_status === "OK").length;
+  const accessPendingCount = allSheets.filter((s) => s.access_status === "ACCESS_PENDING" || s.access_status === "NOT_CHECKED").length;
+  const questionSheetCount = rows.filter((r) => r.question_sheet_url).length;
 
   const cards = [
     {
-      label: "Hospitals & Schemes",
+      label: "Hospitals",
       value: rows.length,
-      note: `${activeCount} ACTIVE · ${referenceCount} REFERENCE`,
+      note: `${activeCount} ACTIVE · ${stoppedCount} STOPPED`,
       icon: icons.hospital,
       tone: "tone-blue",
     },
     {
-      label: "Sheet Links",
-      value: rows.filter((r) => r.sheet_url || r.spreadsheet_id).length,
-      note: `SYNC ${rows.filter((s) => s.sync === "YES").length} YES · ${rows.filter((s) => s.sync === "HOLD").length} HOLD`,
+      label: "Scheme Sheets Linked",
+      value: `${linkedSheets} / ${totalSheets}`,
+      note: `SYNC ${syncYesCount} YES · ${syncHoldCount} HOLD`,
       icon: icons.sheet,
       tone: "tone-green",
     },
     {
       label: "Robot Access",
       value: `${accessOkCount} OK`,
-      note: `${pendingCount} pending / not shared`,
+      note: `${accessPendingCount} pending / not checked`,
       icon: icons.alert,
-      tone: pendingCount > 0 ? "tone-amber" : "tone-green",
+      tone: accessPendingCount > 0 ? "tone-amber" : "tone-green",
+    },
+    {
+      label: "Question Sheets",
+      value: `${questionSheetCount} Created`,
+      note: `${rows.length - questionSheetCount} not created`,
+      icon: icons.sheet,
+      tone: "tone-blue",
     },
   ];
 
@@ -79,7 +106,7 @@ async function HospitalsPage() {
     <div className="stack">
       <PageHead
         title="Hospitals"
-        subtitle="One row per hospital + scheme. Google sheet links, status, and read-only robot access."
+        subtitle="Hospital profiles, editable IDs and names, scheme sheets, and read-only robot access."
         actions={
           <Link className="btn secondary" href="/admin/tabs">
             Sheet tabs (allow-list)
@@ -94,7 +121,7 @@ async function HospitalsPage() {
         </div>
       )}
 
-      <div className="grid grid-3">
+      <div className="grid grid-4">
         {cards.map((c) => (
           <div key={c.label} className="card kpi">
             <span className={`icon ${c.tone}`}>{c.icon}</span>
