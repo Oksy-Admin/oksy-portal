@@ -85,6 +85,8 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - `header_decisions` read policy: also allow the `hospitals_view` tick (today only `hospitals_add_edit`).
 - Fix the migration chain so a fresh database replays it (`scripts/db-test-local.sh`, CI): stray lines in `20261027000023`; `has_tick` (`20261027063143`) is used before it is created (renamed on 30-Oct to the live version numbers); the `OWNER` role value. Live is not changed; only the files and their order.
 - Balance Status mapping test (needs a safe source column; never BALANCE AMOUNT).
+- **Schema drift (found 31-Oct while planning, read-only):** 11 tables created by repo migrations are not on live, although every migration is recorded as applied (missing since at least 27-Oct): `snapshots`, `record_keys`, `change_log` (written by the worker in WRITE runs), `district_heads`, `hospital_aliases`, `open_checks`, `retired_ids`, `staff_contacts` (read by `/hospitals/[code]`), `golden_tests` (a script), `discount`, `import_runs` (unused). Plan needed: one reconcile migration so live matches the repo (create the used ones), and the unused / superseded ones go on the 1d removal list.
+- Already on live (verify + test only, no migration): RLS read policies of `hospital_id_history` (hospitals_view), `report_downloads` (clean_data_view), `rule_upload_batches` (rule_library_view).
 - Done when: each item is built or verified, with evidence in the status table.
 
 **1d – Data foundations**
