@@ -75,6 +75,7 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - Change log: verify it records access, hospital, field and mapping changes.
 - RLS read side for `hospital_id_history`, `report_downloads`, `rule_upload_batches`.
 - `header_decisions` read policy: also allow the `hospitals_view` tick (today only `hospitals_add_edit`).
+- Fix the migration chain so a fresh database replays it (`scripts/db-test-local.sh`, CI): stray lines in `20261027000023`; `has_tick` (`20261027063143`) is used before it is created (renamed on 30-Oct to the live version numbers); the `OWNER` role value. Live is not changed; only the files and their order.
 - Balance Status mapping test (needs a safe source column; never BALANCE AMOUNT).
 - Done when: each item is built or verified, with evidence in the status table.
 
