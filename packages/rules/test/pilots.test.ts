@@ -1,6 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { coreFieldDefs, headerKey, resolveLayout, valueShape, VALUE_SHAPES, type HeaderDecision, type ValueShape } from "../src/index.ts";
+import badagara from "./fixtures/pilots/HOSPPVTP0001.json" with { type: "json" };
+import treeG from "./fixtures/pilots/HOSPPVTP0002.json" with { type: "json" };
+import hms from "./fixtures/pilots/HOSPPVTP0003.json" with { type: "json" };
 
 // Golden fixtures of the 3 pilot sheets (decision 31-Oct): headers and value-shape counts per
 // column, plus each hospital's header decisions. No cell value is stored. Regenerate with
@@ -11,11 +13,7 @@ interface Fixture {
   tabs: Array<{ tab: string; header_row: number | null; columns: Array<{ column: number; header: string; shapes: Record<ValueShape, number> }> }>;
   decisions: HeaderDecision[];
 }
-const DIR = new URL("./fixtures/pilots/", import.meta.url);
-const fixtures: Fixture[] = readdirSync(DIR)
-  .filter((f) => f.endsWith(".json"))
-  .sort()
-  .map((f) => JSON.parse(readFileSync(new URL(f, DIR), "utf8")) as Fixture);
+const fixtures = [badagara, treeG, hms] as Fixture[];
 const pilot = (code: string) => fixtures.find((f) => f.hospital_code === code)!;
 
 /** One made-up value per shape, so the value-shape check sees the same mix as the sheet. */
