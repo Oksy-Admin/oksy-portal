@@ -1,6 +1,8 @@
 // Column Mappings helpers shared by the page and its tests (no server imports).
 // Stage 1b-i (decisions.md section 5, Policy B + D): one decision per hospital + scheme +
 // normalised header, reused on every tab. The page lists each distinct header once.
+// Stage 1b-ii: decisions of other hospitals of the same scheme are pre-filled suggestions,
+// and Owner / Admin can confirm them in bulk (at most 50, undo as a group).
 import { autoIgnoreByHeader, headerKey } from "@oksy/rules/decisions";
 import { IGNORE_FIELD } from "@oksy/rules/fields";
 
@@ -27,6 +29,23 @@ export interface StoredDecision {
   decided_at: string;
 }
 
+/** A decision another hospital of the same scheme made for the same header (exact match). */
+export interface CrossSuggestion {
+  field: string | null;
+  /** The hospitals that decided the header this way. */
+  from: string[];
+}
+
+/** One bulk confirm, as the page reads it (header_decision_batches). */
+export interface StoredBatch {
+  id: string;
+  hospital_code: string;
+  scheme: string;
+  item_count: number;
+  created_at: string;
+  undone_at: string | null;
+}
+
 export type HeaderState = "NEEDS_DECISION" | "CHECK_AGAIN" | "DECIDED" | "AUTO_IGNORED";
 
 /** One distinct header of a hospital + scheme: what the page shows and decides once. */
@@ -38,6 +57,8 @@ export interface HeaderItem {
   tabs: string[];
   /** The most common proposal for the header (alias list or AI); never saved on its own. */
   suggestion: string | null;
+  /** Undecided headers only: how other hospitals of the scheme decided it. Pre-filled first. */
+  crossSuggestion: CrossSuggestion | null;
   decision: StoredDecision | null;
   /** Why the worker stopped reuse (value-shape check, consistency guard), in plain words. */
   reasons: string[];
@@ -52,6 +73,20 @@ function keyOf(c: StoredColumn): string {
 }
 
 const ORDER: Record<HeaderState, number> = { CHECK_AGAIN: 0, NEEDS_DECISION: 1, DECIDED: 2, AUTO_IGNORED: 3 };
+
+/**
+ * The decision other hospitals of the scheme made for a header: the most common one (ties:
+ * the first by name), with the hospitals that made it. Null when no other hospital decided it.
+ */
+export function crossSuggestionFor(hospital: string, scheme: string, key: string, decisions: StoredDecision[]): CrossSuggestion | null {
+  const byField = new Map<string | null, string[]>();
+  for (const d of decisions) {
+    if (d.hospital_code === hospital || d.scheme !== scheme || d.header_key !== key) continue;
+    byField.set(d.canonical_field, [...(byField.get(d.canonical_field) ?? []), d.hospital_code]);
+  }
+  const best = [...byField].sort((a, b) => b[1].length - a[1].length || (a[0] ?? "").localeCompare(b[0] ?? ""))[0];
+  return best ? { field: best[0], from: [...new Set(best[1])].sort() } : null;
+}
 
 /** The decision list: one item per hospital + scheme + header, open ones first. */
 export function headerItems(columns: StoredColumn[], decisions: StoredDecision[]): HeaderItem[] {
@@ -74,11 +109,29 @@ export function headerItems(columns: StoredColumn[], decisions: StoredDecision[]
     const header = cols[0]!.source_header;
     const autoIgnoreReason = autoIgnoreByHeader(header);
     const state: HeaderState = autoIgnoreReason ? "AUTO_IGNORED" : reasons.length > 0 ? "CHECK_AGAIN" : decision ? "DECIDED" : "NEEDS_DECISION";
-    out.push({ hospital_code, scheme, header_key, header, tabs: [...new Set(cols.map((c) => c.tab_name))].sort(), suggestion, decision, reasons, state, autoIgnoreReason });
+    const crossSuggestion = decision || autoIgnoreReason ? null : crossSuggestionFor(hospital_code, scheme, header_key, decisions);
+    out.push({ hospital_code, scheme, header_key, header, tabs: [...new Set(cols.map((c) => c.tab_name))].sort(), suggestion, crossSuggestion, decision, reasons, state, autoIgnoreReason });
   }
   return out.sort(
     (a, b) => a.hospital_code.localeCompare(b.hospital_code) || a.scheme.localeCompare(b.scheme) || ORDER[a.state] - ORDER[b.state] || a.header.localeCompare(b.header),
   );
+}
+
+/** The most headers one bulk confirm may take (decisions.md section 5). */
+export const BULK_MAX = 50;
+
+/**
+ * "Confirm all" for one hospital + scheme: its undecided headers that another hospital of the
+ * scheme already decided, each with that exact decision. A header whose dropdown was changed
+ * to something else is left out (it is saved on its own row). The first BULK_MAX go in one action.
+ */
+export function bulkCandidates(items: HeaderItem[], selected: Record<string, string | null> = {}): { take: HeaderItem[]; rest: number } {
+  const all = items.filter((i) => {
+    if (i.state !== "NEEDS_DECISION" || !i.crossSuggestion) return false;
+    const id = `${i.hospital_code}|${i.scheme}|${i.header_key}`;
+    return !(id in selected) || selected[id] === i.crossSuggestion.field;
+  });
+  return { take: all.slice(0, BULK_MAX), rest: Math.max(0, all.length - BULK_MAX) };
 }
 
 /** What the page shows for a stored choice. */

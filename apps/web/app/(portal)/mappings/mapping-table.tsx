@@ -2,9 +2,9 @@
 
 import { IGNORE_FIELD, offeredFields, type FieldDef } from "@oksy/rules/fields";
 import { useState, useTransition } from "react";
-import { applyChoice, choiceLabel, type HeaderItem } from "@/lib/mappings";
+import { applyChoice, bulkCandidates, choiceLabel, type HeaderItem, type StoredBatch } from "@/lib/mappings";
 import { FieldForm } from "../fields/fields-table";
-import { createFieldAndDecideAction, decideHeaderAction, type HeaderRef } from "./actions";
+import { bulkConfirmAction, createFieldAndDecideAction, decideHeaderAction, undoBulkAction, type HeaderRef } from "./actions";
 
 /** The dropdown values that are not a field key. Never stored as such. */
 const NEW_FIELD = "__new__";
@@ -22,18 +22,27 @@ const refOf = (i: HeaderItem): HeaderRef => ({ hospitalCode: i.hospital_code, sc
 const toValue = (field: string | null) => (field === null ? EXTRA : field);
 const fromValue = (v: string) => (v === EXTRA ? null : v);
 
+/** The dropdown starts at the saved decision, else another hospital's, else the proposal. */
+const startValue = (i: HeaderItem) => toValue(i.decision ? i.decision.canonical_field : i.crossSuggestion ? i.crossSuggestion.field : i.suggestion);
+
 export function MappingTable({
   items,
+  batches,
   hospitalNames,
   fields,
   canCreateFields,
+  canBulk,
 }: {
   items: HeaderItem[];
+  /** Bulk confirms not undone yet, newest first. */
+  batches: StoredBatch[];
   hospitalNames: Record<string, string>;
   /** The mapping_fields list (Fields page). Only ACTIVE fields are offered for a new choice. */
   fields: FieldDef[];
   /** false while the field list is read from the code (migration 0028 not applied). */
   canCreateFields: boolean;
+  /** Owner / Admin: "Confirm all" and its undo. */
+  canBulk: boolean;
 }) {
   const labels = Object.fromEntries(fields.map((f) => [f.key, f.label]));
   const hidden = new Set(fields.filter((f) => f.status !== "ACTIVE").map((f) => f.key));
@@ -42,8 +51,10 @@ export function MappingTable({
   const [filterHospital, setFilterHospital] = useState<string>("ALL");
   const [showDecided, setShowDecided] = useState<boolean>(false);
   const [selected, setSelected] = useState<Record<string, string>>(
-    Object.fromEntries(items.map((i) => [itemId(i), toValue(i.decision ? i.decision.canonical_field : i.suggestion)])),
+    Object.fromEntries(items.map((i) => [itemId(i), startValue(i)])),
   );
+  /** The hospital + scheme whose "Confirm all" list is open (shown before anything is saved). */
+  const [bulkOpen, setBulkOpen] = useState<string | null>(null);
   const [acceptShape, setAcceptShape] = useState<Record<string, boolean>>({});
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
@@ -87,6 +98,33 @@ export function MappingTable({
       const res = await decideHeaderAction(refOf(i), field, acceptShape[id] ?? false);
       if (res.ok) saved(i, field, res.columns);
       else setMessage({ text: res.error ?? "Failed to save", ok: false });
+    });
+  };
+
+  const selectedFields = Object.fromEntries(Object.entries(selected).map(([k, v]) => [k, fromValue(v)]));
+  const candidatesOf = (groupKey: string) => bulkCandidates(items.filter((i) => `${i.hospital_code}|${i.scheme}` === groupKey), selectedFields);
+
+  const handleBulk = (groupKey: string) => {
+    const { take } = candidatesOf(groupKey);
+    const [hospital, scheme] = groupKey.split("|") as [string, string];
+    setMessage(null);
+    startTransition(async () => {
+      const res = await bulkConfirmAction(hospital, scheme, take.map((i) => ({ headerKey: i.header_key, field: i.crossSuggestion!.field })));
+      if (res.ok) {
+        setBulkOpen(null);
+        setMessage({ text: `Confirmed ${take.length} header${take.length === 1 ? "" : "s"} in one action. You can undo it below.`, ok: true });
+      } else {
+        setMessage({ text: res.error, ok: false });
+      }
+    });
+  };
+
+  const handleUndo = (b: StoredBatch) => {
+    setMessage(null);
+    startTransition(async () => {
+      const res = await undoBulkAction(b.id);
+      if (res.ok) setMessage({ text: `Undone: ${res.count} header${res.count === 1 ? " is" : "s are"} undecided again.`, ok: true });
+      else setMessage({ text: res.error, ok: false });
     });
   };
 
@@ -140,6 +178,8 @@ export function MappingTable({
         [...groups.entries()].map(([groupKey, list]) => {
           const first = list[0]!;
           const open = list.filter((i) => i.state === "NEEDS_DECISION" || i.state === "CHECK_AGAIN").length;
+          const bulk = canBulk ? candidatesOf(groupKey) : { take: [], rest: 0 };
+          const groupBatches = canBulk ? batches.filter((b) => `${b.hospital_code}|${b.scheme}` === groupKey) : [];
           return (
             <div key={groupKey} className="card stack" style={{ gap: 12 }}>
               <div>
@@ -150,6 +190,47 @@ export function MappingTable({
                   {open} header{open === 1 ? "" : "s"} to decide. A decision here is used on every tab of this hospital and scheme with the same header.
                 </div>
               </div>
+
+              {bulk.take.length > 0 && bulkOpen !== groupKey && (
+                <div>
+                  <button className="btn" data-testid="confirm-all" disabled={isPending} onClick={() => setBulkOpen(groupKey)}>
+                    Confirm all {bulk.take.length} suggested from other hospitals
+                  </button>
+                </div>
+              )}
+              {bulkOpen === groupKey && bulk.take.length > 0 && (
+                <div className="notice" role="region" aria-label="Confirm all" data-testid="confirm-all-list">
+                  <div className="stack" style={{ gap: 8, width: "100%" }}>
+                    <strong>
+                      {bulk.take.length} header{bulk.take.length === 1 ? "" : "s"} will be decided as other hospitals of scheme {first.scheme} decided them:
+                    </strong>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {bulk.take.map((i) => (
+                        <li key={itemId(i)}>
+                          {i.header} → {choiceLabel(i.crossSuggestion!.field, labels)} <span className="muted">(same as {i.crossSuggestion!.from.map((h) => hospitalNames[h] ?? h).join(", ")})</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {bulk.rest > 0 && <div className="muted">{bulk.rest} more after this: at most 50 in one action.</div>}
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button className="btn" data-testid="confirm-all-go" disabled={isPending} onClick={() => handleBulk(groupKey)}>
+                        Confirm these {bulk.take.length}
+                      </button>
+                      <button className="btn secondary" disabled={isPending} onClick={() => setBulkOpen(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {groupBatches.map((b) => (
+                <div key={b.id} className="muted" style={{ fontSize: "0.85rem", display: "flex", gap: 8, alignItems: "center" }}>
+                  Bulk confirm of {b.item_count} header{b.item_count === 1 ? "" : "s"}, {new Date(b.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}.
+                  <button className="btn secondary" style={{ padding: "2px 8px", fontSize: "0.8rem" }} disabled={isPending} onClick={() => handleUndo(b)}>
+                    Undo
+                  </button>
+                </div>
+              ))}
 
               <div className="table-wrap">
                 <table className="data">
@@ -200,7 +281,12 @@ export function MappingTable({
                                   ))}
                                   {canCreateFields && <option value={NEW_FIELD}>+ Create new field</option>}
                                 </select>
-                                {!i.decision && i.suggestion && <div className="muted" style={{ fontSize: "0.8rem", marginTop: 4 }}>Suggested: {choiceLabel(i.suggestion, labels)}</div>}
+                                {!i.decision && i.crossSuggestion && (
+                                  <div className="muted" style={{ fontSize: "0.8rem", marginTop: 4 }}>
+                                    Same as {i.crossSuggestion.from.map((h) => hospitalNames[h] ?? h).join(", ")}: {choiceLabel(i.crossSuggestion.field, labels)}
+                                  </div>
+                                )}
+                                {!i.decision && !i.crossSuggestion && i.suggestion && <div className="muted" style={{ fontSize: "0.8rem", marginTop: 4 }}>Suggested: {choiceLabel(i.suggestion, labels)}</div>}
                                 {i.state === "CHECK_AGAIN" && (
                                   <label style={{ display: "flex", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
                                     <input type="checkbox" checked={acceptShape[id] ?? false} onChange={(e) => setAcceptShape((p) => ({ ...p, [id]: e.target.checked }))} />

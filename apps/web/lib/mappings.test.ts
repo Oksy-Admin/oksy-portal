@@ -1,6 +1,6 @@
 import { IGNORE_FIELD } from "@oksy/rules/fields";
 import { describe, expect, it } from "vitest";
-import { applyChoice, choiceLabel, headerItems, type StoredColumn, type StoredDecision } from "./mappings";
+import { applyChoice, BULK_MAX, bulkCandidates, choiceLabel, crossSuggestionFor, headerItems, type StoredColumn, type StoredDecision } from "./mappings";
 
 // Stage 1b-i: the decision list shows each header of a hospital + scheme once. Fake data only.
 const col = (tab_name: string, source_header: string, over: Partial<StoredColumn> = {}): StoredColumn => ({
@@ -78,5 +78,46 @@ describe("decision list: one item per hospital + scheme + header", () => {
     expect(choiceLabel(IGNORE_FIELD, {})).toBe("Ignore (not needed)");
     expect(choiceLabel(null, {})).toBe("Keep in extra columns");
     expect(choiceLabel("remarks", { remarks: "Remarks" })).toBe("Remarks");
+  });
+});
+
+describe("suggestions from other hospitals of the same scheme (Stage 1b-ii)", () => {
+  const other = (hospital_code: string, header_key: string, canonical_field: string | null, scheme = "PRIVATE"): StoredDecision => ({
+    ...dec(header_key, canonical_field),
+    hospital_code,
+    scheme,
+  });
+  const decisions = [
+    other("HOSPPVTPOLD1", "billamount", "bill_amount"),
+    other("HOSPPVTPOLD2", "billamount", "bill_amount"),
+    other("HOSPPVTPOLD3", "billamount", "claimed_amount"),
+    other("HOSPPVTPOLD1", "ward", IGNORE_FIELD),
+    other("HOSPPVTPOLD1", "mailsubject", "remarks", "KASP"), // another scheme: not a suggestion
+    dec("claimno", "preauth_or_claim_no"), // this hospital's own decision
+  ];
+
+  it("the most common decision, with the hospitals that made it; other schemes do not count", () => {
+    expect(crossSuggestionFor("HOSPPVTPTEST", "PRIVATE", "billamount", decisions)).toEqual({ field: "bill_amount", from: ["HOSPPVTPOLD1", "HOSPPVTPOLD2"] });
+    expect(crossSuggestionFor("HOSPPVTPTEST", "PRIVATE", "mailsubject", decisions)).toBeNull();
+    expect(crossSuggestionFor("HOSPPVTPTEST", "PRIVATE", "claimno", decisions)).toBeNull(); // only its own
+  });
+
+  it("Confirm all takes undecided headers with an exact suggestion, unless the dropdown was changed", () => {
+    const cols = [col("OCT 2026", "BILL AMOUNT"), col("OCT 2026", "Ward"), col("OCT 2026", "MAIL SUBJECT"), col("OCT 2026", "CLAIM NO"), col("OCT 2026", "LOS")];
+    const items = headerItems(cols, decisions);
+    expect(items.find((i) => i.header_key === "claimno")!.crossSuggestion).toBeNull(); // decided
+    expect(bulkCandidates(items).take.map((i) => [i.header, i.crossSuggestion!.field])).toEqual([
+      ["BILL AMOUNT", "bill_amount"],
+      ["Ward", IGNORE_FIELD],
+    ]);
+    expect(bulkCandidates(items, { "HOSPPVTPTEST|PRIVATE|ward": "remarks" }).take.map((i) => i.header)).toEqual(["BILL AMOUNT"]);
+  });
+
+  it("at most 50 in one action; the rest wait for the next", () => {
+    const cols = Array.from({ length: 53 }, (_, n) => col("OCT 2026", `HEADER ${n}`));
+    const many = cols.map((c) => other("HOSPPVTPOLD1", c.source_header.toLowerCase().replace(/[^a-z0-9]/g, ""), null));
+    const { take, rest } = bulkCandidates(headerItems(cols, many));
+    expect(take).toHaveLength(BULK_MAX);
+    expect(rest).toBe(3);
   });
 });

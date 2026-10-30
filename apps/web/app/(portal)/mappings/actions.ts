@@ -1,11 +1,11 @@
 "use server";
 
-import { IGNORE_FIELD } from "@oksy/rules/fields";
 import { revalidatePath } from "next/cache";
 import { createFieldAction } from "../fields/actions";
-import { loadFieldList } from "@/lib/fields";
+import { BULK_MAX } from "@/lib/mappings";
 import { can, canConfirmMappings } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
+import { timed } from "@/lib/timing";
 
 /** The header a decision is for: one hospital + scheme + normalised header (Stage 1b-i). */
 export interface HeaderRef {
@@ -19,32 +19,61 @@ export interface HeaderRef {
  * columns). The worker reuses it on every tab with the same header (decide_header).
  */
 export async function decideHeaderAction(ref: HeaderRef, canonicalField: string | null, acceptShape = false) {
-  const me = await getMe();
-  if (!canConfirmMappings(me)) {
-    return { ok: false, error: "Only Owner, Admin or users with the Hospitals edit tick can decide column mappings." };
-  }
-  // A field of the list, Ignore, or empty (extra columns); nothing else reaches the database.
-  // A hidden field is refused for a new decision by the database (it stays where it is).
-  const supabase = await createClient();
-  const choice = canonicalField || null;
-  const { fields } = await loadFieldList(supabase);
-  if (choice !== null && choice !== IGNORE_FIELD && !fields.some((f) => f.key === choice)) {
-    return { ok: false, error: "Unknown field. Choose a field from the list, Ignore, or keep in extra columns." };
-  }
+  return timed("action decide_header", async () => {
+    const me = await getMe();
+    if (!canConfirmMappings(me)) {
+      return { ok: false, error: "Only Owner, Admin or users with the Hospitals edit tick can decide column mappings." };
+    }
+    // decide_header checks the field itself (a field of the list, Ignore, or NULL = extra
+    // columns; a hidden field only where it is already chosen): one round trip, not two.
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("decide_header", {
+      p_hospital_code: ref.hospitalCode,
+      p_scheme: ref.scheme,
+      p_header_key: ref.headerKey,
+      p_canonical_field: canonicalField || null,
+      p_accept_shape: acceptShape,
+    });
+    if (error) {
+      return { ok: false, error: `Failed to save the decision: ${error.message}` };
+    }
 
-  const { data, error } = await supabase.rpc("decide_header", {
-    p_hospital_code: ref.hospitalCode,
-    p_scheme: ref.scheme,
-    p_header_key: ref.headerKey,
-    p_canonical_field: choice,
-    p_accept_shape: acceptShape,
+    revalidatePath("/mappings");
+    return { ok: true, columns: data as number };
   });
-  if (error) {
-    return { ok: false, error: `Failed to save the decision: ${error.message}` };
-  }
+}
 
+/**
+ * "Confirm all" (Stage 1b-ii): Owner / Admin confirm up to 50 undecided headers of one
+ * hospital + scheme, each as another hospital of the scheme decided it. One action, one
+ * audit entry, undone as a group (bulk_confirm_headers checks every rule again).
+ */
+export async function bulkConfirmAction(hospitalCode: string, scheme: string, items: Array<{ headerKey: string; field: string | null }>) {
+  return timed("action bulk_confirm_headers", async () => {
+    const me = await getMe();
+    if (!can(me?.role, "helper_work")) return { ok: false as const, error: "Only Owner or Admin can confirm headers in bulk." };
+    if (items.length === 0 || items.length > BULK_MAX) return { ok: false as const, error: `Choose 1 to ${BULK_MAX} headers.` };
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("bulk_confirm_headers", {
+      p_hospital_code: hospitalCode,
+      p_scheme: scheme,
+      p_items: items.map((i) => ({ header_key: i.headerKey, canonical_field: i.field })),
+    });
+    if (error) return { ok: false as const, error: `Nothing was confirmed: ${error.message}` };
+    revalidatePath("/mappings");
+    return { ok: true as const, batchId: data as string };
+  });
+}
+
+/** Undo of one bulk confirm: its headers are undecided again, unless someone changed one since. */
+export async function undoBulkAction(batchId: string) {
+  const me = await getMe();
+  if (!can(me?.role, "helper_work")) return { ok: false as const, error: "Only Owner or Admin can undo a bulk confirm." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("undo_header_batch", { p_batch_id: batchId });
+  if (error) return { ok: false as const, error: `Not undone: ${error.message}` };
   revalidatePath("/mappings");
-  return { ok: true, columns: data as number };
+  return { ok: true as const, count: data as number };
 }
 
 /** "+ Create new field" on a header: creates the field, then decides the header as that field. */

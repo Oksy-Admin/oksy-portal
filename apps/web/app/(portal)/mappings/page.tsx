@@ -1,5 +1,5 @@
 import { loadFieldList } from "@/lib/fields";
-import { headerItems, type HeaderItem, type StoredColumn, type StoredDecision } from "@/lib/mappings";
+import { headerItems, type HeaderItem, type StoredBatch, type StoredColumn, type StoredDecision } from "@/lib/mappings";
 import { can, canConfirmMappings } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 import { withTiming } from "@/lib/timing";
@@ -15,12 +15,14 @@ async function ColumnMappingsPage() {
   }
 
   const supabase = await createClient();
-  const [columnsRes, decisionsRes, hospitalsRes, fieldList] = await Promise.all([
+  const [columnsRes, decisionsRes, batchesRes, hospitalsRes, fieldList] = await Promise.all([
     supabase
       .from("column_mappings")
       .select("hospital_code, scheme, tab_name, source_header, header_key, canonical_field, status, review_reason")
       .neq("status", "RETIRED"),
-    supabase.from("header_decisions").select("hospital_code, scheme, header_key, canonical_field, accept_any_shape, method, decided_at"),
+    // Every hospital's decisions: other hospitals of the same scheme are the suggestions (1b-ii).
+    supabase.from("header_decisions").select("hospital_code, scheme, header_key, canonical_field, accept_any_shape, method, decided_at").is("withdrawn_at", null),
+    supabase.from("header_decision_batches").select("id, hospital_code, scheme, item_count, created_at, undone_at").is("undone_at", null).order("created_at", { ascending: false }).limit(20),
     supabase.from("hospitals").select("hospital_code, hospital_name"),
     loadFieldList(supabase),
   ]);
@@ -40,7 +42,7 @@ async function ColumnMappingsPage() {
     <div className="stack">
       <PageHead
         title="Column Mappings"
-        subtitle="Decide each header once per hospital and scheme: a field, Ignore (never read, never in a report), keep in extra columns, or a new field. The decision is used on every tab with the same header. Length of Stay, Settlement Delay, Balance Amount and TDS % are ignored automatically."
+        subtitle="Decide each header once per hospital and scheme: a field, Ignore (never read, never in a report), keep in extra columns, or a new field. The decision is used on every tab with the same header. Length of Stay, Settlement Delay, Balance Amount and TDS % are ignored automatically. Decisions of other hospitals of the same scheme are pre-filled; Owner and Admin can confirm them all at once (at most 50, undo as a group)."
       />
       {(columnsRes.error || decisionsRes.error) && (
         <div className="notice warn" role="status">
@@ -61,7 +63,14 @@ async function ColumnMappingsPage() {
         ))}
       </div>
 
-      <MappingTable items={items} hospitalNames={hospitalNames} fields={fieldList.fields} canCreateFields={!fieldList.fromCode && can(me?.role, "helper_work")} />
+      <MappingTable
+        items={items}
+        batches={(batchesRes.data ?? []) as StoredBatch[]}
+        hospitalNames={hospitalNames}
+        fields={fieldList.fields}
+        canCreateFields={!fieldList.fromCode && can(me?.role, "helper_work")}
+        canBulk={can(me?.role, "helper_work")}
+      />
     </div>
   );
 }
