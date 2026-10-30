@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { IGNORE_FIELD } from "@oksy/rules/fields";
 import { describe, expect, it } from "vitest";
 import { applyChoice, BULK_MAX, bulkCandidates, choiceLabel, crossSuggestionFor, headerItems, type StoredColumn, type StoredDecision } from "./mappings";
@@ -119,5 +120,26 @@ describe("suggestions from other hospitals of the same scheme (Stage 1b-ii)", ()
     const { take, rest } = bulkCandidates(headerItems(cols, many));
     expect(take).toHaveLength(BULK_MAX);
     expect(rest).toBe(3);
+  });
+});
+
+describe("Confirm all on the pilot fixtures: HMS as if it were a new hospital", () => {
+  interface Fx { hospital_code: string; scheme: string; tabs: Array<{ tab: string; columns: Array<{ header: string }> }>; decisions: Array<{ scheme: string; header_key: string; canonical_field: string | null }> }
+  const fx = (code: string) => JSON.parse(readFileSync(new URL(`../../../packages/rules/test/fixtures/pilots/${code}.json`, import.meta.url), "utf8")) as Fx;
+  const [bad, tree, hms] = [fx("HOSPPVTP0001"), fx("HOSPPVTP0002"), fx("HOSPPVTP0003")];
+  const decisionsOf = (f: Fx): StoredDecision[] => f.decisions.map((d) => ({ ...d, hospital_code: f.hospital_code, accept_any_shape: false, method: "MANUAL", decided_at: "2026-10-31T05:00:00Z" }));
+  const columns: StoredColumn[] = hms.tabs.flatMap((t) => t.columns.filter((c) => c.header).map((c) => col(t.tab, c.header, { hospital_code: hms.hospital_code, scheme: hms.scheme })));
+
+  it("most headers are pre-filled from Badagara and Tree G; one click confirms them", () => {
+    const items = headerItems(columns, [...decisionsOf(bad), ...decisionsOf(tree)]);
+    const open = items.filter((i) => i.state === "NEEDS_DECISION");
+    const { take, rest } = bulkCandidates(items);
+    expect([open.length, take.length, rest]).toEqual([42, 30, 0]);
+    expect(take.every((i) => i.crossSuggestion!.from.every((h) => h === bad.hospital_code || h === tree.hospital_code))).toBe(true);
+    // What is left for a person: headers no other pilot has.
+    expect(open.filter((i) => !i.crossSuggestion).map((i) => i.header).sort()).toEqual([
+      "#VALUE!", "CARD NUMBER / POLICY NUMBER", "CLAIM REMARK", "CONTACT NUMBER", "DOCTOR", "HOSPITAL BILL AMOUNT",
+      "Insurance Company Name", "MAIL SENT DATE", "MAIL SUBJECT", "ROOM", "STAR HEALTH", "TDS",
+    ]);
   });
 });
