@@ -78,6 +78,8 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 | DISCOUNT | discount_amount |
 | PAYMENT FOLLOW UP DATE | followup_date; data only, no rules, low priority |
 
+- **Plain "TDS" next to "TDS AMOUNT" (31-Oct):** in a hospital + scheme that also has a "TDS AMOUNT" header, a plain "TDS" header gets no stored decision from the old approvals (they disagreed). The value-based auto-Ignore (TDS rates) or the decision list handles it.
+
 - **AI in mapping** sees headers, cell shapes and counts only, never patient names, phones or policy numbers. (27-Oct)
 
 ## 6. Fields

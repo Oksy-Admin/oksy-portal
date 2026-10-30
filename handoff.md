@@ -3,8 +3,8 @@
 Short "where are we now" note. Last updated: 31-Oct-2026.
 
 ## Current stage
-**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i done 31-Oct-2026, its migration `20261030194846` applied to live 31-Oct (103 header decisions, checked). Next: 1b-ii.**
-Next: `/build-substage 1b-ii`; then 1c, 1d, 1e; one push at the end of Stage 1.
+**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i done 31-Oct-2026 (migration `20261030194846` on live); 1b-ii done 31-Oct-2026, its migration `20261031100000` waits for Anoop's OK before live. Next: 1c.**
+Next: Anoop's OK on migration `20261031100000` (then apply to live), and `/build-substage 1c`; then 1d, 1e; one push at the end of Stage 1.
 
 ## What the portal is (one line)
 Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, asks hospital staff through Question Sheets, and gives correct combined reports. Details: `claude/requirements.md`.
