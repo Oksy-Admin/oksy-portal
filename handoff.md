@@ -1,10 +1,10 @@
 # handoff.md – Oksy Data Cleanse portal
 
-Short "where are we now" note. Last updated: 30-Oct-2026 night.
+Short "where are we now" note. Last updated: 31-Oct-2026.
 
 ## Current stage
-**Stage 1b – mapping model, planning.** Stage 0 closed; Stage 1a (file clean-up) done 30-Oct-2026 (commit 52cbf41, pushed).
-Next: Anoop approves the Stage 1b plan, then the build starts.
+**Stage 1 (1b–1e) – whole-stage plan waiting for Anoop's approval.** Stage 0 closed; Stage 1a done 30-Oct-2026 (commit 52cbf41, pushed). Prompt-saving setup (skills, Stop hook, `.claude/settings.json`) done 31-Oct-2026.
+Next: Anoop approves the Stage 1 plan, then `/build-substage 1b`, 1c, 1d, 1e in turn; one push at the end of Stage 1.
 
 ## What the portal is (one line)
 Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, asks hospital staff through Question Sheets, and gives correct combined reports. Details: `claude/requirements.md`.
@@ -24,7 +24,7 @@ Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, a
 - Pilots: HOSPPVTP0001 Badagara, HOSPPVTP0002 Tree G Eye Care, HOSPPVTP0003 HMS (links in `claude/requirements.md` section 5).
 
 ## Open right now
-- Anoop's approval of the Stage 1b plan.
+- Anoop's approval of the Stage 1 plan (1b–1e).
 - Carried into Stage 1: see `claude/stage-plan.md` (1b–1e).
 
 ## Never

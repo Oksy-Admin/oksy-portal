@@ -1,7 +1,7 @@
 # Oksy Data Cleanse – Confirmed Decisions
 
 Owner and decision-maker: Anoop Das (anoop@oksy.in).
-Last updated: 30-Oct-2026 night (after the ChatGPT second-opinion review).
+Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 
 **How to use this file**
 - Check here before asking Anoop anything. A decision listed here is never asked again.
@@ -182,8 +182,10 @@ Last updated: 30-Oct-2026 night (after the ChatGPT second-opinion review).
 - Anoop is not a programmer. For any step he does himself: which app, which screen, exact text to type or click, what to check, what it is for, what happens if skipped. (27-Oct)
 - **Never ask blindly:** every question says why it matters and gives Claude's recommendation, answerable yes/no. Ask only what is not already decided. (30-Oct)
 - Claude may suggest better approaches, not only follow instructions. (27-Oct)
-- **One stage at a time.** Each stage (and sub-stage) is approved by Anoop before the next starts. (27-Oct)
-- **Git: Claude makes the commits; Anoop runs `git push` himself** from the Mac Terminal. Claude tells him what each commit contains first. HTTPS remote only (`https://github.com/Oksy-Admin/oksy-portal.git`); the SSH remote is broken. (30-Oct night)
+- **Stage-level approval (31-Oct):** Anoop approves the whole plan of a stage (all its sub-stages) once. Claude builds the sub-stages one after another and reports their results together. The next stage starts only after Anoop approves. Every migration SQL is still shown to Anoop and applied to live only after his OK. New requirements are still discussed first.
+- **Fewer, larger prompts (31-Oct):** target about 55 Claude prompts from Stage 1b to the pilot finish line. One prompt runs one full sub-stage (build → tests until green → commits → close). Speed comes from fewer prompts, never from lower quality or skipped rules. Repo setup: skills `/plan-stage`, `/build-substage`, `/close-substage`; a Stop hook that runs typecheck, lint and test on changed code; `.claude/settings.json` that allows routine commands and blocks `git push`, live `supabase db push` and reading `.env` files.
+- **Playwright for UI checks (31-Oct):** dev-only; Claude checks screens itself instead of Anoop testing each one.
+- **Git: Claude makes the commits; Anoop runs `git push` himself** from the Mac Terminal. Claude tells him what each commit contains first. HTTPS remote only (`https://github.com/Oksy-Admin/oksy-portal.git`); the SSH remote is broken. (30-Oct night) **Push once at the end of each stage**, not after every sub-stage. (31-Oct)
 - Small commits, one purpose each. One tool works on one file at a time.
 - **Schema changes:** take a backup, write the SQL as a migration in `supabase/migrations/`, show it to Anoop, apply to live only after his OK. (26-Oct)
 - **Secrets:** never print or commit API keys, service account JSON or `.env` values; checks show shape only (length, prefix, names). (27-Oct)
@@ -218,3 +220,5 @@ Last updated: 30-Oct-2026 night (after the ChatGPT second-opinion review).
 | "Do not delete the untracked Docs/ folder" | Rule removed; `docs/` held only copies and is deleted (30-Oct night) |
 | Old stage reports kept | Deleted; only the new file set is kept (30-Oct night) |
 | Phase 1 critical path = Stages 2, 3, 4, 5, 7 | New stage plan (`stage-plan.md`) |
+| Each sub-stage approved by Anoop before the next starts (27-Oct) | Stage-level approval (section 14, 31-Oct) |
+| Push after each sub-stage | Push once per stage (section 14, 31-Oct) |

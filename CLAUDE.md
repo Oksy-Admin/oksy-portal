@@ -1,6 +1,6 @@
 # CLAUDE.md – Oksy Data Cleanse portal
 
-**Current stage: Stage 1b (mapping model) – planning, waiting for Anoop's approval of the plan. Stage 0 closed; Stage 1a (file clean-up) done 30-Oct-2026. Do not build 1b until Anoop approves its plan.**
+**Current stage: Stage 1 (1b–1e) – whole-stage plan waiting for Anoop's approval. Stage 1a done 30-Oct-2026; prompt-saving setup done 31-Oct-2026. Do not build until Anoop approves the Stage 1 plan.**
 
 ## Read first, in this order
 1. `handoff.md` – where we are now and the next step
@@ -17,12 +17,12 @@ Never ask Anoop a decision that is already in `claude/decisions.md`.
 - **AI never guesses** a missing UTR, date, amount or claim number, and never changes bill, approved or settled amounts.
 - **Secrets:** never print or commit API keys, service account JSON or `.env` values. Do not open `.env.local` files in chat. `.env.local`, `supabase/.temp/` and `.next/` stay git-ignored.
 - **Schema changes:** take a backup, write the SQL as a migration in `supabase/migrations/`, show it to Anoop, apply to live only after his OK.
-- **One stage (and sub-stage) at a time.** The next starts only after Anoop approves.
+- **Stage-level approval.** Anoop approves a whole stage plan once; sub-stages are then built one after another and reported together. The next stage starts only after Anoop approves. Every migration SQL still needs his OK before live.
 - **Discuss first:** for new requirements or redesigns, propose; build nothing until Anoop agrees.
 
 ## Git
 - Claude makes the commits: small, one purpose each, clear English message. Tell Anoop what each commit contains.
-- **Anoop runs `git push` himself** from the Mac Terminal. Claude does not push.
+- **Anoop runs `git push` himself** from the Mac Terminal, once at the end of each stage. Claude does not push.
 - Remote: HTTPS only (`https://github.com/Oksy-Admin/oksy-portal.git`). The SSH remote (`git@github-oksy`) is broken.
 - Vercel deploys automatically from GitHub `main` after a push. Database changes are not deployed by a push; they are applied separately (see Schema changes).
 - One tool (Claude Code, Codex or Antigravity) works on one file at a time; commit, then switch tools.
@@ -39,6 +39,13 @@ Never ask Anoop a decision that is already in `claude/decisions.md`.
 3. Update the "Current stage" line here, in `AGENTS.md` and in `handoff.md`.
 4. Add any new decision to `claude/decisions.md` (move replaced ones to its "Superseded" table).
 5. Report to Anoop and wait for approval.
+
+## Saving prompts (target ~55 prompts to the pilot finish line)
+- One prompt = one full sub-stage: build → tests until green → commits → close. Do not stop to ask what is already decided.
+- Skills in `.claude/skills/`: `/plan-stage N`, `/build-substage Nx`, `/close-substage Nx`.
+- Stop hook (`scripts/claude-stop-check.sh`) runs typecheck, lint and test on uncommitted code changes; fix failures in the same prompt.
+- `.claude/settings.json` allows routine commands and blocks `git push`, live `supabase db push` and reading `.env` files.
+- Read only what the task needs; keep outputs short; `/clear` after each closed sub-stage.
 
 ## Commands
 See `README.md` (`pnpm dev`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm worker`).

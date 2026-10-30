@@ -1,24 +1,25 @@
 # Oksy Data Cleanse – Stage Plan
 
 New plan agreed 30-Oct-2026 (replaces the old Stages 0–8 and the Stage Playbook).
-Last updated: 30-Oct-2026 night. Decisions behind it: `claude/decisions.md`.
+Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 
 ## How every stage runs
 
 1. **Start:** read `handoff.md`, `claude/decisions.md`, `claude/requirements.md`. Do not ask anything already decided.
-2. **Plan:** each stage is split into small sub-stages (1a, 1b…). Each sub-stage is approved by Anoop before the next starts.
-3. **Build:** small commits, one purpose each. Claude makes the commits and tells Anoop what each contains; Anoop runs `git push`.
+2. **Plan (`/plan-stage N`):** each stage is split into small sub-stages (1a, 1b…). Anoop approves the whole stage plan once.
+3. **Build (`/build-substage Nx`, one prompt per sub-stage):** small commits, one purpose each. Claude makes the commits and tells Anoop what each contains; Anoop runs `git push` once at the end of the stage.
 4. **Schema changes:** backup → migration file in `supabase/migrations/` → SQL shown to Anoop → apply to live only after his OK.
 5. **Check:** `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, plus the done-criteria below.
 6. **Close (same session):** update the status table below (DONE + date + evidence), the "Current stage" lines in `handoff.md`, `CLAUDE.md` and `AGENTS.md`, and add any new decision to `decisions.md`. No separate stage report file; the evidence goes in the status table and in the commit messages.
-7. **Gate:** report to Anoop in short (done / blocked / decision needed). Next sub-stage only after his approval.
+7. **Gate:** after each sub-stage a short report (`/close-substage Nx`); the next sub-stage of an approved stage may start at once. The next **stage** starts only after Anoop approves.
+8. **Prompt budget:** about 55 prompts from Stage 1b to the pilot finish line — setup 2, Stage 1: 12, Stage 2: 14, Stage 3: 8, Stage 4: 7, Stage 5: 6, Stage 6: 6.
 
 ## Status at a glance
 
 | Stage | Content | Status |
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
-| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; 1b planning** |
+| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; prompt-saving setup DONE 31-Oct-2026; plan for 1b–1e waiting for approval** |
 | 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | Not started |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
@@ -38,6 +39,17 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - New file set: `CLAUDE.md`, `AGENTS.md`, short `handoff.md`, `claude/requirements.md`, `claude/decisions.md`, `claude/stage-plan.md`, `claude/column-dictionary.md`, `claude/insurance-glossary.md`; `README.md` fixed. Same files mirrored to the Claude Project.
 - After Anoop's review: delete old files (`docs/`, `Claude outputs/`, old stage reports, `claude/requirements_v1.md`, `claude/requirements_v2.md`) and the old Project docs.
 - Done when: Anoop approves the new files, old files are deleted, Claude has made the commit and Anoop has pushed.
+
+**Stage 1 build order and prompt budget (31-Oct-2026, waiting for Anoop's approval)** – 12 prompts in total.
+
+| Order | Sub-stage | Prompts | Migrations expected (each shown to Anoop before live) |
+|---|---|---|---|
+| 1 | 1b-i – mapping model core: approval per hospital + scheme, reuse on exact header, value-shape check, consistency guard, auto-Ignore, the 7 header decisions, Ignore saved as decided | 3 | mapping approval keyed on hospital + scheme + normalised header; move today's 452 rows to it; UHID extra field; fix the 7 headers |
+| 2 | 1b-ii – suggestions, "Confirm all", bulk confirm (max 50, undo as a group), approve speed, Playwright check | 2 | bulk-confirm batch table (for undo and the one audit entry) |
+| 3 | 1c – open items (bulk upload preview, `/hospitals` tick gate, change-log check, RLS read side, Balance Status test) | 2 | RLS read policies for 3 tables |
+| 4 | 1d – data foundations (scheme on every record, claim identity, claim history, record source, list of unused tables) | 3 | scheme columns; claim identity key; claim history table; record source |
+| 5 | 1e – measurements (run time per sheet, Drive modified-time test) | 1 | none |
+| – | Reserve for fixes | 1 | – |
 
 **1b – Mapping model**
 - Policy B + D: approval per hospital + scheme, reused across tabs on exact normalised header match.
