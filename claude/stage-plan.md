@@ -19,7 +19,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 | Stage | Content | Status |
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
-| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; plan approved 31-Oct-2026; 1b-i DONE (code) 31-Oct-2026, migration waiting for OK; next 1b-ii** |
+| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; plan approved 31-Oct-2026; 1b-i DONE 31-Oct-2026 (migration on live); next 1b-ii** |
 | 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | Not started |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
@@ -44,15 +44,15 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 
 | Order | Sub-stage | Prompts | Migrations expected (each shown to Anoop before live) |
 |---|---|---|---|
-| 1 | 1b-i – mapping model core: approval per hospital + scheme, reuse on exact header, value-shape check, consistency guard, auto-Ignore, the 7 header decisions, Ignore saved as decided – **DONE (code) 31-Oct-2026, 1 prompt** | 3 | mapping approval keyed on hospital + scheme + normalised header; move today's 452 rows to it; UHID extra field; fix the 7 headers |
+| 1 | 1b-i – mapping model core: approval per hospital + scheme, reuse on exact header, value-shape check, consistency guard, auto-Ignore, the 7 header decisions, Ignore saved as decided – **DONE 31-Oct-2026, 1 prompt** | 3 | mapping approval keyed on hospital + scheme + normalised header; move today's 452 rows to it; UHID extra field; fix the 7 headers |
 | 2 | 1b-ii – suggestions, "Confirm all", bulk confirm (max 50, undo as a group), approve speed, Playwright check, golden fixtures of the 3 pilot sheets (headers + value shapes, no patient data) | 2 | bulk-confirm batch table (for undo and the one audit entry) |
 | 3 | 1c – open items (bulk upload preview, `/hospitals` tick gate, change-log check, RLS read side, Balance Status test) | 2 | RLS read policies for 3 tables |
 | 4 | 1d – data foundations (scheme on every record, claim identity, claim history, record source, list of unused tables) | 3 | scheme columns; claim identity key; claim history table; record source |
 | 5 | 1e – measurements (run time per sheet, Drive modified-time test) | 1 | none |
 | – | Reserve for fixes | 1 | – |
 
-**1b-i – DONE (code) 31-Oct-2026; live migration waiting for Anoop's OK.** Evidence:
-- Commits `25a773a` (decision core in `packages/rules/src/decisions.ts`), `ebcd6f3` (remarks "COLUMN: value | …", UHID / Follow Up Remarks aliases), `cec9c44` (migration `20261031090000_mapping_header_decisions.sql` + pgTAP test 12), `2b39b75` (worker reuses decisions), `f1828f7` (Column Mappings page: one row per header).
+**1b-i – DONE 31-Oct-2026; migration `20261030194846` applied to live 31-Oct after Anoop's OK (backup first; checked read-only after: 103 header decisions, 33 / 31 / 39, no TDS decision, all 452 rows have scheme and header key).** Evidence:
+- Commits `25a773a` (decision core in `packages/rules/src/decisions.ts`), `ebcd6f3` (remarks "COLUMN: value | …", UHID / Follow Up Remarks aliases), `cec9c44` (migration `20261030194846_mapping_header_decisions.sql` + pgTAP test 12), `2b39b75` (worker reuses decisions), `f1828f7` (Column Mappings page: one row per header).
 - Checks: typecheck, lint, build pass; 232 tests pass (rules 134, google 40, worker 35, web 23). pgTAP test 12 not run locally (no Docker); CI runs it.
 - Live preview (read-only, 31-Oct): today's 452 rows become 111 header decisions (Badagara 34, Tree G 32, HMS 40 + auto-Ignored 3 each); only 2 headers left to decide (HMS: MAIL SENT DATE, MAIL SUBJECT).
 - Fix 31-Oct (Anoop): a plain "TDS" in a hospital + scheme that also has "TDS AMOUNT" gets no migrated decision (old approvals disagreed); the value-based auto-Ignore or the decision list handles it. Section 5 is now `private.migrate_header_decisions()` (pgTAP test 12 covers it); also fixed a join error in it. New live preview: 103 header decisions (Badagara 33, Tree G 31, HMS 39 + auto-Ignored 3 each); TDS left to values in all 3; still 2 headers to decide (HMS: MAIL SENT DATE, MAIL SUBJECT).

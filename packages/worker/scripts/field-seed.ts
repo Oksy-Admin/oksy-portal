@@ -17,7 +17,7 @@ export function seedLines(): string[] {
 /** Core fields whose aliases a later migration changed (Stage 1b-i, decisions 30-Oct). */
 export const ALIASES_CHANGED_1B = ["patient_ip_no", "followup_log", "remarks"];
 
-/** The alias update of migration 20261031090000 for one field. */
+/** The alias update of migration 20261030194846 for one field. */
 export function aliasUpdateLine(f: FieldDef): string {
   return `UPDATE public.mapping_fields SET aliases = ARRAY[${f.aliases.map(q).join(", ")}], updated_at = now() WHERE key = ${q(f.key)};`;
 }

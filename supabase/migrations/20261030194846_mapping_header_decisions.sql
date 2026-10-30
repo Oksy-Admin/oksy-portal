@@ -1,6 +1,6 @@
--- Stage 1b-i: mapping model core (decisions.md section 5, Policy B + D). NOT APPLIED.
--- Waiting for Anoop's OK on this SQL. Take a backup first (column_mappings, mapping_fields
--- and the functions below), e.g. supabase/.temp/backup_before_1b_i_20261031.sql.
+-- Stage 1b-i: mapping model core (decisions.md section 5, Policy B + D).
+-- Applied to live 31-Oct-2026 after Anoop's OK. Rollback snapshot taken first:
+-- supabase/.temp/backup_before_1b_i_20261031.sql.
 --
 -- What changes:
 -- 1. mapping_fields: new extra field "UHID" (hospital patient ID, not the IP number); the
@@ -16,8 +16,9 @@
 --    first; any other header whose approved rows all agree on one choice; auto-Ignored
 --    headers (Length of Stay, Settlement Delay, Balance Amount, TDS %) are not stored, the
 --    code ignores them. A plain "TDS" in a hospital + scheme that also has "TDS AMOUNT" is
---    not stored either (value-based auto-Ignore or the decision list). Headers that disagree, or were left as "extra_fields (not decided
---    yet)", stay on the decision list. The old rows stay as they are (history).
+--    not stored either (value-based auto-Ignore or the decision list). Headers that
+--    disagree, or were left as "extra_fields (not decided yet)", stay on the decision list.
+--    The old rows stay as they are (history).
 -- 6. delete_mapping_field(): a field used by a header decision is "in use".
 -- 7. Worker (service_role): read header_decisions, write review_reason.
 

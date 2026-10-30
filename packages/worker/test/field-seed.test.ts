@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 import { aliasUpdateLine, ALIASES_CHANGED_1B, seedLine } from "../scripts/field-seed.ts";
 
 // Migration 20261027000028 seeds mapping_fields from the code list (packages/rules/src/fields.ts);
-// migration 20261031090000 (Stage 1b-i) changed the aliases of three core fields.
+// migration 20261030194846 (Stage 1b-i) changed the aliases of three core fields.
 const MIGRATION = new URL("../../../supabase/migrations/20261027143126_mapping_fields.sql", import.meta.url);
-const MIGRATION_1B = new URL("../../../supabase/migrations/20261031090000_mapping_header_decisions.sql", import.meta.url);
+const MIGRATION_1B = new URL("../../../supabase/migrations/20261030194846_mapping_header_decisions.sql", import.meta.url);
 
 describe("mapping_fields seed", () => {
   it("the migration seeds exactly the 35 core fields of the code list", () => {
