@@ -2,6 +2,7 @@
 
 import { IGNORE_FIELD, offeredFields, type FieldDef } from "@oksy/rules/fields";
 import { useState, useTransition } from "react";
+import { applyChoice, mappingStatusLabel } from "@/lib/mappings";
 import { FieldForm } from "../fields/fields-table";
 import { approveMappingAction, approveVersionGroupAction, createFieldAndMapAction } from "./actions";
 
@@ -79,6 +80,17 @@ export function MappingTable({
       return; // the stored choice changes only when the new field is created
     }
     setSelectedFields((prev) => ({ ...prev, [id]: value }));
+    // Ignore is saved at once; before, it stayed in the page only and was lost on refresh.
+    setMessage(null);
+    startTransition(async () => {
+      const res = await applyChoice(id, value, approveMappingAction);
+      if (!res.saved) {
+        if (!res.ok) setMessage({ text: res.error ?? "Failed to save Ignore", ok: false });
+        return;
+      }
+      const m = items.find((it) => it.id === id);
+      setMessage({ text: `Saved: column "${m?.source_header ?? ""}" is Ignored (not needed).`, ok: true });
+    });
   };
 
   const handleApproveOne = (m: ColumnMappingItem) => {
@@ -237,7 +249,7 @@ export function MappingTable({
                           key={m.id}
                           style={{
                             background: isLow && m.status === "PROPOSED" ? "rgba(255, 193, 7, 0.08)" : undefined,
-                            opacity: curVal === IGNORE_FIELD ? 0.6 : undefined,
+                            opacity: m.status === "APPROVED" && m.canonical_field === IGNORE_FIELD ? 0.6 : undefined,
                           }}
                         >
                           <td className="muted">{m.source_column + 1}</td>
@@ -285,19 +297,23 @@ export function MappingTable({
                             <span className="pill">{m.method}</span>
                           </td>
                           <td>
+                            {/* From the saved row, so a refresh shows the same status. */}
                             <span className={`pill ${m.status === "APPROVED" ? "tone-green" : "tone-amber"}`}>
-                              {m.status}
+                              {mappingStatusLabel(m)}
                             </span>
                           </td>
                           <td>
-                            <button
-                              className="btn secondary"
-                              style={{ padding: "4px 10px", fontSize: "0.85rem" }}
-                              onClick={() => handleApproveOne(m)}
-                              disabled={isPending}
-                            >
-                              {m.status === "APPROVED" ? "Update" : "Approve"}
-                            </button>
+                            {/* A saved Ignored row needs no Approve; choosing another field shows it again. */}
+                            {!(mappingStatusLabel(m) === "Ignored" && curVal === IGNORE_FIELD) && (
+                              <button
+                                className="btn secondary"
+                                style={{ padding: "4px 10px", fontSize: "0.85rem" }}
+                                onClick={() => handleApproveOne(m)}
+                                disabled={isPending}
+                              >
+                                {m.status === "APPROVED" ? "Update" : "Approve"}
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
