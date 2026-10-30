@@ -1,0 +1,4434 @@
+{
+ "hospital_code": "HOSPPVTP0001",
+ "scheme": "PRIVATE",
+ "note": "Headers and value-shape counts only; no cell values.",
+ "tabs": [
+  {
+   "tab": "AUG PENDING",
+   "header_row": 0,
+   "columns": [
+    {
+     "column": 0,
+     "header": "SL NO",
+     "shapes": {
+      "blank": 945,
+      "percent": 0,
+      "date": 0,
+      "small_number": 6,
+      "number": 36,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 1,
+     "header": "DOA",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 43,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 2,
+     "header": "PATIENT NAME",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 43
+     }
+    },
+    {
+     "column": 3,
+     "header": "TPA",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 43
+     }
+    },
+    {
+     "column": 4,
+     "header": "INSURANCE COMPANY",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 43
+     }
+    },
+    {
+     "column": 5,
+     "header": "POLICY / CARD NUMBER",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 20,
+      "amount": 0,
+      "text": 23
+     }
+    },
+    {
+     "column": 6,
+     "header": "POLICY HOLDER NAME",
+     "shapes": {
+      "blank": 974,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 1,
+      "amount": 0,
+      "text": 12
+     }
+    },
+    {
+     "column": 7,
+     "header": "PHONE NUMBER",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 43,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 8,
+     "header": "MRD/ UHID/ IP NUMBER",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 2,
+      "amount": 0,
+      "text": 41
+     }
+    },
+    {
+     "column": 9,
+     "header": "ROOM CATEGORY",
+     "shapes": {
+      "blank": 967,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 12,
+      "amount": 0,
+      "text": 8
+     }
+    },
+    {
+     "column": 10,
+     "header": "DEPARTMENT",
+     "shapes": {
+      "blank": 947,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 40
+     }
+    },
+    {
+     "column": 11,
+     "header": "DOCTOR NAME",
+     "shapes": {
+      "blank": 947,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 40
+     }
+    },
+    {
+     "column": 12,
+     "header": "PROCEDURE/TREATMENT",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 13,
+     "header": "CLAIM NUMBER",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 20,
+      "amount": 0,
+      "text": 23
+     }
+    },
+    {
+     "column": 14,
+     "header": "DOD",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 43,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 15,
+     "header": "LOS\n[ LENGTH OF STAY ]",
+     "shapes": {
+      "blank": 986,
+      "percent": 0,
+      "date": 0,
+      "small_number": 1,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 16,
+     "header": "BILL \nAMOUNT",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 43,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 17,
+     "header": "FINAL\nAPPROVED \nAMOUNT",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 43,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 18,
+     "header": "CO-PAY",
+     "shapes": {
+      "blank": 944,
+      "percent": 0,
+      "date": 0,
+      "small_number": 8,
+      "number": 35,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 19,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 983,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 4,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 20,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 986,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 21,
+     "header": "HARDCOPY SENT DATE",
+     "shapes": {
+      "blank": 966,
+      "percent": 0,
+      "date": 21,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 22,
+     "header": "POD NUMBER",
+     "shapes": {
+      "blank": 966,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 21
+     }
+    },
+    {
+     "column": 23,
+     "header": "PAID AMOUNT",
+     "shapes": {
+      "blank": 950,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 37,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 24,
+     "header": "UTR NUMBER",
+     "shapes": {
+      "blank": 950,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 1,
+      "amount": 0,
+      "text": 36
+     }
+    },
+    {
+     "column": 25,
+     "header": "PAYMENT RECEIVED DATE",
+     "shapes": {
+      "blank": 951,
+      "percent": 0,
+      "date": 36,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 26,
+     "header": "SETTLEMENT DELAY\n[ IN DAYS ]",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 27,
+     "header": "PAYMENT FOLLOW UP DATE",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 28,
+     "header": "FOLLOW UP REMARKS",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 29,
+     "header": "CLAIM STATUS",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 30,
+     "header": "TDS",
+     "shapes": {
+      "blank": 972,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 15,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 31,
+     "header": "TDS AMOUNT",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 32,
+     "header": "BALANCE AMOUNT",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 33,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 34,
+     "header": "UHID",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 35,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    }
+   ]
+  },
+  {
+   "tab": "CANCELLED",
+   "header_row": 0,
+   "columns": [
+    {
+     "column": 0,
+     "header": "SL NO",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 4,
+      "number": 19,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 1,
+     "header": "DOA",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 23,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 2,
+     "header": "PATIENT NAME",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 23
+     }
+    },
+    {
+     "column": 3,
+     "header": "TPA",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 23
+     }
+    },
+    {
+     "column": 4,
+     "header": "INSURANCE COMPANY",
+     "shapes": {
+      "blank": 4,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 19
+     }
+    },
+    {
+     "column": 5,
+     "header": "POLICY / CARD NUMBER",
+     "shapes": {
+      "blank": 7,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 4,
+      "amount": 0,
+      "text": 12
+     }
+    },
+    {
+     "column": 6,
+     "header": "POLICY HOLDER NAME",
+     "shapes": {
+      "blank": 17,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 6
+     }
+    },
+    {
+     "column": 7,
+     "header": "PHONE NUMBER",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 23,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 8,
+     "header": "MRD/ UHID/ IP NUMBER",
+     "shapes": {
+      "blank": 2,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 21
+     }
+    },
+    {
+     "column": 9,
+     "header": "ROOM CATEGORY",
+     "shapes": {
+      "blank": 10,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 9,
+      "amount": 0,
+      "text": 4
+     }
+    },
+    {
+     "column": 10,
+     "header": "DEPARTMENT",
+     "shapes": {
+      "blank": 13,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 10
+     }
+    },
+    {
+     "column": 11,
+     "header": "DOCTOR NAME",
+     "shapes": {
+      "blank": 8,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 15
+     }
+    },
+    {
+     "column": 12,
+     "header": "PROCEDURE/TREATMENT",
+     "shapes": {
+      "blank": 22,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 13,
+     "header": "CLAIM NUMBER",
+     "shapes": {
+      "blank": 2,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 6,
+      "amount": 0,
+      "text": 15
+     }
+    },
+    {
+     "column": 14,
+     "header": "DOD",
+     "shapes": {
+      "blank": 19,
+      "percent": 0,
+      "date": 4,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 15,
+     "header": "LOS\n[ LENGTH OF STAY ]",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 16,
+     "header": "BILL \nAMOUNT",
+     "shapes": {
+      "blank": 21,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 2,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 17,
+     "header": "FINAL\nAPPROVED \nAMOUNT",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 18,
+     "header": "CO-PAY",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 19,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 20,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 21,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 2
+     }
+    },
+    {
+     "column": 21,
+     "header": "HARDCOPY SENT DATE",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 22,
+     "header": "POD NUMBER",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 23,
+     "header": "PAID AMOUNT",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 24,
+     "header": "UTR NUMBER",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 25,
+     "header": "PAYMENT RECEIVED DATE",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 26,
+     "header": "SETTLEMENT DELAY\n[ IN DAYS ]",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 27,
+     "header": "PAYMENT FOLLOW UP DATE",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 28,
+     "header": "FOLLOW UP REMARKS",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 29,
+     "header": "CLAIM STATUS",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 30,
+     "header": "TDS",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 31,
+     "header": "TDS AMOUNT",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 32,
+     "header": "BALANCE AMOUNT",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 33,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 34,
+     "header": "UHID",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 35,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 23,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    }
+   ]
+  },
+  {
+   "tab": "NOV 2026",
+   "header_row": 0,
+   "columns": [
+    {
+     "column": 0,
+     "header": "SL NO",
+     "shapes": {
+      "blank": 774,
+      "percent": 0,
+      "date": 0,
+      "small_number": 30,
+      "number": 195,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 1,
+     "header": "DOA",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 2,
+     "header": "PATIENT NAME",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 3,
+     "header": "TPA",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 4,
+     "header": "INSURANCE COMPANY",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 5,
+     "header": "POLICY / CARD NUMBER",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 6,
+     "header": "POLICY HOLDER NAME",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 7,
+     "header": "PHONE NUMBER",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 8,
+     "header": "MRD/ UHID/ IP NUMBER",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 9,
+     "header": "ROOM CATEGORY",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 10,
+     "header": "DEPARTMENTS",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 11,
+     "header": "DOCTOR NAME",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 12,
+     "header": "PROCEDURE/TREATMENT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 13,
+     "header": "CLAIM NUMBER",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 14,
+     "header": "DOD",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 15,
+     "header": "LOS\n[ LENGTH OF STAY ]",
+     "shapes": {
+      "blank": 963,
+      "percent": 0,
+      "date": 0,
+      "small_number": 36,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 16,
+     "header": "BILL \nAMOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 17,
+     "header": "FINAL\nAPPROVED \nAMOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 18,
+     "header": "CO-PAY",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 19,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 20,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 21,
+     "header": "HARDCOPY SENT DATE",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 22,
+     "header": "POD NUMBER",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 23,
+     "header": "PAID AMOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 24,
+     "header": "UTR NUMBER",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 25,
+     "header": "PAYMENT RECEIVED DATE",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 26,
+     "header": "SETTLEMENT DELAY\n[ IN DAYS ]",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 27,
+     "header": "PAYMENT FOLLOW UP DATE",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 28,
+     "header": "FOLLOW UP REMARKS",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 29,
+     "header": "CLAIM STATUS",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 30,
+     "header": "TDS",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 31,
+     "header": "TDS AMOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 32,
+     "header": "BALANCE AMOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 33,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 34,
+     "header": "UHID",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 35,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 36,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 37,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 38,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 39,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 40,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 41,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 42,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 43,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 44,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    }
+   ]
+  },
+  {
+   "tab": "OCT 2026",
+   "header_row": 0,
+   "columns": [
+    {
+     "column": 0,
+     "header": "SL NO",
+     "shapes": {
+      "blank": 958,
+      "percent": 0,
+      "date": 0,
+      "small_number": 32,
+      "number": 64,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 1,
+     "header": "DOA",
+     "shapes": {
+      "blank": 954,
+      "percent": 0,
+      "date": 101,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 2,
+     "header": "PATIENT NAME",
+     "shapes": {
+      "blank": 954,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 101
+     }
+    },
+    {
+     "column": 3,
+     "header": "TPA",
+     "shapes": {
+      "blank": 954,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 101
+     }
+    },
+    {
+     "column": 4,
+     "header": "INSURANCE COMPANY",
+     "shapes": {
+      "blank": 957,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 98
+     }
+    },
+    {
+     "column": 5,
+     "header": "POLICY / CARD NUMBER",
+     "shapes": {
+      "blank": 961,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 41,
+      "amount": 0,
+      "text": 53
+     }
+    },
+    {
+     "column": 6,
+     "header": "POLICY HOLDER NAME",
+     "shapes": {
+      "blank": 1026,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 2,
+      "amount": 0,
+      "text": 27
+     }
+    },
+    {
+     "column": 7,
+     "header": "PHONE NUMBER",
+     "shapes": {
+      "blank": 954,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 101,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 8,
+     "header": "MRD/ UHID/ IP NUMBER",
+     "shapes": {
+      "blank": 959,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 96
+     }
+    },
+    {
+     "column": 9,
+     "header": "ROOM CATEGORY",
+     "shapes": {
+      "blank": 985,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 52,
+      "amount": 0,
+      "text": 18
+     }
+    },
+    {
+     "column": 10,
+     "header": "DEPARTMENTS",
+     "shapes": {
+      "blank": 981,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 74
+     }
+    },
+    {
+     "column": 11,
+     "header": "DOCTOR NAME",
+     "shapes": {
+      "blank": 956,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 99
+     }
+    },
+    {
+     "column": 12,
+     "header": "PROCEDURE/TREATMENT",
+     "shapes": {
+      "blank": 1027,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 28
+     }
+    },
+    {
+     "column": 13,
+     "header": "CLAIM NUMBER",
+     "shapes": {
+      "blank": 960,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 25,
+      "amount": 0,
+      "text": 70
+     }
+    },
+    {
+     "column": 14,
+     "header": "DOD",
+     "shapes": {
+      "blank": 980,
+      "percent": 0,
+      "date": 74,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 15,
+     "header": "LOS\n[ LENGTH OF STAY ]",
+     "shapes": {
+      "blank": 978,
+      "percent": 0,
+      "date": 5,
+      "small_number": 71,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 16,
+     "header": "BILL \nAMOUNT",
+     "shapes": {
+      "blank": 981,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 74,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 17,
+     "header": "FINAL\nAPPROVED \nAMOUNT",
+     "shapes": {
+      "blank": 986,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 69,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 18,
+     "header": "CO-PAY",
+     "shapes": {
+      "blank": 987,
+      "percent": 0,
+      "date": 0,
+      "small_number": 10,
+      "number": 58,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 19,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 1009,
+      "percent": 0,
+      "date": 0,
+      "small_number": 8,
+      "number": 38,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 20,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 1052,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 3
+     }
+    },
+    {
+     "column": 21,
+     "header": "HARDCOPY SENT DATE",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 22,
+     "header": "POD NUMBER",
+     "shapes": {
+      "blank": 1054,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 23,
+     "header": "PAID AMOUNT",
+     "shapes": {
+      "blank": 1054,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 1,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 24,
+     "header": "UTR NUMBER",
+     "shapes": {
+      "blank": 1054,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 25,
+     "header": "PAYMENT RECEIVED DATE",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 26,
+     "header": "SETTLEMENT DELAY\n[ IN DAYS ]",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 27,
+     "header": "PAYMENT FOLLOW UP DATE",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 28,
+     "header": "FOLLOW UP REMARKS",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 29,
+     "header": "CLAIM STATUS",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 30,
+     "header": "TDS",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 31,
+     "header": "TDS AMOUNT",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 32,
+     "header": "BALANCE AMOUNT",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 33,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 34,
+     "header": "UHID",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 35,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 36,
+     "header": "",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 37,
+     "header": "",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 38,
+     "header": "",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 39,
+     "header": "",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 40,
+     "header": "",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 41,
+     "header": "",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 42,
+     "header": "",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 43,
+     "header": "",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 44,
+     "header": "",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    }
+   ]
+  },
+  {
+   "tab": "PAID",
+   "header_row": 0,
+   "columns": [
+    {
+     "column": 0,
+     "header": "SL NO",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 20,
+      "number": 23,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 1,
+     "header": "DOA",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 43,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 2,
+     "header": "PATIENT NAME",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 43
+     }
+    },
+    {
+     "column": 3,
+     "header": "TPA",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 43
+     }
+    },
+    {
+     "column": 4,
+     "header": "INSURANCE COMPANY",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 43
+     }
+    },
+    {
+     "column": 5,
+     "header": "POLICY / CARD NUMBER",
+     "shapes": {
+      "blank": 4,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 10,
+      "amount": 0,
+      "text": 29
+     }
+    },
+    {
+     "column": 6,
+     "header": "POLICY HOLDER NAME",
+     "shapes": {
+      "blank": 14,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 29
+     }
+    },
+    {
+     "column": 7,
+     "header": "PHONE NUMBER",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 43,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 8,
+     "header": "MRD/ UHID/ IP NUMBER",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 43
+     }
+    },
+    {
+     "column": 9,
+     "header": "ROOM CATEGORY",
+     "shapes": {
+      "blank": 19,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 6,
+      "amount": 0,
+      "text": 18
+     }
+    },
+    {
+     "column": 10,
+     "header": "DEPARTMENT",
+     "shapes": {
+      "blank": 5,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 38
+     }
+    },
+    {
+     "column": 11,
+     "header": "DOCTOR NAME",
+     "shapes": {
+      "blank": 3,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 40
+     }
+    },
+    {
+     "column": 12,
+     "header": "PROCEDURE/TREATMENT",
+     "shapes": {
+      "blank": 38,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 5
+     }
+    },
+    {
+     "column": 13,
+     "header": "CLAIM NUMBER",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 12,
+      "amount": 0,
+      "text": 31
+     }
+    },
+    {
+     "column": 14,
+     "header": "DOD",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 43,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 15,
+     "header": "LOS\n[ LENGTH OF STAY ]",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 16,
+     "header": "BILL \nAMOUNT",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 43,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 17,
+     "header": "FINAL\nAPPROVED \nAMOUNT",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 43,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 18,
+     "header": "CO-PAY",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 3,
+      "number": 40,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 19,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 39,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 3,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 20,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 42,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 21,
+     "header": "HARDCOPY SENT DATE",
+     "shapes": {
+      "blank": 30,
+      "percent": 0,
+      "date": 13,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 22,
+     "header": "POD NUMBER",
+     "shapes": {
+      "blank": 30,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 13
+     }
+    },
+    {
+     "column": 23,
+     "header": "PAID AMOUNT",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 43,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 24,
+     "header": "UTR NUMBER",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 43
+     }
+    },
+    {
+     "column": 25,
+     "header": "PAYMENT RECEIVED DATE",
+     "shapes": {
+      "blank": 0,
+      "percent": 0,
+      "date": 43,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 26,
+     "header": "SETTLEMENT DELAY\n[ IN DAYS ]",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 27,
+     "header": "PAYMENT FOLLOW UP DATE",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 28,
+     "header": "FOLLOW UP REMARKS",
+     "shapes": {
+      "blank": 42,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 29,
+     "header": "CLAIM STATUS",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 30,
+     "header": "TDS",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 31,
+     "header": "TDS AMOUNT",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 32,
+     "header": "BALANCE AMOUNT",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 33,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 34,
+     "header": "UHID",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 35,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 43,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    }
+   ]
+  },
+  {
+   "tab": "PVT DAILYSIS",
+   "header_row": 0,
+   "columns": [
+    {
+     "column": 0,
+     "header": "SL NO",
+     "shapes": {
+      "blank": 991,
+      "percent": 0,
+      "date": 0,
+      "small_number": 8,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 1,
+     "header": "DOA",
+     "shapes": {
+      "blank": 992,
+      "percent": 0,
+      "date": 7,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 2,
+     "header": "PATIENT NAME",
+     "shapes": {
+      "blank": 992,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 7
+     }
+    },
+    {
+     "column": 3,
+     "header": "SELECT TPA",
+     "shapes": {
+      "blank": 992,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 7
+     }
+    },
+    {
+     "column": 4,
+     "header": "INSURANCE COMPANY",
+     "shapes": {
+      "blank": 992,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 7
+     }
+    },
+    {
+     "column": 5,
+     "header": "MEMBER  NUMBER",
+     "shapes": {
+      "blank": 993,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 2,
+      "amount": 0,
+      "text": 4
+     }
+    },
+    {
+     "column": 6,
+     "header": "POLICY HOLDER NAME",
+     "shapes": {
+      "blank": 998,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 7,
+     "header": "PHONE NUMBER",
+     "shapes": {
+      "blank": 996,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 2,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 8,
+     "header": "MRD/ UHID/ IP NUMBER",
+     "shapes": {
+      "blank": 997,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 2
+     }
+    },
+    {
+     "column": 9,
+     "header": "ROOM CATEGORY",
+     "shapes": {
+      "blank": 997,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 1,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 10,
+     "header": "DEPARTMENT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 11,
+     "header": "DOCTOR NAME",
+     "shapes": {
+      "blank": 998,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 12,
+     "header": "PROCEDURE/TREATMENT",
+     "shapes": {
+      "blank": 997,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 2
+     }
+    },
+    {
+     "column": 13,
+     "header": "CLAIM NUMBER",
+     "shapes": {
+      "blank": 992,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 4,
+      "amount": 0,
+      "text": 3
+     }
+    },
+    {
+     "column": 14,
+     "header": "DOD",
+     "shapes": {
+      "blank": 995,
+      "percent": 0,
+      "date": 4,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 15,
+     "header": "LOS\n[ LENGTH OF STAY ]",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 16,
+     "header": "BILL \nAMOUNT",
+     "shapes": {
+      "blank": 995,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 4,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 17,
+     "header": "FINAL\nAPPROVED \nAMOUNT",
+     "shapes": {
+      "blank": 995,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 4,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 18,
+     "header": "CO-PAY",
+     "shapes": {
+      "blank": 997,
+      "percent": 0,
+      "date": 0,
+      "small_number": 2,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 19,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 997,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 1,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 20,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 998,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 21,
+     "header": "HARDCOPY SENT DATE",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 22,
+     "header": "POD NUMBER",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 23,
+     "header": "PAID AMOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 24,
+     "header": "UTR NUMBER",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 25,
+     "header": "PAYMENT RECEIVED DATE",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 26,
+     "header": "SETTLEMENT DELAY\n[ IN DAYS ]",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 27,
+     "header": "PAYMENT FOLLOW UP DATE",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 28,
+     "header": "FOLLOW UP REMARKS",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 29,
+     "header": "CLAIM STATUS",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 30,
+     "header": "TDS",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 31,
+     "header": "TDS AMOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 32,
+     "header": "BALANCE AMOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 33,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 34,
+     "header": "UHID",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 35,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 36,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 37,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 38,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 39,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 40,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 41,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 42,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 43,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 44,
+     "header": "",
+     "shapes": {
+      "blank": 999,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    }
+   ]
+  },
+  {
+   "tab": "SEP 2026",
+   "header_row": 0,
+   "columns": [
+    {
+     "column": 0,
+     "header": "",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 0,
+      "small_number": 28,
+      "number": 81,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 1,
+     "header": "DOA",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 109,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 2,
+     "header": "PATIENT NAME",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 109
+     }
+    },
+    {
+     "column": 3,
+     "header": "TPA",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 109
+     }
+    },
+    {
+     "column": 4,
+     "header": "INSURANCE COMPANY",
+     "shapes": {
+      "blank": 858,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 105
+     }
+    },
+    {
+     "column": 5,
+     "header": "POLICY / CARD NUMBER",
+     "shapes": {
+      "blank": 858,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 54,
+      "amount": 0,
+      "text": 51
+     }
+    },
+    {
+     "column": 6,
+     "header": "POLICY HOLDER NAME",
+     "shapes": {
+      "blank": 953,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 6,
+      "amount": 0,
+      "text": 4
+     }
+    },
+    {
+     "column": 7,
+     "header": "PHONE NUMBER",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 109,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 8,
+     "header": "MRD/ UHID/ IP NUMBER",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 109
+     }
+    },
+    {
+     "column": 9,
+     "header": "ROOM CATEGORY",
+     "shapes": {
+      "blank": 890,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 46,
+      "amount": 0,
+      "text": 27
+     }
+    },
+    {
+     "column": 10,
+     "header": "DEPARTMENT",
+     "shapes": {
+      "blank": 905,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 58
+     }
+    },
+    {
+     "column": 11,
+     "header": "DOCTOR NAME",
+     "shapes": {
+      "blank": 868,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 95
+     }
+    },
+    {
+     "column": 12,
+     "header": "PROCEDURE/TREATMENT",
+     "shapes": {
+      "blank": 962,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 13,
+     "header": "CLAIM NUMBER",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 32,
+      "amount": 0,
+      "text": 77
+     }
+    },
+    {
+     "column": 14,
+     "header": "DOD",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 109,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 15,
+     "header": "LOS\n[ LENGTH OF STAY ]",
+     "shapes": {
+      "blank": 959,
+      "percent": 0,
+      "date": 0,
+      "small_number": 4,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 16,
+     "header": "BILL \nAMOUNT",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 109,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 17,
+     "header": "FINAL\nAPPROVED \nAMOUNT",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 109,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 18,
+     "header": "CO-PAY",
+     "shapes": {
+      "blank": 854,
+      "percent": 0,
+      "date": 0,
+      "small_number": 10,
+      "number": 99,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 19,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 897,
+      "percent": 0,
+      "date": 0,
+      "small_number": 1,
+      "number": 64,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 20,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 955,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 1,
+      "amount": 0,
+      "text": 7
+     }
+    },
+    {
+     "column": 21,
+     "header": "HARDCOPY SENT DATE",
+     "shapes": {
+      "blank": 950,
+      "percent": 0,
+      "date": 13,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 22,
+     "header": "POD NUMBER",
+     "shapes": {
+      "blank": 934,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 29
+     }
+    },
+    {
+     "column": 23,
+     "header": "PAID AMOUNT",
+     "shapes": {
+      "blank": 911,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 52,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 24,
+     "header": "UTR NUMBER",
+     "shapes": {
+      "blank": 909,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 1,
+      "amount": 0,
+      "text": 53
+     }
+    },
+    {
+     "column": 25,
+     "header": "PAYMENT RECEIVED DATE",
+     "shapes": {
+      "blank": 914,
+      "percent": 0,
+      "date": 49,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 26,
+     "header": "SETTLEMENT DELAY\n[ IN DAYS ]",
+     "shapes": {
+      "blank": 963,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 27,
+     "header": "PAYMENT FOLLOW UP DATE",
+     "shapes": {
+      "blank": 963,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 28,
+     "header": "FOLLOW UP REMARKS",
+     "shapes": {
+      "blank": 963,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 29,
+     "header": "CLAIM STATUS",
+     "shapes": {
+      "blank": 959,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 4
+     }
+    },
+    {
+     "column": 30,
+     "header": "TDS",
+     "shapes": {
+      "blank": 959,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 4,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 31,
+     "header": "TDS AMOUNT",
+     "shapes": {
+      "blank": 961,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 2,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 32,
+     "header": "BALANCE AMOUNT",
+     "shapes": {
+      "blank": 963,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 33,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 963,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 34,
+     "header": "UHID",
+     "shapes": {
+      "blank": 963,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 35,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 963,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    }
+   ]
+  },
+  {
+   "tab": "ULCC",
+   "header_row": 0,
+   "columns": [
+    {
+     "column": 0,
+     "header": "`",
+     "shapes": {
+      "blank": 903,
+      "percent": 0,
+      "date": 0,
+      "small_number": 85,
+      "number": 74,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 1,
+     "header": "DOA",
+     "shapes": {
+      "blank": 901,
+      "percent": 0,
+      "date": 161,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 2,
+     "header": "PATIENT NAME",
+     "shapes": {
+      "blank": 903,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 160
+     }
+    },
+    {
+     "column": 3,
+     "header": "TPA",
+     "shapes": {
+      "blank": 903,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 160
+     }
+    },
+    {
+     "column": 4,
+     "header": "POLICY / CARD NUMBER",
+     "shapes": {
+      "blank": 906,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 3,
+      "amount": 0,
+      "text": 154
+     }
+    },
+    {
+     "column": 5,
+     "header": "POLICY HOLDER NAME",
+     "shapes": {
+      "blank": 910,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 1,
+      "amount": 0,
+      "text": 152
+     }
+    },
+    {
+     "column": 6,
+     "header": "PHONE NUMBER",
+     "shapes": {
+      "blank": 910,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 152,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 7,
+     "header": "MRD/ UHID/ IP NUMBER",
+     "shapes": {
+      "blank": 904,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 159
+     }
+    },
+    {
+     "column": 8,
+     "header": "ROOM CATEGORY",
+     "shapes": {
+      "blank": 1033,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 17,
+      "amount": 0,
+      "text": 13
+     }
+    },
+    {
+     "column": 9,
+     "header": "DEPARTMENT",
+     "shapes": {
+      "blank": 1055,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 8
+     }
+    },
+    {
+     "column": 10,
+     "header": "DOCTOR NAME",
+     "shapes": {
+      "blank": 986,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 1,
+      "amount": 0,
+      "text": 76
+     }
+    },
+    {
+     "column": 11,
+     "header": "PROCEDURE/TREATMENT",
+     "shapes": {
+      "blank": 1049,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 2,
+      "amount": 0,
+      "text": 12
+     }
+    },
+    {
+     "column": 12,
+     "header": "CLAIM NUMBER",
+     "shapes": {
+      "blank": 907,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 146,
+      "amount": 0,
+      "text": 10
+     }
+    },
+    {
+     "column": 13,
+     "header": "DOD",
+     "shapes": {
+      "blank": 909,
+      "percent": 0,
+      "date": 151,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 3
+     }
+    },
+    {
+     "column": 14,
+     "header": "LOS\n[ LENGTH OF STAY ]",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 15,
+     "header": "BILL \nAMOUNT",
+     "shapes": {
+      "blank": 910,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 153,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 16,
+     "header": "FINAL\nAPPROVED \nAMOUNT",
+     "shapes": {
+      "blank": 913,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 150,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 17,
+     "header": "CO-PAY",
+     "shapes": {
+      "blank": 913,
+      "percent": 0,
+      "date": 0,
+      "small_number": 12,
+      "number": 138,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 18,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 1059,
+      "percent": 0,
+      "date": 0,
+      "small_number": 2,
+      "number": 1,
+      "amount": 0,
+      "text": 1
+     }
+    },
+    {
+     "column": 19,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 1047,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 4,
+      "amount": 0,
+      "text": 12
+     }
+    },
+    {
+     "column": 20,
+     "header": "HARDCOPY SENT DATE",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 21,
+     "header": "POD NUMBER",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 22,
+     "header": "PAID AMOUNT",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 23,
+     "header": "UTR NUMBER",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 24,
+     "header": "PAYMENT RECEIVED DATE",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 25,
+     "header": "SETTLEMENT DELAY\n[ IN DAYS ]",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 26,
+     "header": "PAYMENT FOLLOW UP DATE",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 27,
+     "header": "FOLLOW UP REMARKS",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 28,
+     "header": "CLAIM STATUS",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 29,
+     "header": "TDS",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 30,
+     "header": "TDS AMOUNT",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 31,
+     "header": "BALANCE AMOUNT",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 32,
+     "header": "REMARK",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 33,
+     "header": "UHID",
+     "shapes": {
+      "blank": 1050,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 9,
+      "amount": 0,
+      "text": 4
+     }
+    },
+    {
+     "column": 34,
+     "header": "DISCOUNT",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 35,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 36,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 37,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 38,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 39,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 40,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 41,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 42,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 43,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    },
+    {
+     "column": 44,
+     "header": "",
+     "shapes": {
+      "blank": 1063,
+      "percent": 0,
+      "date": 0,
+      "small_number": 0,
+      "number": 0,
+      "amount": 0,
+      "text": 0
+     }
+    }
+   ]
+  }
+ ],
+ "decisions": [
+  {
+   "scheme": "PRIVATE",
+   "header_key": "billamount",
+   "canonical_field": "bill_amount"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "claimnumber",
+   "canonical_field": "preauth_or_claim_no"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "claimstatus",
+   "canonical_field": "status_text"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "copay",
+   "canonical_field": "copay_amount"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "department",
+   "canonical_field": "department"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "departments",
+   "canonical_field": "department"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "discount",
+   "canonical_field": "discount_amount"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "doa",
+   "canonical_field": "admission_date"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "doctorname",
+   "canonical_field": "doctor_name"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "dod",
+   "canonical_field": "discharge_date"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "finalapprovedamount",
+   "canonical_field": "approved_amount"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "followupremarks",
+   "canonical_field": "remarks"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "hardcopysentdate",
+   "canonical_field": "casesheet_sent_date"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "insurancecompany",
+   "canonical_field": "insurer_name"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "membernumber",
+   "canonical_field": "policy_holder_name"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "mrduhidipnumber",
+   "canonical_field": "patient_ip_no"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "paidamount",
+   "canonical_field": "payment_amount"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "patientname",
+   "canonical_field": "patient_name"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "paymentfollowupdate",
+   "canonical_field": "followup_date"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "paymentreceiveddate",
+   "canonical_field": "payment_date"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "phonenumber",
+   "canonical_field": "phone_number"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "podnumber",
+   "canonical_field": "courier_no"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "policycardnumber",
+   "canonical_field": "policy_or_card_no"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "policyholdername",
+   "canonical_field": "policy_holder_name"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "proceduretreatment",
+   "canonical_field": "treatment_or_surgery"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "remark",
+   "canonical_field": "remarks"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "roomcategory",
+   "canonical_field": "room_category"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "selecttpa",
+   "canonical_field": "tpa_name"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "slno",
+   "canonical_field": "serial_no"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "tdsamount",
+   "canonical_field": "tds_amount_stated"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "tpa",
+   "canonical_field": "tpa_name"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "uhid",
+   "canonical_field": "uhid"
+  },
+  {
+   "scheme": "PRIVATE",
+   "header_key": "utrnumber",
+   "canonical_field": "payment_utr"
+  }
+ ]
+}

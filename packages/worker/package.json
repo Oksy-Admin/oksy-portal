@@ -14,7 +14,8 @@
     "s2-check": "node scripts/s2-check.ts",
     "s3-check": "node --import ../google/scripts/timing.ts scripts/run-all-private.ts",
     "run-all-private": "node --import ../google/scripts/timing.ts scripts/run-all-private.ts",
-    "snapshot-analyse": "node scripts/snapshot-analyse.ts"
+    "snapshot-analyse": "node scripts/snapshot-analyse.ts",
+    "golden-fixtures": "node scripts/golden-fixtures.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.3.0",

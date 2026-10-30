@@ -116,6 +116,22 @@ export function shapeFits(type: FieldType, values: Array<string | null | undefin
   return v.filter((x) => valueFits(type, x)).length >= Math.ceil(v.length * 0.8);
 }
 
+/** The shape of one cell, for the golden fixtures (no value is kept, only this word). */
+/** small_number: 30 or less, what a TDS rate column holds (looksLikeTdsPercent). */
+export type ValueShape = "blank" | "percent" | "date" | "small_number" | "number" | "amount" | "text";
+export const VALUE_SHAPES: ValueShape[] = ["blank", "percent", "date", "small_number", "number", "amount", "text"];
+
+export function valueShape(value: string | null | undefined): ValueShape {
+  const v = (value ?? "").trim();
+  if (filledValues([v]).length === 0) return "blank";
+  if (PERCENT_RE.test(v)) return "percent";
+  if (DATE_RES.some((re) => re.test(v))) return "date";
+  if (SMALL_NUMBER_RE.test(v) && Number(v) <= 30) return "small_number";
+  if (NUMBER_RE.test(v)) return "number";
+  if (AMOUNT_RE.test(v)) return "amount";
+  return "text";
+}
+
 const TYPE_WORDS: Record<FieldType, string> = { amount: "amounts", date: "dates", number: "numbers", text: "text" };
 
 /** The type of a decided field: from the field list, else the code list; text when unknown. */
