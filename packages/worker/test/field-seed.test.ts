@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { seedLines } from "../scripts/field-seed.ts";
 
 // Migration 20261027000028 seeds mapping_fields from the code list (packages/rules/src/fields.ts).
-const MIGRATION = new URL("../../../supabase/migrations/20261027000028_mapping_fields.sql", import.meta.url);
+const MIGRATION = new URL("../../../supabase/migrations/20261027143126_mapping_fields.sql", import.meta.url);
 
 describe("mapping_fields seed", () => {
   it("the migration seeds exactly the 35 core fields of the code list", () => {
