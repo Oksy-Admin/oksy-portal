@@ -5,7 +5,8 @@ import { timed } from "./lib/timing";
 
 // Keeps the login session fresh and sends anyone not logged in to /login.
 // This is only a convenience: every page and the database check access again.
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/api/health"];
+// /dev holds fixture-only previews for Playwright; they exist only under `next dev`.
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/api/health", ...(process.env.NODE_ENV === "development" ? ["/dev"] : [])];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

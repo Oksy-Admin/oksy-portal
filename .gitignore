@@ -40,3 +40,7 @@ supabase/.branches/
 
 # Local holding area for removed files (Anoop empties it by hand; git history keeps every version)
 _to_delete/
+
+# Playwright output
+apps/web/test-results/
+apps/web/playwright-report/
