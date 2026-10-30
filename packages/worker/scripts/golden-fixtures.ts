@@ -47,11 +47,6 @@ for (const sheet of sheets) {
   const decisions = (
     await db.select<{ scheme: string; header_key: string; canonical_field: string | null }>(
       `header_decisions?hospital_code=eq.${enc(sheet.hospital_code)}&withdrawn_at=is.null&select=scheme,header_key,canonical_field`,
-    ).catch(() =>
-      // Before migration 20261031100000 (no withdrawn_at yet): every row is in force.
-      db.select<{ scheme: string; header_key: string; canonical_field: string | null }>(
-        `header_decisions?hospital_code=eq.${enc(sheet.hospital_code)}&select=scheme,header_key,canonical_field`,
-      ),
     )
   ).sort((a, b) => a.header_key.localeCompare(b.header_key));
 

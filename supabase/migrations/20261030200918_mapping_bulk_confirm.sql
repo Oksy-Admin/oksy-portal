@@ -1,5 +1,6 @@
 -- Stage 1b-ii: bulk confirm of header decisions, undoable as a group (decisions.md section 5).
--- NOT APPLIED. Waiting for Anoop's OK on this SQL. Take a backup first.
+-- Applied to live 31-Oct-2026 after Anoop's OK. Rollback snapshot taken first:
+-- supabase/.temp/backup_before_1b_ii_20261031.sql.
 --
 -- What changes:
 -- 1. header_decisions gets batch_id (the bulk confirm that made it) and withdrawn_at (undone:

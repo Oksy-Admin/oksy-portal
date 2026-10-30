@@ -19,7 +19,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 | Stage | Content | Status |
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
-| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; plan approved 31-Oct-2026; 1b-i DONE 31-Oct-2026 (migration on live); 1b-ii DONE 31-Oct-2026 (migration waiting for OK); next 1c** |
+| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; plan approved 31-Oct-2026; 1b-i DONE 31-Oct-2026 (migration on live); 1b-ii DONE 31-Oct-2026 (migration on live); next 1c** |
 | 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | Not started |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
@@ -59,14 +59,13 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - Choices made in the build: a blank header goes to extra columns, never to the list; a plain "TDS" column holding rates (with "%", or 30 or less next to TDS AMOUNT) is TDS % and auto-Ignored; two columns decided as one field in a tab go to the list; old approvals left as "extra_fields (not decided yet)" are not moved (none remained); "Keep in extra columns" is a decision.
 - Playwright check: done in 1b-ii on a dev-only fixture preview (the live page needs a Google login).
 
-**1b-ii – DONE 31-Oct-2026; migration `20261031100000_mapping_bulk_confirm.sql` waiting for Anoop's OK (not applied).** Evidence:
+**1b-ii – DONE 31-Oct-2026; migration `20261030200918_mapping_bulk_confirm.sql` applied to live 31-Oct after Anoop's OK (backup first; checked read-only after: both functions exist, `batch_id` and `withdrawn_at` added, 103 decisions still in force).** Evidence:
 - Commits `0ad74fd` (migration + pgTAP test 13), `8c2eded` (worker skips withdrawn decisions), `2b4ebbb` (page: suggestions from other hospitals, Confirm all with the list first, Undo; one round trip less per save), `02fae59` + `036a406` (golden fixtures + `pilots.test.ts`), `48ac37b` (Confirm all on the fixtures), `4ad9bea` (Playwright), `acbcdb3` (Playwright check on `/dev/mappings`, dev only).
 - Checks: typecheck, lint, build pass; 244 tests pass (rules 141, google 40, worker 36, web 27); Playwright 1 pass; pgTAP 12 (14) and 13 (17) pass on a fresh database with the migrations in their original order (scratch copy; the repo order is fixed in 1c).
 - Golden fixtures (read-only, 31-Oct): Badagara 8 tabs / 37 headers, Tree G 2 / 35, HMS 6 / 45; tab names, headers and value-shape counts only. HMS as a new hospital: 42 headers to decide, 30 pre-filled from Badagara + Tree G and confirmed with one click, 12 left.
 - Found by the fixtures (what the worker will put on the decision list after the next run): Badagara DISCOUNT has some text in PAID / PVT DAILYSIS / ULCC; Badagara "MEMBER NUMBER" was approved as Policy Holder Name (two columns as one field in PVT DAILYSIS); HMS DOD, HARDCOPY SENT Date and PAYMENT FOLLOW UP DATE hold plain numbers in CANCELLED / PAID / TILL AUG 2023; TDS waits for a decision in Badagara and Tree G (HMS PAID's TDS holds rates: auto-Ignored).
 - Approve speed: one decision per header instead of per tab; the save makes one database call less. Measured with Playwright (no login, so refused): ~120–150 ms per round trip. A timed save on live needs a login (not done).
 - Choices made in the build: bulk confirm takes only undecided headers; undo marks the decisions withdrawn (rows are never deleted) and leaves alone any header decided by hand since; the batch row is the one audit entry (and its undo one more); the header rows of a batch are not audited one by one.
-- Deploy order: apply migration `20261031100000` before the end-of-stage push (the new worker and page read `withdrawn_at`).
 
 **1b – Mapping model**
 - Policy B + D: approval per hospital + scheme, reused across tabs on exact normalised header match.
