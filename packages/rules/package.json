@@ -6,7 +6,8 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./fields": "./src/fields.ts"
+    "./fields": "./src/fields.ts",
+    "./decisions": "./src/decisions.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

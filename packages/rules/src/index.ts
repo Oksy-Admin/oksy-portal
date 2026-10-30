@@ -7,5 +7,6 @@ export * from "./money.ts";
 export * from "./selection.ts";
 export * from "./normalise.ts";
 export * from "./mapping.ts";
+export * from "./decisions.ts";
 export * from "./clean.ts";
 export * from "./tabs.ts";
