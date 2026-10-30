@@ -63,11 +63,11 @@ Known typical problems: year typos, mixed / and - in dates, text in date columns
 
 Phase 1 done when the 3 pilots clean daily and on Run now, questions reach Question Sheets and answers come back, Dashboard is live, and a full correct monthly report can be downloaded before the 10th.
 
-## 8. Current stage: STAGE 3b (Fields page) – awaiting commit, push and the Balance Status test
-Stage 3 approved by Anoop on 27-Oct-2026 (he typed "Stage 3 approved" in the session). Stage 3b is built and reported in stage3b_report.md (27-Oct-2026), awaiting Anoop's approval. Next: Anoop commits and pushes the Fields page code (not live until then), adds Balance Status on the Fields page and maps a test column to it; then Claude checks on live (36 fields, audit entry, mapping row; the field can no longer be deleted). Decisions still needed: stage3b_report.md section 5. Stage 4 is NOT started and needs Anoop's go-ahead.
+## 8. Current stage: STAGE 3b (Fields page) – deployed; Balance Status mapping test pending
+Stage 3 approved by Anoop on 27-Oct-2026. Stage 3b code is committed and live on 30-Oct-2026 (GitHub/Vercel commit `093a4e62cb27e231eb147aac6f1f86e8a25699c7`). The Fields page is connected to production Supabase. Anoop approved adding Balance Status; on 30-Oct the active text field was created with aliases `Balance Status` and `Bal Status`, and its `mapping_fields` INSERT audit entry was verified. There are 39 active fields (35 core, 3 existing custom fields, and Balance Status). The field currently has no column mappings. No pilot source column is named Balance Status; the related `BALANCE AMOUNT` column is a different value and must not be mapped to it. Next: Anoop identifies a safe source column for the mapping test, then verify the mapping row and deletion guard. Do not write to hospital Sheets. Decisions still needed: stage3b_report.md section 5. Stage 4 is NOT started and needs Anoop's go-ahead.
 
 Fields page status (stage3_report.md section 8): built and tested (200 tests; migration tested on a local throwaway Postgres, 29 checks). Migration 20261027000028 (mapping_fields table, field functions, approve check) APPLIED to live 27-Oct-2026 after Anoop's OK (recorded as 20261027143126) and checked: 35 core fields, seed identical to the code list, RLS, grants, gates. Rollback: supabase/.temp/backup_before_0028_20261027.sql.
-Balance Status: not added yet (Anoop's step).
+Balance Status: active text field added on 30-Oct-2026; mapping test remains pending (see above).
 
 Stage 2 checks: closed out in stage2_report.md section 6 (bulk upload preview missing; Check Access button only "started", per-sheet result via CLI and pills; role tests pass; aliases: No).
 

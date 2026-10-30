@@ -39,9 +39,10 @@ Build result (27-Oct-2026): `pnpm typecheck` pass, `pnpm lint` pass, `pnpm test`
 
 **Known note:** the old roles APPROVER / HELPER would still pass the page's code check (`can(role, "helper_work")`, the same check that guards Column Mappings). No live user has those roles (moved to the new roles in Stage 1), and the database refuses their changes (`has_role('ADMIN')`). Left as is.
 
-## 4. Not yet on live
-- The Fields page code goes live when Anoop commits and pushes. The database part (migration 0028) is already live.
-- Balance Status is not added yet (Anoop's step on the Fields page, then mapping a test column to it). After that: check 36 fields, the audit entry, and the mapping row.
+## 4. Live status (30-Oct-2026)
+- The Fields page code is live on GitHub/Vercel commit `093a4e62cb27e231eb147aac6f1f86e8a25699c7`; its production view loads the Supabase field list.
+- Anoop approved adding Balance Status. It is now an active text field (`balance_status`) with aliases `Balance Status` and `Bal Status`. The live list has 39 fields: 35 core, 3 existing custom fields, and Balance Status. Its `mapping_fields` INSERT audit entry is present.
+- The field has no mapped hospital column yet. The pilot mappings contain `BALANCE AMOUNT`, but no `BALANCE STATUS`; these are different concepts. Do not map Balance Amount to Balance Status. Remaining test: Anoop identifies a safe source column, then verify the mapping row and that the used field cannot be deleted. No hospital Sheet was changed.
 
 ## 5. Decisions still needed (Anoop)
 1. **Room Category in the report.** Recorded so far (handoff 9e item 5): Room No and Room Category both stay as fields, and Anoop sets those columns to Ignore himself. Should Room Category appear in the report?
