@@ -2,7 +2,7 @@
 
 This file has the same rules as `CLAUDE.md`. Keep the two in step.
 
-**Current stage: Stage 1a (file clean-up) in progress. Stage 0 (everything built up to 30-Oct-2026) is closed. Do not start Stage 1b until Anoop approves 1a.**
+**Current stage: Stage 1b (mapping model) – planning, waiting for Anoop's approval of the plan. Stage 0 closed; Stage 1a (file clean-up) done 30-Oct-2026. Do not build 1b until Anoop approves its plan.**
 
 ## Read first, in this order
 1. `handoff.md` – where we are now and the next step

@@ -3,8 +3,8 @@
 Short "where are we now" note. Last updated: 30-Oct-2026 night.
 
 ## Current stage
-**Stage 1a – file clean-up, in progress.** Stage 0 (everything built up to 30-Oct-2026) is closed.
-Next: Anoop reviews the new file set → old files deleted → Claude commits → Anoop pushes → Stage 1b (mapping model) planned and approved.
+**Stage 1b – mapping model, planning.** Stage 0 closed; Stage 1a (file clean-up) done 30-Oct-2026 (commit 52cbf41, pushed).
+Next: Anoop approves the Stage 1b plan, then the build starts.
 
 ## What the portal is (one line)
 Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, asks hospital staff through Question Sheets, and gives correct combined reports. Details: `claude/requirements.md`.
@@ -24,7 +24,7 @@ Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, a
 - Pilots: HOSPPVTP0001 Badagara, HOSPPVTP0002 Tree G Eye Care, HOSPPVTP0003 HMS (links in `claude/requirements.md` section 5).
 
 ## Open right now
-- Anoop's review of the new file set (Stage 1a).
+- Anoop's approval of the Stage 1b plan.
 - Carried into Stage 1: see `claude/stage-plan.md` (1b–1e).
 
 ## Never

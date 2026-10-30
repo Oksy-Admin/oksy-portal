@@ -18,7 +18,7 @@ Last updated: 30-Oct-2026 night. Decisions behind it: `claude/decisions.md`.
 | Stage | Content | Status |
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
-| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a** |
+| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; 1b planning** |
 | 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | Not started |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
@@ -34,7 +34,7 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 
 ## Stage 1 – Foundations
 
-**1a – File clean-up** *(in progress)*
+**1a – File clean-up** – **DONE 30-Oct-2026.** Evidence: commit `52cbf41` pushed by Anoop; old repo files and 11 old Project docs deleted; new Project instructions (v3) given to Anoop to paste.
 - New file set: `CLAUDE.md`, `AGENTS.md`, short `handoff.md`, `claude/requirements.md`, `claude/decisions.md`, `claude/stage-plan.md`, `claude/column-dictionary.md`, `claude/insurance-glossary.md`; `README.md` fixed. Same files mirrored to the Claude Project.
 - After Anoop's review: delete old files (`docs/`, `Claude outputs/`, old stage reports, `claude/requirements_v1.md`, `claude/requirements_v2.md`) and the old Project docs.
 - Done when: Anoop approves the new files, old files are deleted, Claude has made the commit and Anoop has pushed.
