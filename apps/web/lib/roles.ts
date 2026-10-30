@@ -115,3 +115,25 @@ export function isNavItemVisible(
   }
   return true;
 }
+
+type Person = { role: Role | string | null | undefined; ticks?: AccessTicks | null } | null | undefined;
+
+const ownerOrAdmin = (p: Person) => p?.role === "OWNER" || p?.role === "ADMIN";
+
+/** /hospitals page: the hospitals_view tick; Owner and Admin always (Anoop approved, handoff 9b). */
+export function canViewHospitals(p: Person): boolean {
+  return ownerOrAdmin(p) || (p?.role === "USER" && hasTick(p.ticks, "hospitals_view", p.role));
+}
+
+/** Add / edit hospitals, bulk upload, status, access check: the hospitals_add_edit tick (same tick as the database). */
+export function canEditHospitals(p: Person): boolean {
+  return ownerOrAdmin(p) || (p?.role === "USER" && hasTick(p.ticks, "hospitals_add_edit", p.role));
+}
+
+/**
+ * Confirm (approve) column mappings: Owner, Admin, or a User with the Hospitals edit tick
+ * (Anoop, 27-Oct-2026; database side: migration 20261027000029, not applied yet).
+ */
+export function canConfirmMappings(p: Person): boolean {
+  return canEditHospitals(p);
+}

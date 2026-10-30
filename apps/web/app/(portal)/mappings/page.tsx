@@ -1,5 +1,5 @@
 import { loadFieldList } from "@/lib/fields";
-import { can } from "@/lib/roles";
+import { can, canConfirmMappings } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 import { withTiming } from "@/lib/timing";
 import { icons } from "../icons";
@@ -8,8 +8,9 @@ import { MappingTable, type ColumnMappingItem } from "./mapping-table";
 
 async function ColumnMappingsPage() {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) {
-    return <NoAccess title="Column Mappings" who="Owner or Admin" />;
+  // Owner, Admin or the Hospitals edit tick confirm mappings (Item 5); new fields stay Owner / Admin.
+  if (!canConfirmMappings(me)) {
+    return <NoAccess title="Column Mappings" who="Owner, Admin or users with the Hospitals edit tick" />;
   }
 
   const supabase = await createClient();
@@ -83,7 +84,7 @@ async function ColumnMappingsPage() {
         ))}
       </div>
 
-      <MappingTable items={items} hospitalNames={hospitalNames} fields={fieldList.fields} canCreateFields={!fieldList.fromCode} />
+      <MappingTable items={items} hospitalNames={hospitalNames} fields={fieldList.fields} canCreateFields={!fieldList.fromCode && can(me?.role, "helper_work")} />
     </div>
   );
 }

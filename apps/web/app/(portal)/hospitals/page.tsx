@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { can } from "@/lib/roles";
+import { canEditHospitals, canViewHospitals } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 import { icons } from "../icons";
 import { NoAccess, PageHead } from "../ui";
@@ -9,7 +9,8 @@ import { withTiming } from "@/lib/timing";
 
 async function HospitalsPage() {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) return <NoAccess title="Hospitals" who="HELPER, APPROVER or ADMIN" />;
+  // The hospitals_view tick (Owner and Admin always); editing needs hospitals_add_edit.
+  if (!canViewHospitals(me)) return <NoAccess title="Hospitals" who="users with the Hospitals view tick" />;
 
   const supabase = await createClient();
   const [hosp, sheets, running] = await Promise.all([
@@ -136,7 +137,7 @@ async function HospitalsPage() {
         ))}
       </div>
 
-      <HospitalTable initialRows={rows} canEdit={can(me?.role, "helper_work")} running={running} />
+      <HospitalTable initialRows={rows} canEdit={canEditHospitals(me)} running={running} />
     </div>
   );
 }

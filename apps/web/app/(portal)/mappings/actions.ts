@@ -4,13 +4,13 @@ import { IGNORE_FIELD } from "@oksy/rules/fields";
 import { revalidatePath } from "next/cache";
 import { createFieldAction } from "../fields/actions";
 import { loadFieldList } from "@/lib/fields";
-import { can } from "@/lib/roles";
+import { can, canConfirmMappings } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 
 export async function approveMappingAction(mappingId: string, canonicalField: string | null) {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) {
-    return { ok: false, error: "Only Owner or Admin can approve column mappings (G1)." };
+  if (!canConfirmMappings(me)) {
+    return { ok: false, error: "Only Owner, Admin or users with the Hospitals edit tick can approve column mappings (G1)." };
   }
   // A field of the list, Ignore, or empty (extra_fields); nothing else reaches the database.
   // A hidden field is refused for a new mapping by the database (it stays on a row that has it).
@@ -36,8 +36,8 @@ export async function approveMappingAction(mappingId: string, canonicalField: st
 
 export async function approveVersionGroupAction(spreadsheetId: string, headerFp: string) {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) {
-    return { ok: false, error: "Only Owner or Admin can approve column mappings (G1)." };
+  if (!canConfirmMappings(me)) {
+    return { ok: false, error: "Only Owner, Admin or users with the Hospitals edit tick can approve column mappings (G1)." };
   }
 
   const supabase = await createClient();

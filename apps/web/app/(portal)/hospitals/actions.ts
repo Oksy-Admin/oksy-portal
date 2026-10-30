@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { can } from "@/lib/roles";
+import { canEditHospitals } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 
 export type HospitalActionResult = { ok: boolean; message: string; details?: string[] };
@@ -20,8 +20,8 @@ export async function saveHospitalProfileAction(
   form: FormData
 ): Promise<HospitalActionResult> {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) {
-    return { ok: false, message: "Only ADMIN or OWNER can edit hospital profiles." };
+  if (!canEditHospitals(me)) {
+    return { ok: false, message: "Only Owner, Admin or users with the Hospitals edit tick can edit hospital profiles." };
   }
 
   const hospitalKey = String(form.get("hospital_key") ?? "").trim();
@@ -65,7 +65,7 @@ export async function saveHospitalSchemeAction(
   form: FormData
 ): Promise<HospitalActionResult> {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) return { ok: false, message: "Only HELPER, APPROVER or ADMIN can manage hospitals." };
+  if (!canEditHospitals(me)) return { ok: false, message: "Only Owner, Admin or users with the Hospitals edit tick can manage hospitals." };
 
   const hospitalCode = String(form.get("hospital_code") ?? "").trim().toUpperCase();
   const hospitalName = String(form.get("hospital_name") ?? "").trim();
@@ -104,7 +104,7 @@ export async function setHospitalStatusAction(
   form: FormData
 ): Promise<HospitalActionResult> {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) return { ok: false, message: "Only HELPER, APPROVER or ADMIN can change hospital status." };
+  if (!canEditHospitals(me)) return { ok: false, message: "Only Owner, Admin or users with the Hospitals edit tick can change hospital status." };
 
   const hospitalCode = String(form.get("hospital_code") ?? "").trim();
   const status = String(form.get("status") ?? "INACTIVE").trim();
@@ -127,7 +127,7 @@ export async function setHospitalStatusAction(
 
 export async function triggerCheckAccessAction(): Promise<HospitalActionResult> {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) return { ok: false, message: "Only HELPER, APPROVER or ADMIN can check access." };
+  if (!canEditHospitals(me)) return { ok: false, message: "Only Owner, Admin or users with the Hospitals edit tick can check access." };
 
   try {
     const { spawn } = await import("child_process");
@@ -188,8 +188,8 @@ export async function uploadHospitalListAction(
   form: FormData
 ): Promise<HospitalActionResult> {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) {
-    return { ok: false, message: "Only ADMIN or OWNER can upload hospital lists." };
+  if (!canEditHospitals(me)) {
+    return { ok: false, message: "Only Owner, Admin or users with the Hospitals edit tick can upload hospital lists." };
   }
 
   const file = form.get("csv_file") as File | null;
