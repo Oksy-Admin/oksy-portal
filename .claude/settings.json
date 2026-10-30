@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck*)",
+      "Bash(pnpm lint*)",
+      "Bash(pnpm test*)",
+      "Bash(pnpm build*)",
+      "Bash(pnpm -r *)",
+      "Bash(pnpm --filter *)",
+      "Bash(pnpm exec playwright *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(supabase migration list*)",
+      "Bash(supabase migration new *)",
+      "Bash(bash scripts/*)"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git reset --hard*)",
+      "Bash(supabase db push*)",
+      "Bash(supabase db reset --linked*)",
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./**/.env.local)",
+      "Read(./**/*service-account*.json)",
+      "Edit(./.env*)",
+      "Edit(./**/.env.local)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash scripts/claude-stop-check.sh", "timeout": 600 }
+        ]
+      }
+    ]
+  }
+}
