@@ -1,5 +1,6 @@
 // In-memory stand-in for the PostgREST paths the worker uses. Test only; fake data only.
 import { randomUUID } from "node:crypto";
+import { autoIgnoreByHeader } from "@oksy/rules";
 import type { Db } from "../src/db.ts";
 
 type Row = Record<string, unknown>;
@@ -60,4 +61,19 @@ export function fakeDb(seed: Record<string, Row[]> = {}): Db & { tables: Record<
       for (const r of t(table)) if (match(r, filters)) Object.assign(r, patch);
     },
   };
+}
+
+/**
+ * A person decides every stored column once, as proposed (the Column Mappings page,
+ * decide_header): one header_decisions row per hospital + scheme + header; auto-Ignored
+ * headers are never offered. Fake ids only.
+ */
+export function decideAll(db: { tables: Record<string, Row[]> }, over: Record<string, string | null> = {}, by = "fake-user-1"): void {
+  const list = (db.tables.header_decisions ??= []);
+  for (const m of db.tables.column_mappings ?? []) {
+    const key = String(m.header_key ?? "");
+    if (!key || autoIgnoreByHeader(String(m.source_header)) || list.some((d) => d.hospital_code === m.hospital_code && d.scheme === m.scheme && d.header_key === key)) continue;
+    const canonical_field = key in over ? over[key]! : ((m.canonical_field as string | null) ?? null);
+    list.push({ hospital_code: m.hospital_code, scheme: m.scheme, header_key: key, canonical_field, accept_any_shape: false, decided_by: by, decided_at: "2026-10-27T05:00:00Z" });
+  }
 }

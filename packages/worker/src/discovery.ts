@@ -2,12 +2,27 @@
 // Every run lists the sheet's tabs (one metadata call). Month tabs (OCT 2026, SEP 2026) are
 // candidates; helper tabs (TPA LIST) are DENY and never read; pre-made future month tabs
 // wait. The first rows of the candidate month tabs are read once to find the header. A
-// month tab whose header matches a layout a person confirmed for this sheet (hospital +
-// scheme) becomes ALLOW DATA on its own; any other header waits for a person.
+// month tab whose every header has a decision for this hospital + scheme (header_decisions,
+// Policy B + D, Stage 1b) that passes the value-shape check becomes ALLOW DATA on its own;
+// any other tab waits and its open headers go to the decision list.
 // A person's own decision on a tab (set_tab_policy) is never changed here.
 // Logs counts and tab names only, never a cell value (hard rule 10).
 import { policyForNewTab, toEventRows, type createReadPath, type GoogleEvent, type TabPolicy } from "@oksy/google";
-import { acceptsManyColumns, classifyTabs, mappedKey, newestFirst, readChoice, type CanonicalField, type ColumnMap, type FieldDef } from "@oksy/rules";
+import {
+  acceptsManyColumns,
+  classifyTabs,
+  headerKey,
+  mappedKey,
+  newestFirst,
+  readChoice,
+  resolveLayout,
+  type CanonicalField,
+  type ColumnMap,
+  type ColumnNeed,
+  type FieldDef,
+  type HeaderDecision,
+  type Resolved,
+} from "@oksy/rules";
 import { DbError } from "./db.ts";
 import type { Db } from "./db.ts";
 import { layoutOf, toRawTabs, type RawTab, type TabLayout } from "./sheet-data.ts";
@@ -40,7 +55,7 @@ export interface DiscoverySummary {
   monthTabs: string[];
   helperTabs: string[];
   futureTabs: string[];
-  /** Month tabs that became ALLOW because their header matches a confirmed mapping. */
+  /** Month tabs that became ALLOW because every header has a decision for this hospital + scheme. */
   autoAllowed: string[];
   /** Month tabs that wait for a person, with the reason. */
   waiting: Array<{ tab: string; reason: string }>;
@@ -60,6 +75,7 @@ interface TabRow {
 
 export interface MappingRow {
   id: string;
+  review_reason?: string | null;
   tab_name: string;
   header_fp: string;
   source_column: number;
@@ -90,51 +106,89 @@ export function isAutoManaged(t: Pick<TabRow, "policy" | "decided_at" | "decisio
   return t.policy === "REVIEW" && !t.decided_at;
 }
 
-/**
- * Confirmed layouts of one sheet: header fingerprint -> its APPROVED column rows. A layout
- * counts only when every column of it is APPROVED (a half-confirmed layout still waits).
- */
-export function confirmedLayouts(rows: MappingRow[]): Map<string, MappingRow[]> {
-  const groups = new Map<string, MappingRow[]>();
-  for (const r of rows) {
-    const k = `${r.header_fp}\u0000${r.tab_name}`;
-    groups.set(k, [...(groups.get(k) ?? []), r]);
-  }
-  const out = new Map<string, MappingRow[]>();
-  for (const list of groups.values()) {
-    if (list.some((r) => r.status !== "APPROVED")) continue;
-    const fp = list[0]!.header_fp;
-    if (!out.has(fp)) out.set(fp, list); // one set of columns per layout
-  }
-  return out;
+/** Every header decision of a hospital (all schemes: the consistency guard needs them). */
+export async function loadDecisions(db: Db, hospital: string): Promise<HeaderDecision[]> {
+  return db.select<HeaderDecision>(
+    `header_decisions?hospital_code=eq.${enc(hospital)}&select=scheme,header_key,canonical_field,accept_any_shape,decided_by,decided_at`,
+  );
+}
+
+/** The cell texts of one column below the header row (for the value-shape check). */
+export function columnValues(raw: RawTab, headerRow: number | null, column: number): Array<string | null> {
+  if (headerRow === null) return [];
+  return raw.rows.slice(headerRow + 1).map((r) => r[column]?.[0] ?? null);
 }
 
 /**
- * The confirmed mapping applied to a layout: columns not confirmed go to extra_fields;
- * columns a person set to Ignore are marked ignored and never read (decision 27-Oct-2026).
+ * The hospital + scheme decisions applied to a layout (resolveLayout). Undecided and
+ * blocked columns go to extra_fields in the returned layout; the layout may be used only
+ * when needs is empty.
  */
-export function applyConfirmed(layout: TabLayout, confirmed: MappingRow[]): TabLayout {
-  const byCol = new Map(confirmed.map((c) => [c.source_column, c]));
-  return {
-    ...layout,
-    map: layout.map.map((m) => {
-      const c = byCol.get(m.column);
-      const { field, ignored, custom } = readChoice(c?.canonical_field ?? null);
-      const { custom: _alias, ...rest } = m;
-      return { ...rest, field, confidence: c ? 1 : 0, ...(ignored ? { ignored } : {}), ...(custom ? { custom } : {}) };
-    }),
-  };
+export function applyDecisions(
+  layout: TabLayout,
+  raw: RawTab | undefined,
+  input: { scheme: string; decisions: HeaderDecision[]; fields?: FieldDef[] },
+): Resolved & { layout: TabLayout } {
+  const res = resolveLayout(layout, {
+    ...input,
+    ...(raw ? { values: (c: number) => columnValues(raw, layout.headerRow, c) } : {}),
+  });
+  return { ...res, layout: { ...layout, map: res.map } };
 }
 
-export function mappingRow(hospital: string, fileId: string, l: TabLayout, m: ColumnMap) {
+/** A person behind the decisions a layout uses (the tab's decided_by when it becomes ALLOW). */
+export function decider(decisions: HeaderDecision[], scheme: string, layout: TabLayout): string | null {
+  const keys = new Set(layout.map.map((m) => headerKey(m.header)));
+  const used = decisions.filter((d) => d.scheme === scheme && keys.has(d.header_key) && d.decided_by);
+  used.sort((a, b) => String(b.decided_at ?? "").localeCompare(String(a.decided_at ?? "")));
+  return used[0]?.decided_by ?? null;
+}
+
+/** "3 headers need a decision: MAIL SUBJECT, MAIL SENT DATE, ..." (header names only, never a value). */
+export function needsText(needs: ColumnNeed[]): string {
+  const names = [...new Set(needs.map((n) => n.header.replace(/\s+/g, " ")))];
+  return `${names.length} header${names.length === 1 ? "" : "s"} need${names.length === 1 ? "s" : ""} a decision: ${names.join(", ")}`;
+}
+
+/**
+ * Stores why reuse stopped (value-shape check, consistency guard, one field twice) on the
+ * layout's stored columns, and clears a reason that no longer holds. Only changed rows are written.
+ */
+export async function recordReviews(db: Db, stored: MappingRow[], layout: TabLayout, needs: ColumnNeed[]): Promise<void> {
+  const want = new Map(needs.filter((n) => n.note).map((n) => [n.column, n.note]));
+  for (const r of stored) {
+    if (r.header_fp !== layout.fingerprint) continue;
+    const reason = want.get(r.source_column) ?? null;
+    if ((r.review_reason ?? null) === reason) continue;
+    await db.update(`column_mappings?id=eq.${r.id}`, { review_reason: reason });
+    r.review_reason = reason;
+  }
+}
+
+/**
+ * The proposal for a new layout: columns with a decision (or auto-Ignore) carry it, so the
+ * AI is never asked about them; the rest keep the alias proposal.
+ */
+export function proposalBase(layout: TabLayout, resolved: Resolved): ColumnMap[] {
+  const open = new Set(resolved.needs.map((n) => n.column));
+  return layout.map.map((m) => {
+    const r = resolved.map.find((x) => x.column === m.column);
+    if (!r || open.has(m.column) || r.method !== "MANUAL") return m;
+    return { ...r };
+  });
+}
+
+export function mappingRow(hospital: string, fileId: string, l: TabLayout, m: ColumnMap, scheme: string) {
   return {
     hospital_code: hospital,
+    scheme,
+    header_key: headerKey(m.header),
     spreadsheet_id: fileId,
     tab_name: l.tab,
     header_fp: l.fingerprint,
     source_header: m.header || `Column ${m.column + 1}`,
     source_column: m.column,
-    canonical_field: mappedKey(m),
+    canonical_field: m.ignored ? "IGNORE" : mappedKey(m),
     confidence: m.confidence,
     method: m.method,
     status: "PROPOSED", // also the database default; never APPROVED by the worker or the AI
@@ -177,15 +231,16 @@ export function proposalChanges(stored: MappingRow[], map: ColumnMap[]): Array<{
   return out;
 }
 
-/** Stores a layout for confirmation (status PROPOSED), once per sheet and header. */
-export async function proposeLayout(db: Db, hospital: string, fileId: string, l: TabLayout, map: ColumnMap[]): Promise<void> {
-  await db.insert("column_mappings", map.map((m) => mappingRow(hospital, fileId, l, m)), {
+/** Stores a layout's columns (status PROPOSED), once per sheet and header: the decision list reads them. */
+export async function proposeLayout(db: Db, hospital: string, scheme: string, fileId: string, l: TabLayout, map: ColumnMap[]): Promise<MappingRow[]> {
+  return db.insert<MappingRow>("column_mappings", map.map((m) => mappingRow(hospital, fileId, l, m, scheme)), {
     onConflict: "spreadsheet_id,tab_name,header_fp,source_column",
     ignoreDuplicates: true,
+    returning: true,
   });
 }
 
-export async function discoverTabs(sheet: { hospital_code: string; spreadsheet_id: string }, deps: DiscoveryDeps): Promise<DiscoverySummary> {
+export async function discoverTabs(sheet: { hospital_code: string; scheme: string; spreadsheet_id: string }, deps: DiscoveryDeps): Promise<DiscoverySummary> {
   const { db } = deps;
   const fileId = sheet.spreadsheet_id;
   const listed = await deps.read.listTabs(fileId, {});
@@ -248,9 +303,9 @@ export async function discoverTabs(sheet: { hospital_code: string; spreadsheet_i
   const probe = toRawTabs(await deps.read.readHeaderRows(fileId, open.map((m) => m.tab)));
   await db.insert("google_events", toEventRows(deps.events.splice(0), deps.jobId));
   const mappings = await db.select<MappingRow>(
-    `column_mappings?spreadsheet_id=eq.${enc(fileId)}&status=neq.RETIRED&select=id,tab_name,header_fp,source_column,canonical_field,status,method,confidence,approved_by,approved_at`,
+    `column_mappings?spreadsheet_id=eq.${enc(fileId)}&status=neq.RETIRED&select=id,tab_name,header_fp,source_column,canonical_field,status,method,confidence,approved_by,approved_at,review_reason`,
   );
-  const confirmed = confirmedLayouts(mappings);
+  const decisions = await loadDecisions(db, sheet.hospital_code);
   const proposedFps = new Set(mappings.map((m) => m.header_fp));
   const refreshedFps = new Set<string>();
 
@@ -262,27 +317,14 @@ export async function discoverTabs(sheet: { hospital_code: string; spreadsheet_i
       await setTab(m.tab, { policy: "REVIEW", kind: null, decided_by: null, decided_at: null, decision_note: "auto: no header row found" });
       continue;
     }
-    const ok = confirmed.get(l.fingerprint);
-    const approver = ok?.find((c) => c.approved_by)?.approved_by;
-    if (ok && approver) {
-      summary.autoAllowed.push(m.tab);
-      const on = ok[0]?.approved_at?.slice(0, 10) ?? "";
-      await setTab(m.tab, {
-        policy: "ALLOW",
-        kind: "DATA",
-        decided_by: approver,
-        decided_at: nowIso,
-        decision_note: `auto: same header as the column mapping confirmed on ${on} (tab ${ok[0]?.tab_name})`,
-      });
-      continue;
-    }
-    const reason = confirmed.size > 0 ? "header differs from the confirmed column mapping" : "waiting for the column mapping to be confirmed";
-    summary.waiting.push({ tab: m.tab, reason });
-    await setTab(m.tab, { policy: "REVIEW", kind: null, decided_by: null, decided_at: null, decision_note: `auto: ${reason}` });
+    const res = applyDecisions(l, raw, { scheme: sheet.scheme, decisions, fields: deps.fields });
+    let isNew = false;
     if (!proposedFps.has(l.fingerprint)) {
-      // Newest tab first, so each new layout is proposed from its newest month.
-      const map = deps.suggest ? await deps.suggest(l, raw) : l.map;
-      await proposeLayout(db, sheet.hospital_code, fileId, l, map);
+      // Newest tab first, so each new layout is stored from its newest month.
+      isNew = true;
+      const base = { ...l, map: proposalBase(l, res) };
+      const map = deps.suggest ? await deps.suggest(base, raw) : base.map;
+      mappings.push(...(await proposeLayout(db, sheet.hospital_code, sheet.scheme, fileId, l, map)));
       proposedFps.add(l.fingerprint);
       summary.proposedLayouts.push({
         tab: m.tab,
@@ -290,10 +332,30 @@ export async function discoverTabs(sheet: { hospital_code: string; spreadsheet_i
         aliasMapped: map.filter((x) => x.method === "ALIAS" && mappedKey(x)).length,
         aiMapped: map.filter((x) => x.method === "AI" && mappedKey(x)).length,
       });
-    } else if (deps.refresh && !refreshedFps.has(l.fingerprint)) {
+    }
+    await recordReviews(db, mappings, l, res.needs);
+
+    const approver = res.needs.length === 0 ? decider(decisions, sheet.scheme, l) : null;
+    if (approver) {
+      summary.autoAllowed.push(m.tab);
+      await setTab(m.tab, {
+        policy: "ALLOW",
+        kind: "DATA",
+        decided_by: approver,
+        decided_at: nowIso,
+        decision_note: `auto: every header decided for this hospital + scheme (${res.reused} reused, ${res.autoIgnored.length} ignored automatically)`,
+      });
+      continue;
+    }
+    const reason = res.needs.length > 0 ? needsText(res.needs) : "no person has decided a header of this tab yet";
+    summary.waiting.push({ tab: m.tab, reason });
+    await setTab(m.tab, { policy: "REVIEW", kind: null, decided_by: null, decided_at: null, decision_note: `auto: ${reason}` });
+    if (isNew) continue;
+    if (deps.refresh && !refreshedFps.has(l.fingerprint)) {
       refreshedFps.add(l.fingerprint);
       const stored = mappings.filter((r) => r.header_fp === l.fingerprint);
-      const base = { ...l, map: refreshBase(l, stored) };
+      const refreshed = { ...l, map: refreshBase(l, stored) };
+      const base = { ...l, map: proposalBase(refreshed, res) }; // decided and auto-Ignored columns are not re-proposed
       const map = deps.suggest ? await deps.suggest(base, raw) : base.map;
       const changes = proposalChanges(stored, map);
       for (const c of changes) await db.update(`column_mappings?id=eq.${c.id}&status=eq.PROPOSED`, c.patch);

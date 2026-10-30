@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { HMS_CODE, HMS_SHEET } from "../src/hms-profile.ts";
 import { colourHex, legendFrom } from "../src/sheet-data.ts";
 import { runSheetJob } from "../src/sheet-run.ts";
-import { fakeDb } from "./fake-db.ts";
+import { decideAll, fakeDb } from "./fake-db.ts";
 
 // A fake sheet with the HMS layout: invented patients, invented numbers. The real HMS sheet
 // is never read by tests.
@@ -74,7 +74,7 @@ async function confirmedDb() {
   const db = fakeDb(seed());
   const first = await run(db, []);
   expect(first.result).toBe("STOPPED_LAYOUT");
-  for (const m of db.tables.column_mappings ?? []) Object.assign(m, { status: "APPROVED", approved_by: "fake-user-1", approved_at: "2026-10-27T05:00:00Z" });
+  decideAll(db);
   db.tables.snapshots = [];
   db.tables.reconciliations = [];
   return db;
@@ -129,7 +129,7 @@ describe("one HMS-shaped sheet run (fake data)", () => {
     const db = fakeDb(seed());
     const s = await run(db, []);
     expect(s.result).toBe("STOPPED_LAYOUT");
-    expect(s.layoutProblems).toEqual(["PAID: header layout not confirmed (R-Y01)", "PENDING: header layout not confirmed (R-Y01)"]);
+    expect(s.layoutProblems).toEqual([expect.stringMatching(/^PAID: \d+ headers need a decision: .* \(R-Y01\)$/), expect.stringMatching(/^PENDING: \d+ headers need a decision/)]);
     expect(db.tables.claims_staging ?? []).toHaveLength(0);
     // Proposed once for the sheet and header, not once per tab.
     expect(new Set(db.tables.column_mappings!.map((m) => m.tab_name))).toEqual(new Set(["PAID"]));
@@ -137,8 +137,8 @@ describe("one HMS-shaped sheet run (fake data)", () => {
 
   it("the run uses the confirmed field, not the alias list", async () => {
     const db = await confirmedDb();
-    const m = db.tables.column_mappings!.find((x) => x.source_header === "DEPARTMENT")!;
-    m.canonical_field = null; // a person confirmed: keep DEPARTMENT as an extra column only
+    const d = db.tables.header_decisions!.find((x) => x.header_key === "department")!;
+    d.canonical_field = null; // a person decided: keep DEPARTMENT as an extra column only
     await run(db, []);
     const one = (db.tables.claims_staging ?? []).find((c) => c.preauth_or_claim_no === "FAKECLM001")!;
     expect(one.department ?? null).toBeNull();

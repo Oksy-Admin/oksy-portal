@@ -13,7 +13,19 @@ import {
   type RuleVersion,
 } from "@oksy/rules";
 import { chunks, type Db } from "./db.ts";
-import { applyConfirmed, confirmedLayouts, discoverTabs, loadFields, proposeLayout, type DiscoverySummary, type MappingRow, type SuggestFn } from "./discovery.ts";
+import {
+  applyDecisions,
+  discoverTabs,
+  loadDecisions,
+  loadFields,
+  needsText,
+  proposalBase,
+  proposeLayout,
+  recordReviews,
+  type DiscoverySummary,
+  type MappingRow,
+  type SuggestFn,
+} from "./discovery.ts";
 import { defaultProfile, doctorAliasesFrom, HMS_CODE, HMS_HEADERS, HMS_SHEET, hmsProfile } from "./hms-profile.ts";
 import { emptyReconciliation, reconcile, type Reconciliation } from "./reconcile.ts";
 import { layoutOf, legendFrom, sourceRows, toRawTabs, type TabLayout } from "./sheet-data.ts";
@@ -124,13 +136,13 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   const fileId = sheet.spreadsheet_id;
 
   // 2. Tab discovery (Stage 3): month tabs found, helper tabs DENY, a month tab with a
-  //    confirmed header becomes ALLOW. Then only ALLOW tabs are put in the request.
+  //    decided header becomes ALLOW. Then only ALLOW tabs are put in the request.
   const today = istDate(now());
   const extraHeaders = fileId === HMS_SHEET ? HMS_HEADERS : {};
   const fields = await loadFields(db);
   const discovery = await step("discover", () =>
     discoverTabs(
-      { hospital_code: sheet.hospital_code, spreadsheet_id: fileId },
+      { hospital_code: sheet.hospital_code, scheme: sheet.scheme, spreadsheet_id: fileId },
       { db, read: deps.read, events: deps.events, jobId: job.id, today, extraHeaders, suggest: deps.suggest, refresh: deps.refreshProposals, fields },
     ),
   );
@@ -186,13 +198,14 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   );
   if (!snap) throw new Error("snapshot not stored");
 
-  // 5. Mapping, confirmed once per sheet (hospital + scheme) and header layout. A tab whose
-  //    header has no confirmed mapping stops the sheet (R-Y01) and its layout is proposed.
+  // 5. Mapping: one decision per hospital + scheme + header (header_decisions, Stage 1b),
+  //    checked against the values of this run. A tab with an open header stops the sheet
+  //    (R-Y01); its open headers go to the decision list.
   const layoutProblems: string[] = [];
   const known = await db.select<MappingRow>(
-    `column_mappings?spreadsheet_id=eq.${enc(fileId)}&status=neq.RETIRED&select=id,tab_name,header_fp,source_column,canonical_field,status,approved_by,approved_at`,
+    `column_mappings?spreadsheet_id=eq.${enc(fileId)}&status=neq.RETIRED&select=id,tab_name,header_fp,source_column,canonical_field,status,approved_by,approved_at,review_reason`,
   );
-  const confirmed = confirmedLayouts(known);
+  const decisions = await loadDecisions(db, sheet.hospital_code);
   const proposed = new Set(known.map((k) => k.header_fp));
   const layouts: TabLayout[] = [];
   for (const l of found) {
@@ -201,16 +214,11 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
       layouts.push(l);
       continue;
     }
-    const ok = confirmed.get(l.fingerprint);
-    if (ok) {
-      layouts.push(applyConfirmed(l, ok));
-      continue;
-    }
-    layoutProblems.push(`${l.tab}: header layout not confirmed (R-Y01)`);
-    layouts.push(l);
+    const raw = dataTabs.find((t) => t.name === l.tab)!;
+    const res = applyDecisions(l, raw, { scheme: sheet.scheme, decisions, fields });
     if (!proposed.has(l.fingerprint)) {
-      const raw = dataTabs.find((t) => t.name === l.tab)!;
-      await proposeLayout(db, sheet.hospital_code, fileId, l, deps.suggest ? await deps.suggest(l, raw) : l.map);
+      const base = { ...l, map: proposalBase(l, res) };
+      known.push(...(await proposeLayout(db, sheet.hospital_code, sheet.scheme, fileId, l, deps.suggest ? await deps.suggest(base, raw) : base.map)));
       proposed.add(l.fingerprint);
       if (l.fingerprint) {
         await db.insert("version_groups", [{
@@ -223,6 +231,13 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
         }], { onConflict: "header_fp", ignoreDuplicates: true });
       }
     }
+    await recordReviews(db, known, l, res.needs);
+    if (res.needs.length === 0) {
+      layouts.push(res.layout);
+      continue;
+    }
+    layoutProblems.push(`${l.tab}: ${needsText(res.needs)} (R-Y01)`);
+    layouts.push(l);
   }
 
   // 6. Hospital facts confirmed by staff (25-Oct answers) and the confirmed colour legend.

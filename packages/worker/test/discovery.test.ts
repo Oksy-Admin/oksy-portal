@@ -1,11 +1,11 @@
 import { createReadPath, makeLogger, type CellData, type GoogleEvent, type SheetsReader } from "@oksy/google";
 import { describe, expect, it } from "vitest";
-import { coreFieldDefs, IGNORE_FIELD, type FieldDef } from "@oksy/rules";
+import { coreFieldDefs, headerKey, IGNORE_FIELD, resolveLayout, type FieldDef, type HeaderDecision } from "@oksy/rules";
 import { DbError } from "../src/db.ts";
-import { applyConfirmed, confirmedLayouts, loadFields, proposalChanges, refreshBase, type MappingRow } from "../src/discovery.ts";
+import { applyDecisions, loadFields, proposalChanges, refreshBase, type MappingRow } from "../src/discovery.ts";
 import { layoutOf, sourceRows, type RawTab } from "../src/sheet-data.ts";
 import { runSheetJob } from "../src/sheet-run.ts";
-import { fakeDb } from "./fake-db.ts";
+import { decideAll, fakeDb } from "./fake-db.ts";
 
 // Stage 3 (requirements v2 section 5): a fake sheet in the pilots' month-tab template.
 // Invented names and numbers only; no real sheet is read.
@@ -66,11 +66,9 @@ async function run(db: ReturnType<typeof fakeDb>, data = tabs(), requested: stri
 }
 
 const tab = (db: ReturnType<typeof fakeDb>, name: string) => db.tables.sheet_tabs!.find((t) => t.tab_name === name)!;
-const confirm = (db: ReturnType<typeof fakeDb>) => {
-  for (const m of db.tables.column_mappings ?? []) Object.assign(m, { status: "APPROVED", approved_by: "fake-user-1", approved_at: "2026-10-27T05:00:00Z" });
-};
+const confirm = (db: ReturnType<typeof fakeDb>) => decideAll(db);
 
-describe("tab discovery and one-time mapping (Stage 3)", () => {
+describe("tab discovery and one decision per header (Stage 3, Stage 1b)", () => {
   it("first run: finds month tabs, ignores helper and future tabs, proposes one mapping, reads no data", async () => {
     const db = fakeDb(seed());
     const requested: string[][] = [];
@@ -82,7 +80,9 @@ describe("tab discovery and one-time mapping (Stage 3)", () => {
       futureTabs: ["NOV 2026"],
       autoAllowed: [],
     });
-    expect(s.discovery!.waiting.map((w) => w.reason)).toEqual(["waiting for the column mapping to be confirmed", "waiting for the column mapping to be confirmed"]);
+    // LOS is ignored automatically, so 9 of the 10 headers wait for a decision.
+    expect(s.discovery!.waiting.map((w) => w.reason)).toEqual([expect.stringMatching(/^9 headers need a decision: Sl No, PATIENT NAME/), expect.stringMatching(/^9 headers need a decision/)]);
+    expect(db.tables.column_mappings!.find((m) => m.source_header === "CLAIM NO")).toMatchObject({ scheme: "PRIVATE", header_key: "claimno" });
     expect(s.discovery!.proposedLayouts).toHaveLength(1);
     expect(s.discovery!.proposedLayouts[0]).toMatchObject({ tab: "OCT 2026", columns: HEAD.length });
     // Only a header probe of the two month tabs; never TPA LIST or PORTAL LIST, never a full read.
@@ -93,7 +93,7 @@ describe("tab discovery and one-time mapping (Stage 3)", () => {
     expect(s.tabsRead).toEqual([]);
   });
 
-  it("after one confirmation every month tab with that header is read; serial-only rows are skipped", async () => {
+  it("after each header is decided once every month tab with those headers is read; serial-only rows are skipped", async () => {
     const db = fakeDb(seed());
     await run(db);
     confirm(db);
@@ -105,7 +105,8 @@ describe("tab discovery and one-time mapping (Stage 3)", () => {
     expect(s.result).toBe("DRY_RUN");
     expect(s.rows).toEqual({ read: 4, nonData: 2, data: 2 }); // 2 claims; the 2 serial-only rows are skipped
     expect(s.reconciliation.result).toBe("PASS");
-    expect(new Set(db.tables.column_mappings!.map((m) => m.tab_name))).toEqual(new Set(["OCT 2026"])); // confirmed once
+    expect(new Set(db.tables.column_mappings!.map((m) => m.tab_name))).toEqual(new Set(["OCT 2026"])); // stored once
+    expect(db.tables.header_decisions).toHaveLength(9); // one per header, LOS not among them
   });
 
   it("a new month tab with the same header is included on its own; a different header waits", async () => {
@@ -117,18 +118,33 @@ describe("tab discovery and one-time mapping (Stage 3)", () => {
     data["JUL 2026"] = [r([...HEAD.slice(0, 7), "PRE-AUTH APPROVAL AMOUNT", ...HEAD.slice(7)]), r(["1", "Fake Patient Four"])];
     const s = await run(db, data);
     expect(s.discovery!.autoAllowed).toContain("AUG 2026");
-    expect(s.discovery!.waiting).toEqual([{ tab: "JUL 2026", reason: "header differs from the confirmed column mapping" }]);
+    expect(s.discovery!.waiting).toEqual([{ tab: "JUL 2026", reason: "1 header needs a decision: PRE-AUTH APPROVAL AMOUNT" }]);
     expect(s.tabsRead).not.toContain("JUL 2026");
     expect(s.discovery!.proposedLayouts.map((p) => p.tab)).toEqual(["JUL 2026"]);
   });
 
-  it("a half-confirmed mapping is not a confirmation", async () => {
+  it("one decided header is not enough; the value-shape check stops reuse", async () => {
     const db = fakeDb(seed());
     await run(db);
-    Object.assign(db.tables.column_mappings![0]!, { status: "APPROVED", approved_by: "fake-user-1", approved_at: "2026-10-27T05:00:00Z" });
+    decideAll(db);
+    db.tables.header_decisions = db.tables.header_decisions!.slice(0, 1);
     const s = await run(db);
     expect(s.discovery!.autoAllowed).toEqual([]);
     expect(s.tabsRead).toEqual([]);
+
+    // DOA decided as an amount field: its values are dates, so reuse stops with a reason.
+    const db2 = fakeDb(seed());
+    await run(db2);
+    decideAll(db2, { doa: "bill_amount", billamount: "claimed_amount" });
+    const s2 = await run(db2);
+    expect(s2.discovery!.autoAllowed).toEqual([]);
+    expect(s2.discovery!.waiting[0]!.reason).toBe("1 header needs a decision: DOA");
+    expect(db2.tables.column_mappings!.find((m) => m.header_key === "doa")!.review_reason).toContain("do not look like amounts");
+    // The person decides again: the reason is cleared on the next run and the tabs are read.
+    db2.tables.header_decisions!.find((d) => d.header_key === "doa")!.canonical_field = "admission_date";
+    const s3 = await run(db2);
+    expect(s3.discovery!.autoAllowed).toEqual(["OCT 2026", "SEP 2026"]);
+    expect(db2.tables.column_mappings!.find((m) => m.header_key === "doa")!.review_reason).toBeNull();
   });
 
   it("a person's decision on a tab is never changed by discovery", async () => {
@@ -167,10 +183,12 @@ describe("Ignore choice and proposal refresh", () => {
   const rowFor = (column: number, canonical_field: string | null, status = "APPROVED"): MappingRow => ({
     id: `m${column}`, tab_name: "OCT 2026", header_fp: layoutOf(raw).fingerprint, source_column: column, canonical_field, status, approved_by: "fake-user-1", approved_at: "2026-10-27T05:00:00Z",
   });
-  const decided = () => [rowFor(0, "serial_no"), rowFor(1, "patient_name"), rowFor(2, "preauth_or_claim_no"), rowFor(3, "admission_date"), rowFor(4, null), rowFor(5, IGNORE_FIELD)];
+  const dec = (header: string, canonical_field: string | null): HeaderDecision => ({ scheme: "PRIVATE", header_key: headerKey(header), canonical_field, decided_by: "fake-user-1" });
+  const decided = () => [dec("Sl No", "serial_no"), dec("PATIENT NAME", "patient_name"), dec("CLAIM NO", "preauth_or_claim_no"), dec("DOA", "admission_date"), dec("WARD NOTE", null), dec("STAFF CODE", IGNORE_FIELD)];
 
-  it("an ignored column is never read into extra_fields; an undecided one still is", () => {
-    const l = applyConfirmed(layoutOf(raw), decided());
+  it("an ignored column is never read into extra_fields; one kept in extra_fields still is", () => {
+    const { layout: l, needs } = applyDecisions(layoutOf(raw), raw, { scheme: "PRIVATE", decisions: decided() });
+    expect(needs).toEqual([]);
     expect(l.map[5]).toMatchObject({ field: null, ignored: true });
     const [row] = sourceRows(raw, l);
     expect(row!.extra).toEqual({ "WARD NOTE": "fake note" });
@@ -178,11 +196,10 @@ describe("Ignore choice and proposal refresh", () => {
     expect(Object.keys(row!.cells)).not.toContain("STAFF CODE");
   });
 
-  it("Ignore counts as decided: the layout is confirmed only when no column is PROPOSED", () => {
-    expect(confirmedLayouts(decided()).size).toBe(1);
-    const half = decided();
-    half[4] = rowFor(4, null, "PROPOSED");
-    expect(confirmedLayouts(half).size).toBe(0);
+  it("Ignore counts as decided: the layout is confirmed only when every header has a decision", () => {
+    expect(resolveLayout(layoutOf(raw), { scheme: "PRIVATE", decisions: decided() }).needs).toEqual([]);
+    const half = decided().filter((d) => d.header_key !== "wardnote");
+    expect(resolveLayout(layoutOf(raw), { scheme: "PRIVATE", decisions: half }).needs.map((n) => n.header)).toEqual(["WARD NOTE"]);
   });
 
   it("refresh keeps a person's APPROVED columns and never proposes their field again", () => {
@@ -236,14 +253,11 @@ describe("fields from mapping_fields", () => {
   it("a new field maps and its value is stored in extra_fields under its key", () => {
     const l = layoutOf(raw, {}, [...coreFieldDefs(), balance]);
     expect(l.map[2]).toMatchObject({ field: null, custom: "balance_status", method: "ALIAS" });
-    const fp = l.fingerprint;
-    const confirmed: MappingRow[] = [
-      { id: "a", tab_name: "OCT 2026", header_fp: fp, source_column: 0, canonical_field: "serial_no", status: "APPROVED", approved_by: "u", approved_at: null },
-      { id: "b", tab_name: "OCT 2026", header_fp: fp, source_column: 1, canonical_field: "patient_name", status: "APPROVED", approved_by: "u", approved_at: null },
-      { id: "c", tab_name: "OCT 2026", header_fp: fp, source_column: 2, canonical_field: "balance_status", status: "APPROVED", approved_by: "u", approved_at: null },
-      { id: "d", tab_name: "OCT 2026", header_fp: fp, source_column: 3, canonical_field: null, status: "APPROVED", approved_by: "u", approved_at: null },
-    ];
-    const [row] = sourceRows(raw, applyConfirmed(layoutOf(raw), confirmed));
+    const decisions: HeaderDecision[] = [
+      ["Sl No", "serial_no"], ["PATIENT NAME", "patient_name"], ["BALANCE STATUS", "balance_status"], ["WARD NOTE", null],
+    ].map(([h, f]) => ({ scheme: "PRIVATE", header_key: headerKey(h), canonical_field: f ?? null, decided_by: "u" }));
+    const { layout: applied } = applyDecisions(layoutOf(raw), raw, { scheme: "PRIVATE", decisions, fields: [...coreFieldDefs(), balance] });
+    const [row] = sourceRows(raw, applied);
     expect(row!.extra).toEqual({ balance_status: "Fake pending", "WARD NOTE": "fake note" });
     expect(Object.keys(row!.cells)).toEqual(["serial_no", "patient_name"]);
   });

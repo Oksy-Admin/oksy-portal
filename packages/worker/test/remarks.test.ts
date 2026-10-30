@@ -1,6 +1,7 @@
 import { joinColumnValues, mapHeaders, MULTI_COLUMN_FIELDS } from "@oksy/rules";
 import { describe, expect, it } from "vitest";
-import { applyConfirmed, refreshBase, type MappingRow } from "../src/discovery.ts";
+import { headerKey } from "@oksy/rules";
+import { applyDecisions, refreshBase, type MappingRow } from "../src/discovery.ts";
 import { layoutOf, sourceRows, type RawCell, type RawTab } from "../src/sheet-data.ts";
 
 // Item 2 (decision 27-Oct-2026): two REMARK columns feed one field "remarks", joined with " | ".
@@ -51,14 +52,18 @@ describe("several columns to one remarks field (Item 2)", () => {
     expect(joinColumnValues([null, " "])).toBeNull();
   });
 
-  it("a confirmed layout with both columns approved as remarks (Badagara OCT 2026) joins them", () => {
+  it("REMARK decided once as remarks (Badagara OCT 2026): both columns are joined", () => {
     const raw = tab("first fake note", "second fake note");
     const fp = layoutOf(raw).fingerprint;
     const fields = ["serial_no", "patient_name", "preauth_or_claim_no", "remarks", "admission_date", "remarks"];
     const confirmed: MappingRow[] = fields.map((f, i) => ({
       id: `m${i}`, tab_name: "OCT 2026", header_fp: fp, source_column: i, canonical_field: f, status: "APPROVED", approved_by: "fake-user-1", approved_at: "2026-10-27T05:00:00Z",
     }));
-    const [row] = sourceRows(raw, applyConfirmed(layoutOf(raw), confirmed));
+    // One decision per header: REMARK decided once covers both REMARK columns.
+    const decisions = ["Sl No", "PATIENT NAME", "CLAIM NO", "REMARK", "DOA"].map((h, i) => ({ scheme: "PRIVATE", header_key: headerKey(h), canonical_field: fields[i]!, decided_by: "fake-user-1" }));
+    const { layout, needs } = applyDecisions(layoutOf(raw), raw, { scheme: "PRIVATE", decisions });
+    expect(needs).toEqual([]);
+    const [row] = sourceRows(raw, layout);
     expect(row!.cells.remarks?.text).toBe("REMARK: first fake note | REMARK: second fake note");
     // Re-proposing: an approved remarks column does not take remarks off the other REMARK column.
     const base = refreshBase(layoutOf(raw), [confirmed[3]!]);
