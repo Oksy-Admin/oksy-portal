@@ -12,18 +12,21 @@ async function FieldsPage() {
   }
 
   const supabase = await createClient();
-  const [list, mappingsRes] = await Promise.all([
+  const [list, mappingsRes, decisionsRes] = await Promise.all([
     loadFieldList(supabase),
-    supabase.from("column_mappings").select("canonical_field, status").neq("status", "RETIRED"),
+    supabase.from("column_mappings").select("canonical_field").neq("status", "RETIRED"),
+    supabase.from("header_decisions").select("canonical_field"),
   ]);
 
-  // How many hospital columns use each field (confirmed and proposed).
+  // How many header decisions use each field (Stage 1b-i: one per hospital + scheme +
+  // header), and how many stored tab columns name it (proposals and older per-tab rows).
+  // Both count as "in use" for delete, as in delete_mapping_field.
   const usage: Record<string, FieldUsage> = {};
+  for (const d of decisionsRes.data ?? []) {
+    if (d.canonical_field) (usage[d.canonical_field] ??= { approved: 0, proposed: 0 }).approved++;
+  }
   for (const m of mappingsRes.data ?? []) {
-    if (!m.canonical_field) continue;
-    const u = (usage[m.canonical_field] ??= { approved: 0, proposed: 0 });
-    if (m.status === "APPROVED") u.approved++;
-    else u.proposed++;
+    if (m.canonical_field) (usage[m.canonical_field] ??= { approved: 0, proposed: 0 }).proposed++;
   }
 
   return (

@@ -5,6 +5,7 @@
     "jsx": "preserve",
     "allowJs": false,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./*"] }

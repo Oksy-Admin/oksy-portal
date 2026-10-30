@@ -2,35 +2,25 @@
 
 import { IGNORE_FIELD, offeredFields, type FieldDef } from "@oksy/rules/fields";
 import { useState, useTransition } from "react";
-import { applyChoice, mappingStatusLabel } from "@/lib/mappings";
+import { applyChoice, choiceLabel, type HeaderItem } from "@/lib/mappings";
 import { FieldForm } from "../fields/fields-table";
-import { approveMappingAction, approveVersionGroupAction, createFieldAndMapAction } from "./actions";
+import { createFieldAndDecideAction, decideHeaderAction, type HeaderRef } from "./actions";
 
-/** The dropdown value that opens the small "new field" form. Never stored. */
+/** The dropdown values that are not a field key. Never stored as such. */
 const NEW_FIELD = "__new__";
+const EXTRA = "__extra__";
 
-/** How a stored choice reads on the page. */
-function choiceLabel(field: string | null, labels: Record<string, string>): string {
-  if (field === IGNORE_FIELD) return "Ignore (not needed)";
-  if (field === null) return "extra_fields (not decided yet)";
-  return labels[field] ?? field;
-}
+const STATE_LABEL: Record<HeaderItem["state"], string> = {
+  CHECK_AGAIN: "Check again",
+  NEEDS_DECISION: "Needs a decision",
+  DECIDED: "Decided",
+  AUTO_IGNORED: "Ignored automatically",
+};
 
-export interface ColumnMappingItem {
-  id: string;
-  hospital_code: string;
-  spreadsheet_id: string;
-  tab_name: string;
-  version_group: string;
-  header_fp: string;
-  source_header: string;
-  source_column: number;
-  canonical_field: string | null;
-  confidence: number;
-  method: string;
-  status: "PROPOSED" | "APPROVED" | "RETIRED";
-  approved_at: string | null;
-}
+const itemId = (i: HeaderItem) => `${i.hospital_code}|${i.scheme}|${i.header_key}`;
+const refOf = (i: HeaderItem): HeaderRef => ({ hospitalCode: i.hospital_code, scheme: i.scheme, headerKey: i.header_key });
+const toValue = (field: string | null) => (field === null ? EXTRA : field);
+const fromValue = (v: string) => (v === EXTRA ? null : v);
 
 export function MappingTable({
   items,
@@ -38,7 +28,7 @@ export function MappingTable({
   fields,
   canCreateFields,
 }: {
-  items: ColumnMappingItem[];
+  items: HeaderItem[];
   hospitalNames: Record<string, string>;
   /** The mapping_fields list (Fields page). Only ACTIVE fields are offered for a new choice. */
   fields: FieldDef[];
@@ -50,85 +40,68 @@ export function MappingTable({
   const offered = offeredFields(fields);
   const [newField, setNewField] = useState<{ id: string; label: string; type: string; aliases: string } | null>(null);
   const [filterHospital, setFilterHospital] = useState<string>("ALL");
-  const [filterStatus, setFilterStatus] = useState<string>("ALL");
-  const [onlyLowConfidence, setOnlyLowConfidence] = useState<boolean>(false);
-  const [selectedFields, setSelectedFields] = useState<Record<string, string>>(
-    Object.fromEntries(items.map((it) => [it.id, it.canonical_field ?? ""]))
+  const [showDecided, setShowDecided] = useState<boolean>(false);
+  const [selected, setSelected] = useState<Record<string, string>>(
+    Object.fromEntries(items.map((i) => [itemId(i), toValue(i.decision ? i.decision.canonical_field : i.suggestion)])),
   );
+  const [acceptShape, setAcceptShape] = useState<Record<string, boolean>>({});
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
   const hospitals = [...new Set(items.map((i) => i.hospital_code))].sort();
-
-  const filtered = items.filter((m) => {
-    if (filterHospital !== "ALL" && m.hospital_code !== filterHospital) return false;
-    if (filterStatus !== "ALL" && m.status !== filterStatus) return false;
-    if (onlyLowConfidence && m.confidence >= 0.85 && m.status === "APPROVED") return false;
+  const visible = items.filter((i) => {
+    if (filterHospital !== "ALL" && i.hospital_code !== filterHospital) return false;
+    if (!showDecided && (i.state === "DECIDED" || i.state === "AUTO_IGNORED")) return false;
     return true;
   });
-
-  // Group by hospital and header_fp
-  const groups = new Map<string, ColumnMappingItem[]>();
-  for (const m of filtered) {
-    const key = `${m.hospital_code}::${m.spreadsheet_id}::${m.tab_name}::${m.header_fp}`;
-    groups.set(key, [...(groups.get(key) ?? []), m]);
+  const groups = new Map<string, HeaderItem[]>();
+  for (const i of visible) {
+    const k = `${i.hospital_code}|${i.scheme}`;
+    groups.set(k, [...(groups.get(k) ?? []), i]);
   }
 
-  const handleFieldChange = (id: string, value: string) => {
+  const saved = (i: HeaderItem, field: string | null, columns?: number) =>
+    setMessage({ text: `Saved: "${i.header}" -> ${choiceLabel(field, labels)}${columns ? ` (used on ${columns} column${columns === 1 ? "" : "s"})` : ""}.`, ok: true });
+
+  const handleChange = (i: HeaderItem, value: string) => {
+    const id = itemId(i);
     if (value === NEW_FIELD) {
       setNewField({ id, label: "", type: "text", aliases: "" });
-      return; // the stored choice changes only when the new field is created
+      return; // the decision changes only when the new field is created
     }
-    setSelectedFields((prev) => ({ ...prev, [id]: value }));
-    // Ignore is saved at once; before, it stayed in the page only and was lost on refresh.
+    setSelected((prev) => ({ ...prev, [id]: value }));
     setMessage(null);
+    // Ignore is a decision on its own and is saved at once, so it survives a refresh.
     startTransition(async () => {
-      const res = await applyChoice(id, value, approveMappingAction);
-      if (!res.saved) {
-        if (!res.ok) setMessage({ text: res.error ?? "Failed to save Ignore", ok: false });
-        return;
-      }
-      const m = items.find((it) => it.id === id);
-      setMessage({ text: `Saved: column "${m?.source_header ?? ""}" is Ignored (not needed).`, ok: true });
+      const res = await applyChoice(value, (field) => decideHeaderAction(refOf(i), field));
+      if (res.saved) saved(i, IGNORE_FIELD);
+      else if (!res.ok) setMessage({ text: res.error ?? "Failed to save Ignore", ok: false });
     });
   };
 
-  const handleApproveOne = (m: ColumnMappingItem) => {
+  const handleSave = (i: HeaderItem) => {
+    const id = itemId(i);
+    const field = fromValue(selected[id] ?? EXTRA);
     setMessage(null);
     startTransition(async () => {
-      const field = selectedFields[m.id] || null;
-      const res = await approveMappingAction(m.id, field);
-      if (res.ok) {
-        setMessage({ text: `Approved column "${m.source_header}" -> ${choiceLabel(field, labels)}`, ok: true });
-      } else {
-        setMessage({ text: res.error ?? "Failed to approve", ok: false });
-      }
+      const res = await decideHeaderAction(refOf(i), field, acceptShape[id] ?? false);
+      if (res.ok) saved(i, field, res.columns);
+      else setMessage({ text: res.error ?? "Failed to save", ok: false });
     });
   };
 
-  const handleCreateAndMap = (m: ColumnMappingItem) => {
-    if (!newField || newField.id !== m.id) return;
+  const handleCreate = (i: HeaderItem) => {
+    const id = itemId(i);
+    if (!newField || newField.id !== id) return;
     setMessage(null);
     startTransition(async () => {
-      const res = await createFieldAndMapAction(m.id, newField.label, newField.type, newField.aliases);
+      const res = await createFieldAndDecideAction(refOf(i), newField.label, newField.type, newField.aliases);
       if (res.ok) {
-        setSelectedFields((prev) => ({ ...prev, [m.id]: res.key ?? "" }));
+        setSelected((prev) => ({ ...prev, [id]: res.key ?? EXTRA }));
         setNewField(null);
-        setMessage({ text: `Created field "${newField.label.trim()}" and mapped column "${m.source_header}" to it.`, ok: true });
+        setMessage({ text: `Created field "${newField.label.trim()}" and decided "${i.header}" as it.`, ok: true });
       } else {
         setMessage({ text: res.error, ok: false });
-      }
-    });
-  };
-
-  const handleApproveGroup = (spreadsheetId: string, headerFp: string, groupName: string) => {
-    setMessage(null);
-    startTransition(async () => {
-      const res = await approveVersionGroupAction(spreadsheetId, headerFp);
-      if (res.ok) {
-        setMessage({ text: `Approved ${res.count ?? 0} mappings for ${groupName}`, ok: true });
-      } else {
-        setMessage({ text: res.error ?? "Failed to approve group", ok: false });
       }
     });
   };
@@ -153,165 +126,111 @@ export function MappingTable({
             ))}
           </select>
         </label>
-        <label>
-          Status
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="ALL">All statuses</option>
-            <option value="PROPOSED">PROPOSED only</option>
-            <option value="APPROVED">APPROVED only</option>
-          </select>
-        </label>
         <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 16 }}>
-          <input
-            type="checkbox"
-            checked={onlyLowConfidence}
-            onChange={(e) => setOnlyLowConfidence(e.target.checked)}
-          />
-          <strong>Review flags only (confidence &lt; 0.85 or PROPOSED)</strong>
+          <input type="checkbox" checked={showDecided} onChange={(e) => setShowDecided(e.target.checked)} />
+          <strong>Show decided headers too</strong>
         </label>
       </div>
 
       {groups.size === 0 ? (
         <div className="card empty">
-          <p>No column mappings match the selected filters.</p>
+          <p>{showDecided ? "No headers match the selected filters." : "Nothing to decide. Every header has a decision."}</p>
         </div>
       ) : (
-        [...groups.entries()].map(([groupKey, cols]) => {
-          const first = cols[0];
-          if (!first) return null;
-          const hasProposed = cols.some((c) => c.status === "PROPOSED");
-          // "Approve All" stores the saved proposals; a changed dropdown must be approved on its own row first.
-          const unsaved = cols.filter((c) => c.status === "PROPOSED" && (selectedFields[c.id] ?? "") !== (c.canonical_field ?? "")).length;
-          const ignoredCount = cols.filter((c) => c.canonical_field === IGNORE_FIELD).length;
-          const lowConfCount = cols.filter((c) => c.confidence < 0.85).length;
-          const hospName = hospitalNames[first.hospital_code] ?? first.hospital_code;
-
+        [...groups.entries()].map(([groupKey, list]) => {
+          const first = list[0]!;
+          const open = list.filter((i) => i.state === "NEEDS_DECISION" || i.state === "CHECK_AGAIN").length;
           return (
             <div key={groupKey} className="card stack" style={{ gap: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: "1.1rem" }}>
-                    {hospName} ({first.hospital_code}) · Tab: <span className="pill">{first.tab_name}</span>
-                  </h3>
-                  <div className="muted" style={{ fontSize: "0.85rem", marginTop: 4 }}>
-                    Version Group: <strong>{first.version_group}</strong> | Columns: {cols.length}
-                    {ignoredCount > 0 ? ` (${ignoredCount} ignored)` : ""} |
-                    {lowConfCount > 0 ? (
-                      <span className="pill tone-amber" style={{ marginLeft: 6 }}>
-                        {lowConfCount} low confidence
-                      </span>
-                    ) : (
-                      <span className="pill tone-green" style={{ marginLeft: 6 }}>
-                        All high confidence
-                      </span>
-                    )}
-                  </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.1rem" }}>
+                  {hospitalNames[first.hospital_code] ?? first.hospital_code} ({first.hospital_code}) · Scheme: <span className="pill">{first.scheme}</span>
+                </h3>
+                <div className="muted" style={{ fontSize: "0.85rem", marginTop: 4 }}>
+                  {open} header{open === 1 ? "" : "s"} to decide. A decision here is used on every tab of this hospital and scheme with the same header.
                 </div>
-
-                {hasProposed && (
-                  <div style={{ textAlign: "right" }}>
-                    <button
-                      className="btn secondary"
-                      onClick={() => handleApproveGroup(first.spreadsheet_id, first.header_fp, `${first.hospital_code} ${first.tab_name}`)}
-                      disabled={isPending || unsaved > 0}
-                    >
-                      {isPending ? "Approving..." : "Approve All Proposed (G1)"}
-                    </button>
-                    {unsaved > 0 && (
-                      <div className="muted" style={{ fontSize: "0.8rem", marginTop: 4 }}>
-                        {unsaved} changed column{unsaved === 1 ? "" : "s"}: press Approve on {unsaved === 1 ? "that row" : "those rows"} first
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               <div className="table-wrap">
                 <table className="data">
                   <thead>
                     <tr>
-                      <th style={{ width: 40 }}>Col #</th>
-                      <th>Source Header</th>
-                      <th style={{ minWidth: 260 }}>Canonical Field Mapping</th>
-                      <th>Confidence</th>
-                      <th>Method</th>
-                      <th>Status</th>
-                      <th style={{ width: 100 }}>Action</th>
+                      <th>Header in the sheet</th>
+                      <th>Tabs</th>
+                      <th style={{ minWidth: 260 }}>Decision</th>
+                      <th>State</th>
+                      <th style={{ width: 100 }}></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {cols.map((m) => {
-                      const curVal = selectedFields[m.id] ?? "";
-                      const isLow = m.confidence < 0.85;
-
+                    {list.map((i) => {
+                      const id = itemId(i);
+                      const cur = selected[id] ?? EXTRA;
+                      const auto = i.state === "AUTO_IGNORED";
+                      const savedValue = i.decision ? toValue(i.decision.canonical_field) : null;
+                      const unchanged = savedValue === cur && i.state === "DECIDED";
                       return (
-                        <tr
-                          key={m.id}
-                          style={{
-                            background: isLow && m.status === "PROPOSED" ? "rgba(255, 193, 7, 0.08)" : undefined,
-                            opacity: m.status === "APPROVED" && m.canonical_field === IGNORE_FIELD ? 0.6 : undefined,
-                          }}
-                        >
-                          <td className="muted">{m.source_column + 1}</td>
+                        <tr key={id} style={{ opacity: auto || (i.decision?.canonical_field === IGNORE_FIELD && unchanged) ? 0.6 : undefined }}>
                           <td>
-                            <strong>{m.source_header || <span className="muted">(blank header)</span>}</strong>
+                            <strong>{i.header}</strong>
+                            {i.reasons.map((r) => (
+                              <div key={r} className="muted" style={{ fontSize: "0.8rem", color: "var(--amber, #b26a00)" }}>
+                                {r}
+                              </div>
+                            ))}
+                          </td>
+                          <td className="muted" style={{ fontSize: "0.85rem" }}>
+                            {i.tabs.join(", ")}
                           </td>
                           <td>
-                            <select
-                              value={curVal}
-                              onChange={(e) => handleFieldChange(m.id, e.target.value)}
-                              style={{ width: "100%", padding: "4px 8px", fontSize: "0.9rem" }}
-                            >
-                              <option value="">extra_fields (not decided yet)</option>
-                              <option value={IGNORE_FIELD}>Ignore (not needed)</option>
-                              {/* A hidden field stays visible only on a row that already has it. */}
-                              {curVal && hidden.has(curVal) && <option value={curVal}>{labels[curVal]} (hidden)</option>}
-                              {curVal && curVal !== IGNORE_FIELD && !(curVal in labels) && <option value={curVal}>{curVal} (not in the field list)</option>}
-                              {offered.map((f) => (
-                                <option key={f.key} value={f.key}>
-                                  {f.label}
-                                </option>
-                              ))}
-                              {canCreateFields && <option value={NEW_FIELD}>+ Create new field</option>}
-                            </select>
-                            {newField?.id === m.id && (
-                              <div className="stack" style={{ gap: 6, marginTop: 8 }}>
-                                <FieldForm draft={newField} onChange={(d) => setNewField({ id: m.id, ...d })} />
-                                <div style={{ display: "flex", gap: 6 }}>
-                                  <button className="btn" style={{ padding: "4px 10px" }} disabled={isPending || !newField.label.trim()} onClick={() => handleCreateAndMap(m)}>
-                                    Create and map
-                                  </button>
-                                  <button className="btn secondary" style={{ padding: "4px 10px" }} disabled={isPending} onClick={() => setNewField(null)}>
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
+                            {auto ? (
+                              <span className="muted">Ignored automatically ({i.autoIgnoreReason}: the portal calculates it)</span>
+                            ) : (
+                              <>
+                                <select value={cur} onChange={(e) => handleChange(i, e.target.value)} style={{ width: "100%", padding: "4px 8px", fontSize: "0.9rem" }}>
+                                  <option value={EXTRA}>Keep in extra columns</option>
+                                  <option value={IGNORE_FIELD}>Ignore (not needed)</option>
+                                  {/* A hidden field stays visible only where it is already chosen. */}
+                                  {hidden.has(cur) && <option value={cur}>{labels[cur]} (hidden)</option>}
+                                  {cur !== EXTRA && cur !== IGNORE_FIELD && !(cur in labels) && <option value={cur}>{cur} (not in the field list)</option>}
+                                  {offered.map((f) => (
+                                    <option key={f.key} value={f.key}>
+                                      {f.label}
+                                    </option>
+                                  ))}
+                                  {canCreateFields && <option value={NEW_FIELD}>+ Create new field</option>}
+                                </select>
+                                {!i.decision && i.suggestion && <div className="muted" style={{ fontSize: "0.8rem", marginTop: 4 }}>Suggested: {choiceLabel(i.suggestion, labels)}</div>}
+                                {i.state === "CHECK_AGAIN" && (
+                                  <label style={{ display: "flex", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
+                                    <input type="checkbox" checked={acceptShape[id] ?? false} onChange={(e) => setAcceptShape((p) => ({ ...p, [id]: e.target.checked }))} />
+                                    The values are right; use this field anyway
+                                  </label>
+                                )}
+                                {newField?.id === id && (
+                                  <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+                                    <FieldForm draft={newField} onChange={(d) => setNewField({ id, ...d })} />
+                                    <div style={{ display: "flex", gap: 6 }}>
+                                      <button className="btn" style={{ padding: "4px 10px" }} disabled={isPending || !newField.label.trim()} onClick={() => handleCreate(i)}>
+                                        Create and use
+                                      </button>
+                                      <button className="btn secondary" style={{ padding: "4px 10px" }} disabled={isPending} onClick={() => setNewField(null)}>
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
                             )}
                           </td>
                           <td>
-                            <span className={`pill ${m.confidence >= 0.85 ? "tone-green" : "tone-amber"}`}>
-                              {(m.confidence * 100).toFixed(0)}%
-                            </span>
+                            <span className={`pill ${i.state === "DECIDED" || auto ? "tone-green" : "tone-amber"}`}>{STATE_LABEL[i.state]}</span>
                           </td>
                           <td>
-                            <span className="pill">{m.method}</span>
-                          </td>
-                          <td>
-                            {/* From the saved row, so a refresh shows the same status. */}
-                            <span className={`pill ${m.status === "APPROVED" ? "tone-green" : "tone-amber"}`}>
-                              {mappingStatusLabel(m)}
-                            </span>
-                          </td>
-                          <td>
-                            {/* A saved Ignored row needs no Approve; choosing another field shows it again. */}
-                            {!(mappingStatusLabel(m) === "Ignored" && curVal === IGNORE_FIELD) && (
-                              <button
-                                className="btn secondary"
-                                style={{ padding: "4px 10px", fontSize: "0.85rem" }}
-                                onClick={() => handleApproveOne(m)}
-                                disabled={isPending}
-                              >
-                                {m.status === "APPROVED" ? "Update" : "Approve"}
+                            {/* A saved Ignore needs no Save; choosing another field shows it again. */}
+                            {!auto && !unchanged && !(cur === IGNORE_FIELD && savedValue === IGNORE_FIELD && i.state !== "CHECK_AGAIN") && (
+                              <button className="btn secondary" style={{ padding: "4px 10px", fontSize: "0.85rem" }} onClick={() => handleSave(i)} disabled={isPending}>
+                                {i.decision ? "Update" : "Save"}
                               </button>
                             )}
                           </td>

@@ -1,10 +1,11 @@
 import { loadFieldList } from "@/lib/fields";
+import { headerItems, type HeaderItem, type StoredColumn, type StoredDecision } from "@/lib/mappings";
 import { can, canConfirmMappings } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 import { withTiming } from "@/lib/timing";
 import { icons } from "../icons";
 import { NoAccess, PageHead } from "../ui";
-import { MappingTable, type ColumnMappingItem } from "./mapping-table";
+import { MappingTable } from "./mapping-table";
 
 async function ColumnMappingsPage() {
   const me = await getMe();
@@ -14,62 +15,38 @@ async function ColumnMappingsPage() {
   }
 
   const supabase = await createClient();
-  const [mappingsRes, hospitalsRes, fieldList] = await Promise.all([
+  const [columnsRes, decisionsRes, hospitalsRes, fieldList] = await Promise.all([
     supabase
       .from("column_mappings")
-      .select("id, hospital_code, spreadsheet_id, tab_name, version_group, header_fp, source_header, source_column, canonical_field, confidence, method, status, approved_at")
-      .order("hospital_code")
-      .order("tab_name")
-      .order("source_column"),
+      .select("hospital_code, scheme, tab_name, source_header, header_key, canonical_field, status, review_reason")
+      .neq("status", "RETIRED"),
+    supabase.from("header_decisions").select("hospital_code, scheme, header_key, canonical_field, accept_any_shape, method, decided_at"),
     supabase.from("hospitals").select("hospital_code, hospital_name"),
     loadFieldList(supabase),
   ]);
 
-  const items = (mappingsRes.data ?? []) as ColumnMappingItem[];
+  const items = headerItems((columnsRes.data ?? []) as StoredColumn[], (decisionsRes.data ?? []) as StoredDecision[]);
   const hospitalNames = Object.fromEntries((hospitalsRes.data ?? []).map((h) => [h.hospital_code, h.hospital_name]));
-
-  const totalCount = items.length;
-  const approvedCount = items.filter((i) => i.status === "APPROVED").length;
-  const proposedCount = items.filter((i) => i.status === "PROPOSED").length;
-  const lowConfCount = items.filter((i) => i.confidence < 0.85).length;
+  const count = (...states: HeaderItem["state"][]) => items.filter((i) => states.includes(i.state)).length;
 
   const cards = [
-    {
-      label: "Total Column Mappings",
-      value: totalCount,
-      note: `${[...new Set(items.map((i) => i.hospital_code))].length} hospitals mapped`,
-      icon: icons.sheet,
-      tone: "tone-blue",
-    },
-    {
-      label: "Approved (G1)",
-      value: approvedCount,
-      note: `${totalCount > 0 ? ((approvedCount / totalCount) * 100).toFixed(0) : 0}% of all columns`,
-      icon: icons.claims,
-      tone: "tone-green",
-    },
-    {
-      label: "Proposed (Pending)",
-      value: proposedCount,
-      note: "Auto-generated from header aliases",
-      icon: icons.rules,
-      tone: proposedCount > 0 ? "tone-amber" : "tone-green",
-    },
-    {
-      label: "Review Flags",
-      value: lowConfCount,
-      note: "Confidence < 85% or unmatched",
-      icon: icons.alert,
-      tone: lowConfCount > 0 ? "tone-red" : "tone-green",
-    },
+    { label: "Headers", value: items.length, note: `${new Set(items.map((i) => i.hospital_code)).size} hospitals`, icon: icons.sheet, tone: "tone-blue" },
+    { label: "Decided", value: count("DECIDED"), note: "Used on every tab with the same header", icon: icons.claims, tone: "tone-green" },
+    { label: "Needs a decision", value: count("NEEDS_DECISION"), note: "New headers", icon: icons.rules, tone: count("NEEDS_DECISION") > 0 ? "tone-amber" : "tone-green" },
+    { label: "Check again", value: count("CHECK_AGAIN"), note: "Values do not fit, or two decisions", icon: icons.alert, tone: count("CHECK_AGAIN") > 0 ? "tone-red" : "tone-green" },
   ];
 
   return (
     <div className="stack">
       <PageHead
-        title="Column Mapping Review (G1)"
-        subtitle="Confirm each header layout once. For every column choose a field, Ignore (not needed: never read, never in a report), extra_fields (not decided yet), or create a new field. A layout counts as confirmed only when no column is PROPOSED."
+        title="Column Mappings"
+        subtitle="Decide each header once per hospital and scheme: a field, Ignore (never read, never in a report), keep in extra columns, or a new field. The decision is used on every tab with the same header. Length of Stay, Settlement Delay, Balance Amount and TDS % are ignored automatically."
       />
+      {(columnsRes.error || decisionsRes.error) && (
+        <div className="notice warn" role="status">
+          <span>Could not read the mapping decisions: {(columnsRes.error ?? decisionsRes.error)?.message}</span>
+        </div>
+      )}
 
       <div className="grid grid-4">
         {cards.map((c) => (
