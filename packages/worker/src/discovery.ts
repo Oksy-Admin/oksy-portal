@@ -109,7 +109,7 @@ export function isAutoManaged(t: Pick<TabRow, "policy" | "decided_at" | "decisio
 /** Every header decision of a hospital (all schemes: the consistency guard needs them). */
 export async function loadDecisions(db: Db, hospital: string): Promise<HeaderDecision[]> {
   return db.select<HeaderDecision>(
-    `header_decisions?hospital_code=eq.${enc(hospital)}&select=scheme,header_key,canonical_field,accept_any_shape,decided_by,decided_at`,
+    `header_decisions?hospital_code=eq.${enc(hospital)}&withdrawn_at=is.null&select=scheme,header_key,canonical_field,accept_any_shape,decided_by,decided_at`,
   );
 }
 

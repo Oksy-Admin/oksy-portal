@@ -147,6 +147,16 @@ describe("tab discovery and one decision per header (Stage 3, Stage 1b)", () => 
     expect(db2.tables.column_mappings!.find((m) => m.header_key === "doa")!.review_reason).toBeNull();
   });
 
+  it("a bulk confirm that was undone (withdrawn) is not used", async () => {
+    const db = fakeDb(seed());
+    await run(db);
+    decideAll(db);
+    db.tables.header_decisions!.find((d) => d.header_key === "billamount")!.withdrawn_at = "2026-10-31T05:00:00Z";
+    const s = await run(db);
+    expect(s.discovery!.autoAllowed).toEqual([]);
+    expect(s.discovery!.waiting[0]!.reason).toBe("1 header needs a decision: BILL AMOUNT");
+  });
+
   it("a person's decision on a tab is never changed by discovery", async () => {
     const db = fakeDb(seed());
     await run(db);
