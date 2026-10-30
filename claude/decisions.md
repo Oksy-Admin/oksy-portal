@@ -180,7 +180,7 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 
 ## 14. How we work
 
-- **Replies to Anoop in Malayalam**, plain words, short (done / blocked / decision needed). Code, file names and commit messages in English. (26-Oct)
+- **Replies to Anoop in English**, plain words, short (done / blocked / decision needed). Code, file names and commit messages in English. Every final report is also written to `claude/reports/last-report.md` (overwritten each time). (31-Oct)
 - Anoop is not a programmer. For any step he does himself: which app, which screen, exact text to type or click, what to check, what it is for, what happens if skipped. (27-Oct)
 - **Never ask blindly:** every question says why it matters and gives Claude's recommendation, answerable yes/no. Ask only what is not already decided. (30-Oct)
 - Claude may suggest better approaches, not only follow instructions. (27-Oct)
@@ -211,6 +211,7 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 | First monthly report by 10-Nov-2026; critical path first | No build deadline (section 1) |
 | Mapping approval per hospital + scheme + header layout; headers strict between months | Policy B + D (section 5) |
 | Only Owner and Admin confirm mappings (migration 0027) | Owner, Admin, Users with Hospitals edit tick (section 5) |
+| Replies to Anoop in Malayalam (26-Oct) | Replies in English, report also in `claude/reports/last-report.md` (section 14) |
 | Room No and Room Category set to Ignore | ROOM CATEGORY → room_category (section 5) |
 | Follow-up Remarks as its own column (v2 section 7) | All remark columns → one `remarks` field (section 5) |
 | Two remark columns = "duplicate header" error | One `remarks` field (section 5) |

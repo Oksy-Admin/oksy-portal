@@ -11,4 +11,4 @@ description: Close a sub-stage - run all checks, update stage-plan status, curre
 4. New decision from Anoop? Add it to `claude/decisions.md` with the date; move a replaced one to section 15 "Superseded".
 5. Commit: `docs: close Stage <id>`. Never push.
 6. If this was the last sub-stage of the stage: run the `code-reviewer` agent on the stage's diff (from the commit before the stage's first sub-stage to HEAD); fix every "Must" finding in the same prompt (commit + checks again) and list the rest. Then tell Anoop to push (exact Terminal steps) and list the docs to mirror to the Claude Project.
-7. Report in Malayalam, max ~10 lines: done / blocked / decision needed; commits (one line each); migrations waiting for OK; next sub-stage. Then `/clear` is safe.
+7. Report in English, max ~10 lines (also written to `claude/reports/last-report.md`, overwritten): done / blocked / decision needed; commits (one line each); migrations waiting for OK; next sub-stage. Then `/clear` is safe.

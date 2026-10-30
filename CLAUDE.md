@@ -28,7 +28,8 @@ Never ask Anoop a decision that is already in `claude/decisions.md`.
 - One tool (Claude Code, Codex or Antigravity) works on one file at a time; commit, then switch tools.
 
 ## Talking to Anoop
-- Reply in **Malayalam**, plain words, short: done / blocked / decision needed. Code, file names and commit messages in English.
+- Reply in **English**, plain words, short: done / blocked / decision needed. Code, file names and commit messages in English.
+- Write every final report also to `claude/reports/last-report.md` (overwrite it each time), so Anoop can read it without copying from the terminal.
 - Anoop is not a programmer. For any step he must do: which app, which screen, exact text to type or click, what to check, what it is for, what happens if skipped.
 - Every question gives the reason and Claude's recommendation, answerable yes/no. At most 3–5 questions at a stage gate.
 - Do not paste long code or long outputs in chat.
