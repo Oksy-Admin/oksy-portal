@@ -2,7 +2,7 @@
 // hospital's own confirmed headers. Unmatched columns go to extra_fields, never dropped.
 // Ambiguous headers ("Amount", "Date", "Status", "Ref No", "Balance", "Deduction") are
 // never mapped on the header alone.
-import { coreFieldDefs, FIELD_KEY_RE, IGNORE_FIELD, isCanonicalField, NEVER_ALONE_HEADERS, type CanonicalField, type FieldDef } from "./fields.ts";
+import { acceptsManyColumns, coreFieldDefs, FIELD_KEY_RE, IGNORE_FIELD, isCanonicalField, NEVER_ALONE_HEADERS, type CanonicalField, type FieldDef } from "./fields.ts";
 import { normaliseHeader } from "./normalise.ts";
 
 export * from "./fields.ts";
@@ -44,7 +44,9 @@ export interface ColumnMap {
 
 /**
  * Maps a header row. A repeated header keeps the first column; later copies are
- * DUPLICATE_HEADER (their value goes to extra_fields when it differs; file 03 section 3, HMS).
+ * DUPLICATE_HEADER (their value goes to extra_fields when it differs; file 03 section 3, HMS),
+ * except for a field that takes several columns (MULTI_COLUMN_FIELDS, e.g. two REMARK
+ * columns): every copy maps to that field and the values are joined when a row is read.
  * extra lets a hospital add its own confirmed headers (G1). fields is the mapping_fields
  * list; without it the code list is used. Hidden fields are never proposed.
  */
@@ -52,17 +54,20 @@ export function mapHeaders(headers: Array<string | null>, extra: Record<string, 
   const aliases = fields && fields.length > 0 ? aliasIndex(fields) : CODE_ALIASES;
   const hidden = new Set((fields ?? []).filter((f) => f.status !== "ACTIVE").map((f) => f.key));
   const seenFields = new Set<string>();
-  const seenHeaders = new Set<string>();
+  const seenHeaders = new Map<string, string | undefined>(); // normalised header -> its field
   const local: Record<string, CanonicalField> = {};
   for (const [h, f] of Object.entries(extra)) local[normaliseHeader(h)] = f;
   return headers.map((raw, column) => {
     const header = (raw ?? "").trim();
     const key = normaliseHeader(header);
     if (key === "") return { column, header, field: null, confidence: 0, method: "UNMATCHED" };
-    if (seenHeaders.has(key)) return { column, header, field: null, confidence: 1, method: "DUPLICATE_HEADER" };
-    seenHeaders.add(key);
+    if (seenHeaders.has(key)) {
+      const prev = seenHeaders.get(key);
+      if (!acceptsManyColumns(prev)) return { column, header, field: null, confidence: 1, method: "DUPLICATE_HEADER" };
+    }
     const found = NEVER_ON_HEADER_ALONE.has(key) ? undefined : (local[key] ?? aliases[key]);
-    if (!found || hidden.has(found) || seenFields.has(found)) return { column, header, field: null, confidence: 0, method: "UNMATCHED" };
+    if (!seenHeaders.has(key)) seenHeaders.set(key, found && !hidden.has(found) && !seenFields.has(found) ? found : undefined);
+    if (!found || hidden.has(found) || (seenFields.has(found) && !acceptsManyColumns(found))) return { column, header, field: null, confidence: 0, method: "UNMATCHED" };
     seenFields.add(found);
     if (isCanonicalField(found)) return { column, header, field: found, confidence: 0.95, method: "ALIAS" };
     return { column, header, field: null, custom: found, confidence: 0.95, method: "ALIAS" };

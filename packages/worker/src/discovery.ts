@@ -7,7 +7,7 @@
 // A person's own decision on a tab (set_tab_policy) is never changed here.
 // Logs counts and tab names only, never a cell value (hard rule 10).
 import { policyForNewTab, toEventRows, type createReadPath, type GoogleEvent, type TabPolicy } from "@oksy/google";
-import { classifyTabs, mappedKey, newestFirst, readChoice, type CanonicalField, type ColumnMap, type FieldDef } from "@oksy/rules";
+import { acceptsManyColumns, classifyTabs, mappedKey, newestFirst, readChoice, type CanonicalField, type ColumnMap, type FieldDef } from "@oksy/rules";
 import { DbError } from "./db.ts";
 import type { Db } from "./db.ts";
 import { layoutOf, toRawTabs, type RawTab, type TabLayout } from "./sheet-data.ts";
@@ -149,7 +149,8 @@ export function mappingRow(hospital: string, fileId: string, l: TabLayout, m: Co
 export function refreshBase(l: TabLayout, stored: MappingRow[]): ColumnMap[] {
   const approved = new Map(stored.filter((r) => r.status === "APPROVED").map((r) => [r.source_column, r]));
   const held = new Set<string>();
-  for (const r of approved.values()) if (r.canonical_field) held.add(r.canonical_field);
+  // A field that takes several columns (remarks) is never "held": another column may map to it too.
+  for (const r of approved.values()) if (r.canonical_field && !acceptsManyColumns(r.canonical_field)) held.add(r.canonical_field);
   return l.map.map((m) => {
     const a = approved.get(m.column);
     if (a) {

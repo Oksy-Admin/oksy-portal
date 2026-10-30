@@ -173,6 +173,26 @@ export function coreFieldDefs(): FieldDef[] {
  */
 export const IGNORE_FIELD = "IGNORE";
 
+/**
+ * Fields that take more than one source column (decision 27-Oct-2026, Anoop). Rule, kept
+ * simple on purpose: every other field takes one column per layout; a field on this list
+ * takes every column mapped to it. The values are joined with " | " in the sheet's column
+ * order, and empty values are skipped (no double separators). The report has one column
+ * for the field. Today only remarks (hospital sheets have two REMARK columns).
+ */
+export const MULTI_COLUMN_FIELDS: readonly string[] = ["remarks"];
+export const MULTI_COLUMN_SEPARATOR = " | ";
+
+export function acceptsManyColumns(key: string | null | undefined): boolean {
+  return key != null && MULTI_COLUMN_FIELDS.includes(key);
+}
+
+/** The values of a multi-column field, in column order: trimmed, empties skipped, joined. null when all are empty. */
+export function joinColumnValues(values: Array<string | null | undefined>): string | null {
+  const kept = values.map((v) => (v ?? "").trim()).filter((v) => v !== "");
+  return kept.length === 0 ? null : kept.join(MULTI_COLUMN_SEPARATOR);
+}
+
 /** What a person can choose for one column: a field key, Ignore, or null (extra_fields). */
 export type MappingChoice = string | null;
 
