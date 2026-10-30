@@ -31,4 +31,4 @@ Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, a
 - Write to a hospital Google Sheet.
 - Print or commit secrets.
 - Apply a schema change to live before Anoop's OK on the SQL.
-- Start the next sub-stage before Anoop approves the current one.
+- Start the next stage before Anoop approves the current one.
