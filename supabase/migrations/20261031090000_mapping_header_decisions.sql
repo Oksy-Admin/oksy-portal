@@ -15,7 +15,8 @@
 -- 5. Today's per-tab approvals move into header_decisions: the 7 header decisions of 30-Oct
 --    first; any other header whose approved rows all agree on one choice; auto-Ignored
 --    headers (Length of Stay, Settlement Delay, Balance Amount, TDS %) are not stored, the
---    code ignores them. Headers that disagree, or were left as "extra_fields (not decided
+--    code ignores them. A plain "TDS" in a hospital + scheme that also has "TDS AMOUNT" is
+--    not stored either (value-based auto-Ignore or the decision list). Headers that disagree, or were left as "extra_fields (not decided
 --    yet)", stay on the decision list. The old rows stay as they are (history).
 -- 6. delete_mapping_field(): a field used by a header decision is "in use".
 -- 7. Worker (service_role): read header_decisions, write review_reason.
@@ -142,54 +143,80 @@ REVOKE EXECUTE ON FUNCTION public.decide_header(text, text, text, text, boolean)
 GRANT EXECUTE ON FUNCTION public.decide_header(text, text, text, text, boolean) TO authenticated;
 
 -- 5. -------------------------------------------------------------------------------------
-SELECT set_config('oksy.audit_reason', 'Stage 1b-i: per-tab approvals moved to one decision per hospital + scheme + header', true);
-WITH observed AS (
-  SELECT hospital_code, scheme, header_key,
-         min(source_header) AS source_header,
-         (array_agg(approved_by ORDER BY approved_at DESC) FILTER (WHERE approved_by IS NOT NULL))[1] AS approver
-    FROM public.column_mappings
-   WHERE header_key <> '' AND scheme IS NOT NULL AND status <> 'RETIRED'
-   GROUP BY 1, 2, 3
-),
-auto_ignored AS (  -- same list as autoIgnoreByHeader() in packages/rules/src/decisions.ts
-  SELECT o.* FROM observed o
-   WHERE o.header_key = 'los' OR o.header_key LIKE 'lengthofstay%' OR o.header_key LIKE 'loslengthofstay%'
-      OR o.header_key LIKE 'settlementdelay%'
-      OR o.header_key LIKE 'balanceamount%' OR o.header_key LIKE 'balanceamt%' OR o.header_key LIKE 'balamount%' OR o.header_key LIKE 'balamt%'
-      OR (o.header_key LIKE 'tds%' AND (o.source_header LIKE '%\%%' OR o.header_key ~ '^tds(percent|percentage|rate|per)$'))
-),
-seven(header_key, canonical_field) AS (  -- decisions.md section 5, 30-Oct
-  VALUES ('roomcategory', 'room_category'),
-         ('uhid', 'uhid'),
-         ('tds', 'tds_amount_stated'),
-         ('tdsamount', 'tds_amount_stated'),
-         ('remark', 'remarks'),
-         ('remarks', 'remarks'),
-         ('claimremark', 'remarks'),
-         ('followupremarks', 'remarks'),
-         ('discount', 'discount_amount'),
-         ('paymentfollowupdate', 'followup_date')
-),
-agreed AS (  -- every approved row of the header made the same, real choice
-  SELECT hospital_code, scheme, header_key, min(canonical_field) AS canonical_field
-    FROM public.column_mappings
-   WHERE status = 'APPROVED' AND header_key <> '' AND scheme IS NOT NULL
-   GROUP BY 1, 2, 3
-  HAVING count(*) = count(canonical_field) AND count(DISTINCT canonical_field) = 1
-)
-INSERT INTO public.header_decisions (hospital_code, scheme, header_key, source_header, canonical_field, method, note, decided_by)
-SELECT o.hospital_code, o.scheme, o.header_key, o.source_header,
-       coalesce(s.canonical_field, a.canonical_field),
-       'MIGRATED',
-       CASE WHEN s.header_key IS NOT NULL THEN 'Anoop''s header decisions of 30-Oct (decisions.md section 5)'
-            ELSE 'Moved from the per-tab approvals (all tabs agreed)' END,
-       o.approver
-  FROM observed o
-  LEFT JOIN seven s ON s.header_key = o.header_key
-  LEFT JOIN agreed a USING (hospital_code, scheme, header_key)
- WHERE (s.header_key IS NOT NULL OR a.header_key IS NOT NULL)
-   AND NOT EXISTS (SELECT 1 FROM auto_ignored x WHERE (x.hospital_code, x.scheme, x.header_key) = (o.hospital_code, o.scheme, o.header_key))
-ON CONFLICT (hospital_code, scheme, header_key) DO NOTHING;
+-- A function, so supabase/tests/12_header_decisions.test.sql can run the same move on fake
+-- rows. It is safe to run again (existing decisions are kept). No grants: postgres only.
+CREATE OR REPLACE FUNCTION private.migrate_header_decisions()
+RETURNS integer
+LANGUAGE plpgsql SET search_path = ''
+AS $$
+DECLARE
+  v_count integer;
+BEGIN
+  PERFORM set_config('oksy.audit_reason', 'Stage 1b-i: per-tab approvals moved to one decision per hospital + scheme + header', true);
+  WITH observed AS (
+    SELECT hospital_code, scheme, header_key,
+           min(source_header) AS source_header,
+           (array_agg(approved_by ORDER BY approved_at DESC) FILTER (WHERE approved_by IS NOT NULL))[1] AS approver
+      FROM public.column_mappings
+     WHERE header_key <> '' AND scheme IS NOT NULL AND status <> 'RETIRED'
+     GROUP BY 1, 2, 3
+  ),
+  auto_ignored AS (  -- same list as autoIgnoreByHeader() in packages/rules/src/decisions.ts
+    SELECT o.* FROM observed o
+     WHERE o.header_key = 'los' OR o.header_key LIKE 'lengthofstay%' OR o.header_key LIKE 'loslengthofstay%'
+        OR o.header_key LIKE 'settlementdelay%'
+        OR o.header_key LIKE 'balanceamount%' OR o.header_key LIKE 'balanceamt%' OR o.header_key LIKE 'balamount%' OR o.header_key LIKE 'balamt%'
+        OR (o.header_key LIKE 'tds%' AND (o.source_header LIKE '%\%%' OR o.header_key ~ '^tds(percent|percentage|rate|per)$'))
+  ),
+  -- A plain "TDS" next to a "TDS AMOUNT" is usually the rate, and its old approvals disagree
+  -- (live: HOSPPVTP0001, 0002). Not stored: the value-based auto-Ignore (looksLikeTdsPercent)
+  -- or the decision list handles it.
+  tds_beside_amount AS (
+    SELECT o.* FROM observed o
+     WHERE o.header_key = 'tds'
+       AND EXISTS (SELECT 1 FROM observed t
+                    WHERE (t.hospital_code, t.scheme, t.header_key) = (o.hospital_code, o.scheme, 'tdsamount'))
+  ),
+  seven(header_key, canonical_field) AS (  -- decisions.md section 5, 30-Oct
+    VALUES ('roomcategory', 'room_category'),
+           ('uhid', 'uhid'),
+           ('tds', 'tds_amount_stated'),
+           ('tdsamount', 'tds_amount_stated'),
+           ('remark', 'remarks'),
+           ('remarks', 'remarks'),
+           ('claimremark', 'remarks'),
+           ('followupremarks', 'remarks'),
+           ('discount', 'discount_amount'),
+           ('paymentfollowupdate', 'followup_date')
+  ),
+  agreed AS (  -- every approved row of the header made the same, real choice
+    SELECT hospital_code, scheme, header_key, min(canonical_field) AS canonical_field
+      FROM public.column_mappings
+     WHERE status = 'APPROVED' AND header_key <> '' AND scheme IS NOT NULL
+     GROUP BY 1, 2, 3
+    HAVING count(*) = count(canonical_field) AND count(DISTINCT canonical_field) = 1
+  )
+  INSERT INTO public.header_decisions (hospital_code, scheme, header_key, source_header, canonical_field, method, note, decided_by)
+  SELECT o.hospital_code, o.scheme, o.header_key, o.source_header,
+         coalesce(s.canonical_field, a.canonical_field),
+         'MIGRATED',
+         CASE WHEN s.header_key IS NOT NULL THEN 'Anoop''s header decisions of 30-Oct (decisions.md section 5)'
+              ELSE 'Moved from the per-tab approvals (all tabs agreed)' END,
+         o.approver
+    FROM observed o
+    LEFT JOIN seven s ON s.header_key = o.header_key
+    LEFT JOIN agreed a ON (a.hospital_code, a.scheme, a.header_key) = (o.hospital_code, o.scheme, o.header_key)
+   WHERE (s.header_key IS NOT NULL OR a.header_key IS NOT NULL)
+     AND NOT EXISTS (SELECT 1 FROM auto_ignored x WHERE (x.hospital_code, x.scheme, x.header_key) = (o.hospital_code, o.scheme, o.header_key))
+     AND NOT EXISTS (SELECT 1 FROM tds_beside_amount x WHERE (x.hospital_code, x.scheme, x.header_key) = (o.hospital_code, o.scheme, o.header_key))
+  ON CONFLICT (hospital_code, scheme, header_key) DO NOTHING;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION private.migrate_header_decisions() FROM public;
+
+SELECT private.migrate_header_decisions();
 
 -- 6. -------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.delete_mapping_field(p_key text)

@@ -1,7 +1,7 @@
 -- Stage 1b-i: one mapping decision per hospital + scheme + header (decide_header).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(14);
 
 insert into public.users_roles (email, role) values
   ('t-1b-admin@example.test', 'ADMIN'),
@@ -46,6 +46,24 @@ reset role;
 select is((select canonical_field || '|' || method || '|' || decided_by::text from public.header_decisions where hospital_code = 'HOSP32P999992'),
           'IGNORE|MANUAL|00000000-0000-0000-0000-0000000001b1', 'one row per hospital + scheme + header, with who decided');
 select is((select count(*)::int from public.column_mappings where hospital_code = 'HOSP32P999992' and review_reason is not null), 0, 'review reason cleared');
+
+-- Moving the per-tab approvals: a plain "TDS" beside "TDS AMOUNT" (old approvals disagree,
+-- as on live HOSPPVTP0001/0002) gets no decision; a "TDS" alone still takes tds_amount_stated.
+insert into public.hospitals (hospital_code, hospital_name, district, status)
+values ('HOSP32P999993', 'Test Hospital TDS Only', 'ERNAKULAM', 'ACTIVE');
+insert into public.column_mappings (hospital_code, spreadsheet_id, tab_name, header_fp, source_header, source_column, canonical_field, confidence, method, status, scheme, header_key)
+values
+  ('HOSP32P999992', 'FAKEsheetDECISIONS000000000001', 'OCT 2026', 'tds|tdsamount', 'TDS', 2, 'tds_amount_stated', 1, 'MANUAL', 'APPROVED', 'PRIVATE', 'tds'),
+  ('HOSP32P999992', 'FAKEsheetDECISIONS000000000001', 'SEP 2026', 'tds|tdsamount', 'TDS', 2, 'IGNORE', 1, 'MANUAL', 'APPROVED', 'PRIVATE', 'tds'),
+  ('HOSP32P999992', 'FAKEsheetDECISIONS000000000001', 'OCT 2026', 'tds|tdsamount', 'TDS AMOUNT', 3, 'tds_amount_stated', 1, 'MANUAL', 'APPROVED', 'PRIVATE', 'tdsamount'),
+  ('HOSP32P999993', 'FAKEsheetDECISIONS000000000002', 'OCT 2026', 'tds', 'TDS', 2, 'tds_amount_stated', 1, 'MANUAL', 'APPROVED', 'PRIVATE', 'tds');
+select is((select private.migrate_header_decisions()), 2, 'move stores TDS AMOUNT and the lone TDS only');
+select is((select count(*)::int from public.header_decisions where hospital_code = 'HOSP32P999992' and header_key = 'tds'), 0,
+          'TDS beside TDS AMOUNT: no decision stored');
+select is((select canonical_field from public.header_decisions where hospital_code = 'HOSP32P999992' and header_key = 'tdsamount'), 'tds_amount_stated',
+          'TDS AMOUNT goes to tds_amount_stated');
+select is((select canonical_field from public.header_decisions where hospital_code = 'HOSP32P999993' and header_key = 'tds'), 'tds_amount_stated',
+          'TDS alone still goes to tds_amount_stated');
 
 select * from finish();
 rollback;
