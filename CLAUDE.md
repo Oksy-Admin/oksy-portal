@@ -45,6 +45,7 @@ Never ask Anoop a decision that is already in `claude/decisions.md`.
 - Skills in `.claude/skills/`: `/plan-stage N`, `/build-substage Nx`, `/close-substage Nx`.
 - Stop hook (`scripts/claude-stop-check.sh`) runs typecheck, lint and test on uncommitted code changes; fix failures in the same prompt.
 - `.claude/settings.json` allows routine commands and blocks `git push`, live `supabase db push` and reading `.env` files.
+- Agents in `.claude/agents/`: `design-reviewer` (mandatory in `/plan-stage`), `code-reviewer` (end of each stage). MCP (`.mcp.json`): Supabase read-only, Context7 docs.
 - Read only what the task needs; keep outputs short; `/clear` after each closed sub-stage.
 
 ## Commands

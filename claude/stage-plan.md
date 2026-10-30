@@ -45,7 +45,7 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 | Order | Sub-stage | Prompts | Migrations expected (each shown to Anoop before live) |
 |---|---|---|---|
 | 1 | 1b-i – mapping model core: approval per hospital + scheme, reuse on exact header, value-shape check, consistency guard, auto-Ignore, the 7 header decisions, Ignore saved as decided – **DONE (code) 31-Oct-2026, 1 prompt** | 3 | mapping approval keyed on hospital + scheme + normalised header; move today's 452 rows to it; UHID extra field; fix the 7 headers |
-| 2 | 1b-ii – suggestions, "Confirm all", bulk confirm (max 50, undo as a group), approve speed, Playwright check | 2 | bulk-confirm batch table (for undo and the one audit entry) |
+| 2 | 1b-ii – suggestions, "Confirm all", bulk confirm (max 50, undo as a group), approve speed, Playwright check, golden fixtures of the 3 pilot sheets (headers + value shapes, no patient data) | 2 | bulk-confirm batch table (for undo and the one audit entry) |
 | 3 | 1c – open items (bulk upload preview, `/hospitals` tick gate, change-log check, RLS read side, Balance Status test) | 2 | RLS read policies for 3 tables |
 | 4 | 1d – data foundations (scheme on every record, claim identity, claim history, record source, list of unused tables) | 3 | scheme columns; claim identity key; claim history table; record source |
 | 5 | 1e – measurements (run time per sheet, Drive modified-time test) | 1 | none |
