@@ -40,8 +40,8 @@ describe("aliases for the new fields", () => {
     ["Pre-auth Approval Amount", "preauth_approved_amount"], ["PREAUTH APPROVED AMOUNT", "preauth_approved_amount"],
   ])("%s -> %s", (h, f) => expect(field(h)).toBe(f));
 
-  it("existing aliases are unchanged next to the new ones", () => {
-    expect(mapHeaders(["Room No", "Follow Up", "Follow Up Remarks", "Claimed Amount"]).map((m) => m.field)).toEqual(["room_no", "followup_log", null, "claimed_amount"]);
+  it("existing aliases are unchanged next to the new ones; Follow Up Remarks is a remark (decision 30-Oct)", () => {
+    expect(mapHeaders(["Room No", "Follow Up", "Follow Up Remarks", "Claimed Amount"]).map((m) => m.field)).toEqual(["room_no", "followup_log", "remarks", "claimed_amount"]);
   });
 
   it("never maps a header on the never-on-name-alone list", () => {

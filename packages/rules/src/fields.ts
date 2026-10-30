@@ -101,7 +101,7 @@ export const FIELD_KEY_RE = /^[a-z][a-z0-9_]{1,62}$/;
 export const CORE_FIELDS: Record<CanonicalField, { label: string; data_type: FieldType; aliases: string[] }> = {
   serial_no: { label: "Serial No", data_type: "number", aliases: ["Sl No", "Sl. No", "S No", "S.No", "Sr No", "No", "Sno", "Slno"] },
   patient_name: { label: "Patient Name", data_type: "text", aliases: ["Patient Name", "Pt Name", "Name of Patient", "Patient", "Name"] },
-  patient_ip_no: { label: "IP Number", data_type: "text", aliases: ["IP No", "IP Number", "UHID", "MR No", "MRD No", "IP", "MRD/ UHID/ IP NUMBER", "MRD / UHID / IP No"] },
+  patient_ip_no: { label: "IP Number", data_type: "text", aliases: ["IP No", "IP Number", "MR No", "MRD No", "IP", "MRD/ UHID/ IP NUMBER", "MRD / UHID / IP No"] },
   policy_or_card_no: {
     label: "Policy Number / Card ID",
     data_type: "text",
@@ -145,7 +145,7 @@ export const CORE_FIELDS: Record<CanonicalField, { label: string; data_type: Fie
   },
   courier_no: { label: "POD Number", data_type: "text", aliases: ["POD Number", "POD No", "POD", "Courier No"] },
   followup_date: { label: "Follow-up Date", data_type: "date", aliases: ["Follow Up Date", "Follow-up Date", "Next Follow Up", "Next Follow Up Date"] },
-  followup_log: { label: "Follow-up Remarks", data_type: "text", aliases: ["Follow Up", "Followup", "Follow-up", "Follow Up Remarks"] },
+  followup_log: { label: "Follow-up Remarks", data_type: "text", aliases: ["Follow Up", "Followup", "Follow-up"] },
   status_text: { label: "Claim Status", data_type: "text", aliases: ["Claim Status", "Status of Claim", "Current Status"] },
   rejection_reason: { label: "Rejection Reason", data_type: "text", aliases: ["Rejection Reason", "Reason for Rejection", "Denial Reason"] },
   cancellation_reason: { label: "Cancellation Reason", data_type: "text", aliases: ["Cancellation Reason", "Reason for Cancellation"] },
@@ -157,7 +157,7 @@ export const CORE_FIELDS: Record<CanonicalField, { label: string; data_type: Fie
   payment_amount: { label: "Settled Amount", data_type: "amount", aliases: ["Paid Amount", "Amount Received", "Settled Amount", "Received Amount", "Paid Amt"] },
   payment_utr: { label: "UTR", data_type: "text", aliases: ["UTR", "UTR No", "UTR Number", "NEFT Ref", "NEFT No", "Transaction No"] },
   tds_amount_stated: { label: "TDS", data_type: "amount", aliases: ["TDS", "TDS Amount"] },
-  remarks: { label: "Remarks", data_type: "text", aliases: ["Remark", "Remarks", "Claim Remark"] },
+  remarks: { label: "Remarks", data_type: "text", aliases: ["Remark", "Remarks", "Claim Remark", "Follow Up Remarks"] },
 };
 
 /** The core fields as mapping_fields rows (seed and fallback), in report order. */
@@ -187,9 +187,19 @@ export function acceptsManyColumns(key: string | null | undefined): boolean {
   return key != null && MULTI_COLUMN_FIELDS.includes(key);
 }
 
-/** The values of a multi-column field, in column order: trimmed, empties skipped, joined. null when all are empty. */
-export function joinColumnValues(values: Array<string | null | undefined>): string | null {
-  const kept = values.map((v) => (v ?? "").trim()).filter((v) => v !== "");
+/**
+ * The values of a multi-column field, in column order: trimmed, empties skipped, joined.
+ * null when all are empty. With labels (the source column names), each value is prefixed
+ * "LABEL: value" (decision 30-Oct: one remarks field, joined, prefixed by the column name).
+ */
+export function joinColumnValues(values: Array<string | null | undefined>, labels?: string[]): string | null {
+  const kept = values
+    .map((v, i) => {
+      const t = (v ?? "").trim();
+      const label = (labels?.[i] ?? "").replace(/\s+/g, " ").trim();
+      return t === "" ? "" : label ? `${label}: ${t}` : t;
+    })
+    .filter((v) => v !== "");
   return kept.length === 0 ? null : kept.join(MULTI_COLUMN_SEPARATOR);
 }
 

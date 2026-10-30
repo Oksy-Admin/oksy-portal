@@ -81,7 +81,8 @@ export function layoutOf(tab: RawTab, extraHeaders: Record<string, CanonicalFiel
  * Source rows below the header. Duplicate-header and unmatched columns go to extra under the
  * header (never dropped); fields added on the Fields page go to extra under their key;
  * ignored columns are skipped. A field with several columns (remarks) gets their values
- * joined with " | " in column order, empty values skipped (MULTI_COLUMN_FIELDS).
+ * joined with " | " in column order, each prefixed by its column name, empty values skipped
+ * (MULTI_COLUMN_FIELDS, decision 30-Oct).
  */
 export function sourceRows(tab: RawTab, layout: TabLayout): SourceRow[] {
   if (layout.headerRow === null) return [];
@@ -91,11 +92,11 @@ export function sourceRows(tab: RawTab, layout: TabLayout): SourceRow[] {
     const raw = tab.rows[i] ?? [];
     const cells: SourceRow["cells"] = {};
     const extra: Record<string, string> = {};
-    const many = new Map<CanonicalField, RawCell[]>(); // multi-column field -> its cells, in column order
+    const many = new Map<CanonicalField, Array<{ cell: RawCell; label: string }>>(); // multi-column field -> its cells, in column order
     for (const m of layout.map) {
       if (m.ignored) continue; // "Ignore (not needed)": not part of the data, not in extra_fields
       const c = raw[m.column];
-      if (m.field && acceptsManyColumns(m.field)) many.set(m.field, [...(many.get(m.field) ?? []), c ?? [null, null, null]]);
+      if (m.field && acceptsManyColumns(m.field)) many.set(m.field, [...(many.get(m.field) ?? []), { cell: c ?? [null, null, null], label: m.header || `Column ${m.column + 1}` }]);
       else if (m.field) cells[m.field] = cell(c);
       else if (m.custom) {
         // A field added on the Fields page: kept in extra_fields under its key (decision 27-Oct-2026).
@@ -109,8 +110,8 @@ export function sourceRows(tab: RawTab, layout: TabLayout): SourceRow[] {
       }
     }
     for (const [f, list] of many) {
-      const text = joinColumnValues(list.map((c) => c[0]));
-      cells[f] = { text, number: null, colour: list.find((c) => c[2])?.[2] ?? null };
+      const text = joinColumnValues(list.map((c) => c.cell[0]), list.map((c) => c.label));
+      cells[f] = { text, number: null, colour: list.find((c) => c.cell[2])?.cell[2] ?? null };
     }
     // Mapped fields with no column in this tab stay undefined: NOT_RECORDED_IN_SOURCE.
     const isHeaderRepeat = raw.filter((c) => c?.[0]).every((c, j) => nameKey(c[0] ?? "") === headerKeys[j]) && raw.some((c) => c?.[0]);

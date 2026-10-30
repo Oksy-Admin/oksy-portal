@@ -31,14 +31,14 @@ describe("several columns to one remarks field (Item 2)", () => {
 
   it("two columns with values: joined with ' | ' in column order", () => {
     const [row] = sourceRows(tab("first fake note", "second fake note"), layoutOf(tab("", "")));
-    expect(row!.cells.remarks?.text).toBe("first fake note | second fake note");
+    expect(row!.cells.remarks?.text).toBe("REMARK: first fake note | REMARK: second fake note");
     expect(row!.extra).toEqual({}); // no "REMARK (column 6)" left over: one remark column in the report
   });
 
   it("one empty: only the other value, no separator", () => {
     const l = layoutOf(tab("", ""));
-    expect(sourceRows(tab("", "second fake note"), l)[0]!.cells.remarks?.text).toBe("second fake note");
-    expect(sourceRows(tab("first fake note", "  "), l)[0]!.cells.remarks?.text).toBe("first fake note");
+    expect(sourceRows(tab("", "second fake note"), l)[0]!.cells.remarks?.text).toBe("REMARK: second fake note");
+    expect(sourceRows(tab("first fake note", "  "), l)[0]!.cells.remarks?.text).toBe("REMARK: first fake note");
   });
 
   it("both empty: no value", () => {
@@ -59,7 +59,7 @@ describe("several columns to one remarks field (Item 2)", () => {
       id: `m${i}`, tab_name: "OCT 2026", header_fp: fp, source_column: i, canonical_field: f, status: "APPROVED", approved_by: "fake-user-1", approved_at: "2026-10-27T05:00:00Z",
     }));
     const [row] = sourceRows(raw, applyConfirmed(layoutOf(raw), confirmed));
-    expect(row!.cells.remarks?.text).toBe("first fake note | second fake note");
+    expect(row!.cells.remarks?.text).toBe("REMARK: first fake note | REMARK: second fake note");
     // Re-proposing: an approved remarks column does not take remarks off the other REMARK column.
     const base = refreshBase(layoutOf(raw), [confirmed[3]!]);
     expect(base[5]?.field).toBe("remarks");
