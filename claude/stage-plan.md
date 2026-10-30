@@ -55,6 +55,7 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - Commits `25a773a` (decision core in `packages/rules/src/decisions.ts`), `ebcd6f3` (remarks "COLUMN: value | …", UHID / Follow Up Remarks aliases), `cec9c44` (migration `20261031090000_mapping_header_decisions.sql` + pgTAP test 12), `2b39b75` (worker reuses decisions), `f1828f7` (Column Mappings page: one row per header).
 - Checks: typecheck, lint, build pass; 232 tests pass (rules 134, google 40, worker 35, web 23). pgTAP test 12 not run locally (no Docker); CI runs it.
 - Live preview (read-only, 31-Oct): today's 452 rows become 111 header decisions (Badagara 34, Tree G 32, HMS 40 + auto-Ignored 3 each); only 2 headers left to decide (HMS: MAIL SENT DATE, MAIL SUBJECT).
+- Fix 31-Oct (Anoop): a plain "TDS" in a hospital + scheme that also has "TDS AMOUNT" gets no migrated decision (old approvals disagreed); the value-based auto-Ignore or the decision list handles it. Section 5 is now `private.migrate_header_decisions()` (pgTAP test 12 covers it); also fixed a join error in it. New live preview: 103 header decisions (Badagara 33, Tree G 31, HMS 39 + auto-Ignored 3 each); TDS left to values in all 3; still 2 headers to decide (HMS: MAIL SENT DATE, MAIL SUBJECT).
 - Choices made in the build: a blank header goes to extra columns, never to the list; a plain "TDS" column holding rates (with "%", or 30 or less next to TDS AMOUNT) is TDS % and auto-Ignored; two columns decided as one field in a tab go to the list; old approvals left as "extra_fields (not decided yet)" are not moved (none remained); "Keep in extra columns" is a decision.
 - Not yet: Playwright check of the page (planned in 1b-ii; needs the migration on live and a login).
 
@@ -73,6 +74,7 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - `/hospitals` page gate on the `hospitals_view` tick (check what migration `20261030074539` already covers).
 - Change log: verify it records access, hospital, field and mapping changes.
 - RLS read side for `hospital_id_history`, `report_downloads`, `rule_upload_batches`.
+- `header_decisions` read policy: also allow the `hospitals_view` tick (today only `hospitals_add_edit`).
 - Balance Status mapping test (needs a safe source column; never BALANCE AMOUNT).
 - Done when: each item is built or verified, with evidence in the status table.
 
