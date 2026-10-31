@@ -7,7 +7,7 @@ description: Build one approved sub-stage end to end in a single prompt (build, 
 
 Goal: finish the whole sub-stage without asking Anoop anything, unless a hard rule needs him.
 
-1. Read the sub-stage in `claude/stage-plan.md` and the decisions it relies on. Nothing else unless needed.
+1. Read `claude/my-tasks.md` first. If an item under "Before each stage/sub-stage starts" is open for this sub-stage, STOP and tell Anoop; do not start. Otherwise read the sub-stage in `claude/stage-plan.md` and the decisions it relies on (use the `decisions.md` section index). Nothing else unless needed.
 2. Make a short task list. Build in small commits, one purpose each (`git add` + `git commit`; never push).
 3. Write tests with the code. Run `pnpm typecheck`, `pnpm lint`, `pnpm test` and fix until all pass. Do not stop at the first error; keep fixing.
 4. UI changes: check with Playwright (dev-only). If Playwright is not installed yet, add it once as a dev dependency of `apps/web` (`pnpm --filter @oksy/web add -D @playwright/test`) in its own commit.
