@@ -199,7 +199,7 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 - **Secrets:** never print or commit API keys, service account JSON or `.env` values; checks show shape only (length, prefix, names). (27-Oct)
 - Before a stage is reported done: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
 
-- **Old tables retired (31-Oct):** `hospital_aliases` (replaced by `other_names`), `golden_tests`, `discount`, `import_runs` are not created on live; code that names them is changed.
+- **Old tables retired (31-Oct):** `hospital_aliases` (replaced by `other_names`), `golden_tests`, `discount2_decisions` (the plan first called it `discount`), `import_runs` are not created on live; code that names them is changed.
 - **One migration per sub-stage** when a stage needs several: 1c and 1d each get their own migration and their own OK. (31-Oct)
 
 ## 15. Superseded (do not use)
