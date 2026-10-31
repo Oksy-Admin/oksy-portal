@@ -1,6 +1,6 @@
 # CLAUDE.md – Oksy Data Cleanse portal
 
-**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i and 1b-ii done 31-Oct-2026 (migrations on live); 1c done 31-Oct-2026, its migration `20261031120000` waits for Anoop's OK before live. Next: 1d.**
+**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i, 1b-ii and 1c done 31-Oct-2026 (migrations on live; live matches the migration files). Next: 1d.**
 
 ## Read first, in this order
 1. `handoff.md` – where we are now and the next step

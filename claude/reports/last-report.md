@@ -33,7 +33,7 @@
 - `c085825` close 1c
 
 ## Decision needed
-**Apply `20261031120000_reconcile_live_schema.sql` to live? Recommended: yes.** I take a backup first, then check read-only that live and the files match (zero drift).
+**Apply `20261031051558_reconcile_live_schema.sql` to live? Recommended: yes.** I take a backup first, then check read-only that live and the files match (zero drift).
 - Why now: a real (write) sheet run fails on live until `snapshots`, `record_keys` and `change_log` exist.
 - What changes on live: 7 new empty tables; their security rules; header decisions readable with the Hospitals view tick; TRUNCATE / REFERENCES / TRIGGER rights removed from the app roles; 3 unused functions dropped (`import_register`, `confirm_discount2_decision`, `guard_d2_status`). No existing row changes.
 

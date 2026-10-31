@@ -1,5 +1,6 @@
 -- Stage 1c: one schema for live and the migration files (schema drift found 31-Oct-2026).
--- NOT APPLIED. Waiting for Anoop's OK on this SQL. Take a backup first.
+-- Applied to live 31-Oct-2026 after Anoop's OK. Rollback snapshot taken first:
+-- supabase/.temp/backup_before_1c_20261031.sql.
 --
 -- Found (read-only, scripts/schema-names.sql on live vs a fresh replay of the files):
 --   * 7 tables the code uses were never on live: snapshots, record_keys, change_log (worker

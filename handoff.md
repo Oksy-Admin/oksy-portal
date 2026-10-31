@@ -3,8 +3,8 @@
 Short "where are we now" note. Last updated: 31-Oct-2026.
 
 ## Current stage
-**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i and 1b-ii done 31-Oct-2026 (migrations on live); 1c done 31-Oct-2026, its migration `20261031120000` waits for Anoop's OK before live. Next: 1d.**
-Next: Anoop's OK on migration `20261031120000` (then apply to live and re-run the drift check), and `/build-substage 1d`; then 1e; one push at the end of Stage 1.
+**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i, 1b-ii and 1c done 31-Oct-2026 (migrations on live; live matches the migration files). Next: 1d.**
+Next: `/build-substage 1d`; then 1e; one push at the end of Stage 1.
 
 ## What the portal is (one line)
 Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, asks hospital staff through Question Sheets, and gives correct combined reports. Details: `claude/requirements.md`.
@@ -19,7 +19,7 @@ Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, a
 ## Live systems
 - Local folder (Mac): `~/Projects/oksy-portal`. GitHub: `Oksy-Admin/oksy-portal` (private, HTTPS remote).
 - Vercel project `admin-oksy/oksy-portal`: deploys automatically from `main`. Commits must use the git identity `admin@oksy.in` (a Vercel team member).
-- Supabase project `oksy-data-cleanse` (Mumbai, ref `ciorqudslbprfzxedcfy`). Migrations up to `20261030200918` (1b-ii, applied 31-Oct after Anoop's OK; rollback snapshots `supabase/.temp/backup_before_1b_i_20261031.sql` and `backup_before_1b_ii_20261031.sql`) are applied to live.
+- Supabase project `oksy-data-cleanse` (Mumbai, ref `ciorqudslbprfzxedcfy`). Migrations up to `20261031051558` (1c reconcile, applied 31-Oct after Anoop's OK; rollback snapshots in `supabase/.temp/backup_before_*_20261031.sql`) are applied to live. Live and the migration files match (`bash scripts/schema-drift.sh`, fingerprint `43ee5f68…`).
 - Google: hospital sheets in Drive folder `Oksy Hospital Sheets`; Question Sheets in Shared Drive `Oksy Question Sheets Drive`. Robot = Google service account with read access to the 3 pilot sheets.
 - Pilots: HOSPPVTP0001 Badagara, HOSPPVTP0002 Tree G Eye Care, HOSPPVTP0003 HMS (links in `claude/requirements.md` section 5).
 

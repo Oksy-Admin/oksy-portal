@@ -25,6 +25,9 @@ for f in supabase/migrations/*.sql; do psql_as < "$f" >/dev/null; done
 mkdir -p supabase/.temp
 psql_as -t -A < scripts/schema-names.sql > supabase/.temp/schema-repo.txt
 echo "repo schema: $(wc -l < supabase/.temp/schema-repo.txt) names -> supabase/.temp/schema-repo.txt"
+# Fingerprint: equal to md5(string_agg(line, E'\n' order by line collate "C") || E'\n') over the
+# same query on live (one read-only query) when live and the files match.
+echo "repo fingerprint: $(LC_ALL=C sort supabase/.temp/schema-repo.txt | md5sum 2>/dev/null | cut -d' ' -f1 || LC_ALL=C sort supabase/.temp/schema-repo.txt | md5)"
 if [[ -f supabase/.temp/schema-live.txt ]]; then
   if diff <(sort supabase/.temp/schema-live.txt) <(sort supabase/.temp/schema-repo.txt) > supabase/.temp/schema-drift.txt; then
     echo "No drift: live and the migration files match."
