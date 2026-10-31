@@ -137,3 +137,8 @@ export function canEditHospitals(p: Person): boolean {
 export function canConfirmMappings(p: Person): boolean {
   return canEditHospitals(p);
 }
+
+/** Decide a dictionary entry (status word, colour, insurer/TPA/department, doctor name): same tick as mappings (Stage 2b). */
+export function canConfirmDictionary(p: Person): boolean {
+  return canEditHospitals(p);
+}
