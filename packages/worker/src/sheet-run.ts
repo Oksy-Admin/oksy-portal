@@ -10,7 +10,9 @@ import {
   isEmptyRow,
   openKeyOf,
   parseDate,
+  type CheckDefinition,
   type CleanRow,
+  type RuleAction,
   type RuleVersion,
 } from "@oksy/rules";
 import { chunks, type Db } from "./db.ts";
@@ -287,7 +289,13 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
       valid_to: string | null;
       parameter_name: string | null;
       parameter_value: number | string | null;
-    }>("rule_versions?select=rule_id,version,status,hospital_filter,scheme_filter,insurer_filter,valid_from,valid_to,parameter_name,parameter_value"),
+      severity: "E" | "W" | null;
+      check_definition: CheckDefinition | null;
+      action: RuleAction | null;
+      staff_message: string | null;
+    }>(
+      "rule_versions?select=rule_id,version,status,hospital_filter,scheme_filter,insurer_filter,valid_from,valid_to,parameter_name,parameter_value,severity,check_definition,action,staff_message",
+    ),
   ]);
 
   const ruleTypes = new Map(rawRules.map((r) => [r.rule_id, r.rule_type]));
@@ -303,6 +311,10 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     validTo: v.valid_to,
     parameterName: v.parameter_name,
     parameterValue: v.parameter_value != null ? String(v.parameter_value) : null,
+    severity: v.severity,
+    checkDefinition: v.check_definition,
+    action: v.action,
+    staffMessage: v.staff_message,
   }));
 
   const srcRows = await step("map", () =>
@@ -381,11 +393,10 @@ type ExistingClaim = Record<string, unknown> & { record_uid: string; record_key:
 const CLAIM_COLUMNS = [
   "insurer_name", "tpa_name", "patient_name", "patient_ip_no", "policy_or_card_no", "preauth_or_claim_no", "admission_date",
   "discharge_date", "treatment_or_surgery", "department", "doctor_name", "room_no", "bill_amount", "claimed_amount",
-  "approved_amount", "copay_amount", "deduction_amount", "casesheet_sent_date", "followup_log", "claim_status", "status_source",
-  "rejection_reason", "cancellation_reason", "settled_amount", "settlement_date", "utr_no", "remarks", "los_days",
-  "tds_rate_used", "tds_rate_source", "tds_rule_id", "gross_amount", "tds_amount", "discount_1_amount", "discount_1_pct",
-  "discount_2_amount", "discount_2_pct", "discount_2_confirmed", "tds_path", "discount_2_resolution", "overdue_flag",
-  "pending_days", "aging_bucket",
+  "approved_amount", "copay_amount", "deduction_amount", "discount_amount", "casesheet_sent_date", "followup_log",
+  "claim_status", "status_source", "rejection_reason", "cancellation_reason", "settled_amount", "settlement_date", "utr_no",
+  "remarks", "los_days", "date_swap_applied", "tds_rate_used", "tds_rate_source", "tds_rule_id", "tds_amount",
+  "expected_tds_amount", "expected_settlement_amount", "balance_amount", "overdue_flag", "pending_days", "aging_bucket",
 ] as const;
 
 function norm(v: unknown): string | null {

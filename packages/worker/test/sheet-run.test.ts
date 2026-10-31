@@ -103,7 +103,8 @@ describe("one HMS-shaped sheet run (fake data)", () => {
     expect(claims).toHaveLength(3);
     const one = claims.find((c) => c.preauth_or_claim_no === "FAKECLM001")!;
     expect(one).toMatchObject({
-      discount_1_amount: "15000.00", gross_amount: "95000.00", tds_amount: "9500.00", discount_2_amount: "5000.00",
+      // No TDS column in this fixture: Total TDS is unknown, never derived (decisions.md section 8).
+      deduction_amount: "15000.00", tds_amount: null,
       tds_rate_source: "DEFAULT", claim_status: "SETTLED", doctor_name: "Dr. Fake Std", row_class: "AUTO_FIXED",
     });
     const pending = claims.find((c) => c.preauth_or_claim_no === "FAKECLM003")!;

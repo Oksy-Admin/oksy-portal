@@ -12,10 +12,10 @@ const line = (ok: boolean, what: string, detail: string) => console.log(`${ok ? 
 
 type Claim = Record<string, string | number | null> & { record_uid: string; record_key: string };
 const claims = await db.select<Claim>(
-  `claims_staging?hospital_code=eq.${HMS_CODE}&missing_since=is.null&select=record_uid,record_key,source_tab,row_class,claim_status,bill_amount::text,approved_amount::text,copay_amount::text,settled_amount::text,discount_1_amount::text,gross_amount::text,tds_amount::text,discount_2_amount::text,tds_rate_used::text,tds_rate_source`,
+  `claims_staging?hospital_code=eq.${HMS_CODE}&missing_since=is.null&select=record_uid,record_key,source_tab,row_class,claim_status,bill_amount::text,approved_amount::text,copay_amount::text,settled_amount::text,deduction_amount::text,tds_amount::text,balance_amount::text,tds_rate_used::text,tds_rate_source`,
 );
-const payments = await db.select<{ record_uid: string; amount_received: string | null }>(
-  `payments?hospital_code=eq.${HMS_CODE}&missing_since=is.null&select=record_uid,amount_received::text`,
+const payments = await db.select<{ record_uid: string; amount_received: string | null; tds_amount_stated: string | null }>(
+  `payments?hospital_code=eq.${HMS_CODE}&missing_since=is.null&select=record_uid,amount_received::text,tds_amount_stated::text`,
 );
 const [job] = await db.select<{ id: string; summary: { reconciliation?: { counts?: { sourceRows: number; byClass: Record<string, number>; perTab: Record<string, unknown> }; result?: string } } }>(
   `jobs?sheet_key=eq.${HMS_CODE}%7CPRIVATE&status=eq.SUCCEEDED&mode=eq.WRITE&order=finished_at.desc&limit=1&select=id,summary`,
@@ -37,36 +37,44 @@ line(Object.keys(byTab).length === 6, "6 data tabs (pilot)", `stored ${Object.ke
 const sum = Object.values(byClass).reduce((a, b) => a + b, 0) + nonData;
 line(counts?.sourceRows === sum, "source rows = classes + NON_DATA_ROW", `${counts?.sourceRows} vs ${sum}`);
 
-// 2. Money in the stored rows recomputed independently (worked example formulas, file 01 section 7).
+// 2. Money in the stored rows recomputed independently (decisions.md section 8, Stage 2a).
 let moneyMismatch = 0;
-const paysBy = new Map<string, Array<string | null>>();
-for (const p of payments) paysBy.set(p.record_uid, [...(paysBy.get(p.record_uid) ?? []), p.amount_received]);
+const paysBy = new Map<string, Array<{ amount: string | null; tdsStated: string | null }>>();
+for (const p of payments) paysBy.set(p.record_uid, [...(paysBy.get(p.record_uid) ?? []), { amount: p.amount_received, tdsStated: p.tds_amount_stated }]);
 for (const c of claims) {
-  if (c.source_tab === "TILL AUG 2023") continue; // paid meaning still open (N-0001): no Discount 2 stored
   const m = computeMoney({
     bill: c.bill_amount as string | null,
     approved: c.approved_amount as string | null,
     copay: c.copay_amount as string | null,
-    payments: (paysBy.get(c.record_uid) ?? []).map((a) => ({ amount: a, date: null, utr: null })),
-    tds: c.tds_rate_used ? { rate: String(c.tds_rate_used), source: "DEFAULT", ruleId: "R-T01" } : null,
+    discountStated: null,
+    payments: (paysBy.get(c.record_uid) ?? []).map((p) => ({ amount: p.amount, date: null, utr: null, tdsStated: p.tdsStated })),
+    tdsRate: c.tds_rate_used ? { rate: String(c.tds_rate_used), source: "DEFAULT", ruleId: "R-T01" } : null,
   });
   const same = (stored: unknown, f: { value: InstanceType<typeof Money> | null }) =>
     (stored == null && f.value === null) || (stored != null && f.value !== null && new Money(String(stored)).equals(f.value.toFixed(2)));
-  if (!same(c.discount_1_amount, m.discount1) || !same(c.gross_amount, m.gross) || !same(c.tds_amount, m.tds) || !same(c.discount_2_amount, m.discount2)) moneyMismatch++;
+  const paidMeaningOpen = c.source_tab === "TILL AUG 2023"; // N-0001: balance held back, see clean.ts
+  if (!same(c.deduction_amount, m.deduction) || !same(c.tds_amount, m.totalTds) || (!paidMeaningOpen && !same(c.balance_amount, m.balance))) moneyMismatch++;
 }
-line(moneyMismatch === 0, "stored Discount 1, gross, TDS, Discount 2 = recomputed", `${moneyMismatch} rows differ`);
-const ex = computeMoney({ bill: "120000", approved: "100000", copay: "5000", payments: [{ amount: "85500", date: null, utr: null }], tds: { rate: "0.10", source: "DEFAULT", ruleId: "R-T01" } });
+line(moneyMismatch === 0, "stored Deduction, Total TDS, Balance = recomputed", `${moneyMismatch} rows differ`);
+const ex = computeMoney({
+  bill: "120000",
+  approved: "100000",
+  copay: "5000",
+  discountStated: "15000",
+  payments: [{ amount: "90000", date: null, utr: null, tdsStated: "10000" }],
+  tdsRate: { rate: "0.10", source: "DEFAULT", ruleId: "R-T01" },
+});
 line(
-  ex.discount1.value?.toFixed(2) === "15000.00" && ex.gross.value?.toFixed(2) === "95000.00" && ex.tds.value?.toFixed(2) === "9500.00" && ex.discount2.value?.toFixed(2) === "5000.00",
+  ex.deduction.value?.toFixed(2) === "15000.00" && ex.totalTds.value?.toFixed(2) === "10000.00" && ex.balance.value?.toFixed(2) === "0.00",
   "worked example in code",
-  "D1 15000, gross 95000, TDS 9500, D2 5000",
+  "Deduction 15000, Total TDS 10000, Balance 0",
 );
 
 // 3. settled_amount = sum of payments.
 let settledMismatch = 0;
 for (const c of claims) {
   const ps = paysBy.get(c.record_uid) ?? [];
-  const total = ps.length && ps.every((a) => a !== null) ? ps.reduce((s, a) => s.plus(a!), new Money(0)) : null;
+  const total = ps.length && ps.every((p) => p.amount !== null) ? ps.reduce((s, p) => s.plus(p.amount!), new Money(0)) : null;
   const stored = c.settled_amount == null ? null : new Money(String(c.settled_amount));
   if ((total === null) !== (stored === null) || (total && stored && !total.equals(stored))) settledMismatch++;
 }
@@ -78,6 +86,6 @@ line(new Set(claims.map((c) => c.record_key)).size === claims.length, "no duplic
 // 5. Database totals, to compare with the totals of an export (the export log is ADMIN/APPROVER
 //    only, so the worker key cannot read it; compare in the portal or the exported file).
 const dbTotals: Record<string, string> = {};
-for (const k of ["bill_amount", "approved_amount", "copay_amount", "settled_amount", "discount_1_amount", "discount_2_amount"])
+for (const k of ["bill_amount", "approved_amount", "copay_amount", "settled_amount", "deduction_amount", "balance_amount"])
   dbTotals[k] = claims.reduce((s, c) => (c[k] == null ? s : s.plus(String(c[k]))), new Money(0)).toFixed(2);
 console.log(`database totals (${claims.length} rows): ${JSON.stringify(dbTotals)}`);
