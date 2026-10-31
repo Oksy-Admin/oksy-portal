@@ -17,8 +17,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.hospital_id_history,
 -- Policies for hospital_id_history, report_downloads, rule_upload_batches are NOT
 -- defined here. They are tick-based and live from migration 20261027000024.
 -- Role-only policies were removed on 27-Oct-2026 (Anoop's decision: tick-based access).
-  USING ((SELECT private.has_role('ADMIN')))
-  WITH CHECK ((SELECT private.has_role('ADMIN')));
+-- (31-Oct: two left-over lines of a removed policy deleted here; they broke a fresh replay.)
 
 -------------------------------------------------------------------------------
 -- 2. Columns on public.hospitals

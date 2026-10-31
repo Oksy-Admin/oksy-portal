@@ -6,6 +6,18 @@
 --   report_downloads    -> Clean Data page    (clean_data_view / clean_data_download)
 --   rule_upload_batches -> Rule Library page  (rule_library_view / rule_library_add_edit)
 
+--
+-- 31-Oct-2026: on a fresh replay this file runs before private.has_tick exists (the files
+-- of 27-Oct were renamed to their live version numbers on 30-Oct). The policies are then
+-- skipped here and created by the reconcile migration of Stage 1c (same statements).
+-- On live this file was applied long ago; nothing changes there.
+DO $do$
+BEGIN
+  IF to_regprocedure('private.has_tick(text)') IS NULL THEN
+    RAISE NOTICE 'private.has_tick not there yet: tick policies come with the Stage 1c reconcile migration';
+    RETURN;
+  END IF;
+  EXECUTE $sql$
 drop policy if exists hospital_id_history_manage on public.hospital_id_history;
 drop policy if exists hospital_id_history_read   on public.hospital_id_history;
 create policy hospital_id_history_read on public.hospital_id_history
@@ -32,3 +44,6 @@ create policy rule_upload_batches_write on public.rule_upload_batches
   for all to authenticated
   using ((select private.has_tick('rule_library_add_edit')))
   with check ((select private.has_tick('rule_library_add_edit')));
+  $sql$;
+END
+$do$;
