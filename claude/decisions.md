@@ -202,6 +202,7 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 - Before a stage is reported done: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
 
 - **Old tables retired (31-Oct):** `hospital_aliases` (replaced by `other_names`), `golden_tests`, `discount2_decisions` (the plan first called it `discount`), `import_runs` are not created on live; code that names them is changed.
+- **Unused old tables kept (31-Oct):** `district_heads` and `open_checks` (0 rows, no current writer) are kept for now, not removed. Removal is reviewed later with Anoop's OK.
 - **One migration per sub-stage** when a stage needs several: 1c and 1d each get their own migration and their own OK. (31-Oct)
 
 ## 15. Superseded (do not use)
