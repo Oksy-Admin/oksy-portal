@@ -2,7 +2,7 @@
 
 This file has the same rules as `CLAUDE.md`. Keep the two in step.
 
-**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i, 1b-ii and 1c done 31-Oct-2026 (migrations on live; live matches the migration files). Next: 1d.**
+**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i, 1b-ii and 1c done 31-Oct-2026 (migrations on live, zero drift); 1d done 31-Oct-2026, its migration `20261031130000` waits for Anoop's OK before live. Next: 1e.**
 
 ## Read first, in this order
 1. `handoff.md` – where we are now and the next step

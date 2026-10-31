@@ -1,41 +1,40 @@
-# Last report – 31-Oct-2026: Stage 1c done
+# Last report – 31-Oct-2026: 1c live (zero drift), 1d done
 
-**Status: 1c is built and tested. One decision needed: OK to apply the reconcile migration to live.**
+**Status: 1c is on live and live matches the migration files. 1d is built and tested. One decision needed: OK to apply the 1d migration.**
 
-## Done
-- **Database history fixed:** the migration files now rebuild a fresh database. The full database test suite runs again (217 checks pass; it had been broken since 27-Oct). Live is unchanged by this.
-- **Drift check:** `scripts/schema-drift.sh` compares a fresh rebuild with live (names only).
-- **Reconcile migration written (not applied):** adds the 7 missing tables the code uses, with security rules for today's ticks; writes down 16 live-only columns; keeps raw sheet copies 12 months; lets the Hospitals view tick read header decisions; removes rights nobody needs; drops the retired tables and 3 dead functions.
-- **Worker:** saves a raw sheet copy only when the sheet changed, and deletes copies older than 12 months (your decision).
-- **Hospital list upload:** now shows every row and its problems first; Save stays off until the file is right.
-- **Checked, already fine:** `/hospitals` gate, the 3 security rules already on live, the change log (access, hospital, field and mapping changes).
-- **Checks:** typecheck, lint, build pass; 252 tests; 2 Playwright checks.
+## 1c on live
+- Backup first (`supabase/.temp/backup_before_1c_20261031.sql`), then applied as `20261031051558`.
+- Drift check after: zero differences. Live and a fresh rebuild of the files have the same 767 schema names (fingerprint `43ee5f68…`), and no TRUNCATE / REFERENCES / TRIGGER rights are left.
 
-## Found and fixed on the way
-- **Hospital list upload failed on live:** it wrote tables that logged-in users may not write. It now saves through the same function as "+ Add Hospital".
-- **Hospital detail page refused every live hospital ID:** it only accepted the old `HOSP32P` format.
-- **Correction:** the table I called `discount` is really `discount2_decisions`. It is retired as you approved.
+## 1d done
+- **Claim identity:** same claim = claim number + admission date + discharge date (per hospital + scheme).
+- **Patient still in hospital:** when the discharge date is filled in later, it stays the same claim. The date change goes into the history; no new claim is made.
+- **Same claim twice in one sheet:** an exact repeat is stored once and counted; different values are flagged and both rows kept.
+- **Same patient, same admission date, two claim numbers:** a warning, except KASP Dialysis.
+- **Same IP number with another claim number:** not an error.
+- **Claim history:** every change carries its lane (AUTO, SHEET, AI_ACCEPTED, HUMAN); person changes must say why and who.
+- **Record source** on every claim (Google Sheet / TMS import).
+- **Scheme → Insurer → TPA list,** seeded with MEDISEP → Oriental Insurance → Vidal and FHPL. The dates are left empty because the decisions don't give them.
+- **Checks:** typecheck, lint, build pass; 263 tests; 230 database checks.
 
-## Notes
-- Your `pnpm dev` (port 3000) stopped during my Playwright run. Start it again if you need it: Terminal, `cd ~/Projects/oksy-portal`, then `pnpm dev`.
-- `next dev` created `apps/web/AGENTS.md` (Next.js's own notes for AI tools). I left it uncommitted; it comes back each time `next dev` runs.
+## Unused tables (nothing removed; removal needs your OK)
+- `report_downloads`, `rule_upload_batches`: empty, unused today, planned for Stage 5 and Stage 2. Keep.
+- `district_heads`, `open_checks`: empty; only the hospital page reads them, and nothing writes them since the register import was retired. These are the candidates to remove, or to keep for a future register import.
+
+## Found
+- Live has **0 rules** in the Rule Library tables, while a migration file seeds 53. This is data, not structure. Stage 2 (Rule Library) will settle it.
 
 ## Commits
-- `dd85d26` migration files rebuild a fresh database
-- `0f5c736` database tests updated to Owner / Admin / User + ticks
-- `aae8c3b` drift check script
-- `403db78` reconcile migration (not applied)
-- `a21e7b8` hospital detail page fixes
-- `4514513` worker: snapshot only on change, 12-month delete
-- `9ecc124` database test 14
-- `dae372b`, `345320e` upload preview + Playwright check
-- `2bbe443` Balance Status test
-- `c085825` close 1c
+- `70c4e4e` 1c applied to live, zero drift
+- `776c6cc` claim identity (rules code)
+- `7f280d2` worker: same-claim checks, discharge date filled in later, AUTO lane
+- `9f38cb5` 1d migration + database test 15 (not applied)
+- `docs: close Stage 1d` (this close)
 
 ## Decision needed
-**Apply `20261031051558_reconcile_live_schema.sql` to live? Recommended: yes.** I take a backup first, then check read-only that live and the files match (zero drift).
-- Why now: a real (write) sheet run fails on live until `snapshots`, `record_keys` and `change_log` exist.
-- What changes on live: 7 new empty tables; their security rules; header decisions readable with the Hospitals view tick; TRUNCATE / REFERENCES / TRIGGER rights removed from the app roles; 3 unused functions dropped (`import_register`, `confirm_discount2_decision`, `guard_d2_status`). No existing row changes.
+**Apply `20261031130000_claim_identity_history_source.sql` to live? Recommended: yes.** I take a backup first, then run the drift check again.
+- What changes on live: `change_log` gets the lane check plus reason and who; `claims_staging` gets `record_source`; a new table `scheme_insurers` with the 2 MEDISEP rows. No existing row changes (both tables are empty on live).
+- Why before the end-of-stage push: the worker now writes the AUTO lane, which needs this migration.
 
 ## Next
-1d (claim identity, claim history, record source, Scheme → Insurer → TPA list).
+1e (run time and API use per sheet; Drive modified-time test, with one browser edit by you on a test sheet).
