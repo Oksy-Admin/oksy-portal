@@ -20,7 +20,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
 | 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **DONE and pushed 31-Oct-2026 (all sub-stages 1a–1e done, migrations on live, zero drift; code-reviewer run, one Must fixed). Next: Stage 2 plan, not started.** |
-| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | Not started |
+| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | Plan drafted 31-Oct-2026 (design review applied), waiting for Anoop's approval |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
 | 5 | Data & Reports: claims, payments, report download, reconciliation | Not started |
@@ -156,6 +156,79 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - Error / Warning with reason; "value is correct" recorded with who and when.
 - **Rule trial:** for each pilot hospital, a per-rule summary for Anoop before any question goes out; check set of 5 known-correct claims re-checked after any mapping or rule change.
 - Done when: no rule is hard-coded; every Error/Warning shows its reason; the trial summary is approved by Anoop for all 3 pilots; the check sets pass.
+
+**Stage 2 plan (drafted 31-Oct-2026, waiting for Anoop's approval)** – 14 prompts in total.
+
+Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_versions` with scheme / insurer / hospital filters, valid dates, status DRAFT / PROPOSED / ACTIVE / RETIRED / REFERENCE; `rule_approvals`; `rule_upload_batches`), but live has 0 rule rows. The checks themselves are written in code (`cleanRow` in `packages/rules/src/clean.ts`, about 30 rule IDs); the library only switches them on or off. `money.ts` still uses the old "Discount 1 / Discount 2" model, not today's money rules (decisions section 8). Status words, the colour legend and insurer names sit in code (`packages/worker/src/hms-profile.ts`, with the old HMS code `HOSP32P000107`). No dictionary table. `issues` table exists (one row per claim + rule + field).
+
+| Order | Sub-stage | Prompts | Migration (one per sub-stage, each shown to Anoop before live) |
+|---|---|---|---|
+| 1 | 2a – rule engine: rules as data, money rules, initial rule list | 2 | `rule_definitions`: check definition + action + staff message on `rule_versions`; seed the initial rule list |
+| 2 | 2b – dictionaries: status words, insurer / TPA / department / doctor lists, lane 1 fixes | 2 | `dictionary_entries` (+ insurer Hardcopy Required, hospital POD Start Date) |
+| 3 | 2c – claim checks: cross-row rules, two-part approval, "value is correct" | 2 | `issue_confirmations` + two-part link on claims |
+| 4 | 2d – Rule Library page: form, upload, conflict check, test before save, plain-words box | 2 | `save_rule_version` function (conflict check, history, audit) |
+| 5 | 2e – rule trial and check sets | 2 | `rule_trials`, `check_set_claims` |
+| 6 | 2f – pilot trial on live, Anoop approves the 3 summaries, Stage 2 close (code-reviewer) | 2 | none expected |
+| – | Reserve for fixes (2a first: it is the tightest) | 2 | – |
+
+**2a – Rule engine: rules as data** (2 prompts; 1 migration)
+- **Rule definition:** each rule version holds a check definition (JSON) in three parts, the same as the form (requirements section 12): *which rows* (scope: scheme / hospital / insurer / TPA, claim status, valid from / to) → *what to check* → *what to do* (severity Error / Warning, action Automatic / AI suggestion / Ask hospital staff, English message to staff).
+- **What to check, two kinds:**
+  1. **Simple condition** (most rules): field + operator (empty, not empty, equals, not equals, greater than, less than, before, after, differs by more than, not a number / not a date, implausible year) + compared with another field, a fixed value, or today (+/- days). AND / OR of up to 5 conditions.
+  2. **Calculated check** from a fixed list, with its numbers in the rule (never in code): money balance (Bill = Approved + Co-pay + Deduction; Discount vs Deduction), TDS rate (default 10%, tolerance ₹1), expected settlement (Approved − TDS, ₹1), Balance (negative = Error), Settled equal to Approved, duplicate / same patient + same admission date, same UTR on several claims, approved N days with no payment, stay over N days, POD missing from the hospital's POD Start Date. Adding a new calculated kind needs code; changing its numbers, severity, scope, message or switching it off does not.
+- **Which rule wins (review Must):** when a general rule and a more specific one (scheme / insurer / TPA / hospital) of the same rule ID or check kind both match a claim, only the most specific one runs (for example an insurer's own TDS rate replaces the 10% rule). Two matching rules of the same specificity = setup error shown on the Rule Library page (existing `EQUAL_SPECIFICITY_CONFLICT`); the 2d conflict check uses the same logic.
+- **Engine:** one evaluator in `packages/rules` runs every ACTIVE rule that matches a claim's scope; `cleanRow` keeps only reading and formatting (lane 1) and no longer names any rule ID. Each issue carries rule ID, version, severity, field and the reason text from the rule. A test fails the build if `clean.ts` or the worker contain a rule ID other than the reading-level ones (unreadable cell, non-data row, header changed), which become library rules too.
+- **Money:** `money.ts` changed to today's rules (decisions section 8): Deduction (C), Total Settled, Total TDS, Expected settlement, Balance, Settlement Delay from discharge date. TDS never filled in; empty TDS on a paid claim is asked with the expected 10% shown. The old Discount 2 / TDS-path code and columns are no longer written (kept in the table, unused).
+- **Initial rule list:** the list in requirements section 12 + section 11, about 30 rules, seeded by the migration as ACTIVE; old seed rules that no longer apply (Claimed Amount, Discount 1/2, old 10% check) are not seeded. Rule IDs of the old seed are kept where the meaning is the same (for example R-D01). The seed records Anoop as approver (note "approved with the Stage 2 plan") and is one `rule_upload_batches` row, so it can be undone as a group. Old developer columns (`tier`, `code_ref`, `golden_test_ids`, `auto_fix_allowed`, severity 'I') are marked unused and never shown on the page or in the upload template.
+- **Fewer writes:** a run writes only issues that open, change or resolve; "last checked" is kept per hospital run, not per issue.
+- **Tidy:** stale comment above the `record_keys` insert in `sheet-run.ts` (Stage 1 code review).
+- Tests: every initial rule against the golden fixtures and hand-made rows (each fires once, and not on a correct row); money rules with the examples in decisions section 8; scope and valid dates; "no rule ID in code" test.
+- Done when: all checks come from the library; a rule switched to Inactive stops firing on the next run; money rules match section 8; tests pass; migration applied after OK.
+
+**2b – Dictionaries and lane 1 fixes** (2 prompts; 1 migration)
+- **One `dictionary_entries` table** for status words (per hospital), insurer, TPA and department names (one list per scheme for all hospitals), doctor names (per hospital): raw spelling key → standard value, status Suggested / Confirmed / Rejected / Retired, evidence (count, tabs), who / when / reason. Unique key (kind, scheme, hospital, key) with `nulls not distinct`, so a global spelling can have only one standard value. A confirmed entry is never overwritten: a change retires the old row and adds a new one (with `change_log` entry and lane), and forces a full re-read. Insurer entries carry Hardcopy Required Yes/No; hospitals get POD Start Date.
+- **Filled automatically:** each run collects new spellings (counts only to AI, never patient data; AI suggests the standard value; "TPA LIST" tabs used as a starting point). Exact matches of a confirmed entry are applied automatically (lane AUTO, `change_log`); a new spelling goes to the decision list once; a confirmed insurer, TPA or department spelling is reused by every hospital. **Status words** confirmed in another hospital of the same scheme come pre-filled (Policy B + D pattern), so a new hospital needs one "Confirm all" click; colours stay per hospital and need that hospital's own OK. **Department and doctor names** (per question 4): a name with no similar spelling in the same list is kept as written without a question; only groups of similar spellings ("Dr. Rajesh" / "Dr Rajeesh") are asked.
+- **Decision list:** one "Words and names to confirm" page across all hospitals, grouped by spelling, filter by scheme and hospital (moves into Home in Stage 6): Accept / Change, and Confirm all with the 1b-ii batch pattern (Owner / Admin, max 50, list first, undo as a group).
+- **Status:** tab → status word → confirmed colour, as today, but from the table; `hms-profile.ts` retired (its confirmed HMS words, colours and doctor names moved to `dictionary_entries` as Confirmed by the migration, with source "25-Oct hospital answers").
+- **Day–month swap:** only when stay is over 15 days and the swap gives 15 days or less (lane AUTO, logged); otherwise asked.
+- Tests: confirmed word applied; new word listed once; colour never used unless confirmed; swap cases; undo of a Confirm all.
+- Done when: no status word, colour or name list in code; pilot words and names listed for confirmation; migration applied after OK.
+
+**2c – Claim checks, two-part approvals, "value is correct"** (2 prompts; 1 migration)
+- **Cross-row rules** run after all rows of a hospital are read: same UTR on several claims, same patient + same admission date (moved from the 1d R-Y03 wording into the library), claim number repeat under the claim identity rule.
+- **Two-part approval:** combining method per question 2 below; parts stay as rows and are linked to one claim, never deleted; each part's payment stays its own payment with its own UTR. Claim-level checks (balance, settled equal to approved, TDS) and their issues and confirmations attach to the combined claim; payment checks stay on each part.
+- **"Value is correct":** a person (decision list) or staff (Question Sheet, Stage 4) confirms a Warning once; stored in `issue_confirmations` (claim, rule, field, value fingerprint, who, when, reason). The fingerprint is made from the **cleaned** values of only the fields that rule reads, so a format fix (spaces, date format) never clears a confirmation. The Warning stays cleared until the value changes; never asked again. Errors cannot be confirmed away.
+- **Issue reason:** every issue shows the rule's message with the values involved (amounts and dates only, never names); the claims page shows it.
+- Clean status per claim and per hospital: zero Errors and zero Warnings (confirmed Warnings count as cleared).
+- Tests: confirmation survives a rerun, is lost when the value changes; Error not confirmable; two-part cases; same UTR across claims.
+- Done when: tests pass; migration applied after OK.
+
+**2d – Rule Library page** (2 prompts; 1 migration)
+- Improve the existing `/rules` page: list with filters (scheme, severity, status, hits in last run); three-part form; Edit makes a new version (history kept); Delete = Inactive.
+- **Test before save:** the draft runs as a "rule test" job in the worker (never inside the page request, which would time out at 130 hospitals) on the stored claims of the chosen scope (read only) and shows how many claims it hits per hospital and 5 example row references (tab + row, no patient names). The result appears on the page when the job is done. Save is possible only after the test.
+- **Conflict check on save:** same scope + same field with an opposite condition or a different number (for example two TDS rates for the same insurer) → shown; save needs a reason.
+- **Upload:** CSV / Excel with the rule template → preview with errors per row → "Save N rules" (pattern of the hospital upload, `rule_upload_batches` for the one audit entry and undo).
+- **Plain-words box:** AI fills the form from an English sentence (no data sent), the user checks, tests and saves. AI never saves.
+- Rights: view / action ticks of the Rule Library page (decisions section 3); every change in the change log.
+- Function `save_rule_version` (one call: version + conflict result + audit).
+- Playwright check of form, test, upload preview.
+- Done when: a rule can be added, tested, edited, made Inactive and uploaded from the page; conflict shown; tests and Playwright pass; migration applied after OK.
+
+**2e – Rule trial and check sets** (2 prompts; 1 migration)
+- **Rule trial:** Run now with "trial" for one hospital runs every rule on its full data without creating questions, and stores a summary in `rule_trials`: per rule Errors and Warnings, claims hit, 5 example rows; total claims, clean claims. Trial page per hospital; Owner approves once ("Trial approved", who / when). Stage 4 sends a hospital's first questions only when its trial is approved (flag checked there).
+- **Check sets:** Anoop picks 5 claims per pilot that he knows are correct (search by claim number, one click each; the picker shows Settled claims first, as they no longer change) → stored in `check_set_claims` with their key values at that time. After any mapping, rule or dictionary change the next run re-checks them: pass = zero Errors / Warnings and the same key values; fail = alert on the trial page with the rule or value that changed; a value that changed for a real reason (for example a new payment) is shown with one "accept new values" click per claim.
+- Tests: trial writes no questions; summary counts; check set pass / fail.
+- Done when: trial and check sets work on the fixtures; migration applied after OK.
+
+**2f – Pilot trial on live and Stage 2 close** (2 prompts; no migration expected)
+- Before: Anoop / Ali decide the headers still open (HMS MAIL SENT DATE, MAIL SUBJECT; TDS in Badagara and Tree G; the value-shape items from the 1b-ii fixtures) and confirm the pilot words and names (2b). Claude gives the exact list and screens.
+- Full run on the 3 pilots (claims written to Supabase for the first time); trial summary per pilot; Anoop picks the check sets and approves each summary (or asks for rule changes → fixed in the same prompt or the reserve).
+- Stage close: `code-reviewer` on the whole Stage 2 diff, Must findings fixed, all checks, status table, push by Anoop.
+- Done when: the stage done-criteria above are met.
+
+**Design review (design-reviewer agent, 31-Oct):** "Change before build" – all applied above. Must: status words pre-filled across hospitals; default for names with no similar spelling (needs question 4); most specific rule wins; dictionary unique key with `nulls not distinct`. Should: dictionary entries retired not overwritten; two-part issues on the combined claim; fingerprint of cleaned values; rule test as a worker job; seed approver + batch; check set from Settled claims + accept new values; one words-and-names list across hospitals. Could: write only changed issues; hide old developer columns. Budget holds at 14; reserve goes to 2a first.
+
+**Questions for Anoop (31-Oct):** 1 rule conditions = simple conditions + fixed calculated-check kinds; 2 two-part approval combining method; 3 fresh initial rule list instead of the old 53 seed; 4 default for names with no similar spelling; 5 check-set pass rule. Text and recommendations in `claude/reports/last-report.md`.
 
 ## Stage 3 – Hosted worker
 
