@@ -14,7 +14,7 @@ Full detail and exact steps for all of these: `claude/my-tasks.md`.
 - OK on migration `20261031070000_dictionary_entries.sql`.
 - Add GitHub secret `VERCEL_DEPLOY_HOOK_URL`.
 - KASP/MEDISEP sample sheet links + robot read access + the staff rule discussion (needed before the KASP/MEDISEP scheme-fit check, not before 2c–2f).
-- Recurring: paste `claude/reports/last-report.md` into the Claude Project chat after every report.
+- Recurring: after every report, tell the Claude chat "report ready" (it reads `claude/reports/last-report.md` through the computer link; paste only if that chat is not linked).
 
 ## What the portal is (one line)
 Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, asks hospital staff through Question Sheets, and gives correct combined reports. Details: `claude/requirements.md`.
