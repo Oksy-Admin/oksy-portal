@@ -155,6 +155,8 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 
 - **Raw sheet copies (`snapshots`, 31-Oct):** a copy is saved only when the sheet's content changed since its last copy; copies are kept 12 months, then deleted. They hold patient data.
 
+- **No change detection by Drive modified time (31-Oct):** a robot value edit did not move a sheet's modified time; a browser edit did. Every run reads the full sheet; change detection by modified time stays off until proven (stage-plan 1e).
+
 ## 11. Question Sheets
 
 - One Question Sheet per hospital, covering all its schemes. Created by the robot in the Shared Drive `Oksy Question Sheets Drive`; shared with staff by a person once. (26-30-Oct)

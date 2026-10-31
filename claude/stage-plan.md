@@ -19,7 +19,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 | Stage | Content | Status |
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
-| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; plan approved 31-Oct-2026; 1b-i DONE 31-Oct-2026 (migration on live); 1b-ii DONE 31-Oct-2026 (migration on live); 1c DONE 31-Oct-2026 (migration on live, zero drift); 1d DONE 31-Oct-2026 (migration on live, zero drift); next 1e** |
+| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; plan approved 31-Oct-2026; 1b-i DONE 31-Oct-2026 (migration on live); 1b-ii DONE 31-Oct-2026 (migration on live); 1c DONE 31-Oct-2026 (migration on live, zero drift); 1d DONE 31-Oct-2026 (migration on live, zero drift); 1e DONE 31-Oct-2026; next: Stage 1 close** |
 | 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | Not started |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
@@ -48,7 +48,7 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 | 2 | 1b-ii – suggestions, "Confirm all", bulk confirm (max 50, undo as a group), approve speed, Playwright check, golden fixtures of the 3 pilot sheets (headers + value shapes, no patient data) – **DONE 31-Oct-2026, 1 prompt** | 2 | bulk-confirm batch table (for undo and the one audit entry) |
 | 3 | 1c – open items (bulk upload preview, `/hospitals` tick gate, change-log check, RLS read side verify, Balance Status test) + schema drift reconcile + migration chain fix – **DONE 31-Oct-2026, 1 prompt** | 2 | reconcile live schema (7 missing tables the code uses; header_decisions read for hospitals_view) |
 | 4 | 1d – data foundations (claim identity, claim history via change_log, record source, Scheme → Insurer → TPA list, unused-table list; scheme parts already done) – **DONE 31-Oct-2026, 1 prompt** | 2 | change_log actor/reason/decided_by, record_source, scheme_insurers |
-| 5 | 1e – measurements (run time per sheet, Drive modified-time test) | 1 | none |
+| 5 | 1e – measurements (run time per sheet, Drive modified-time test) – **DONE 31-Oct-2026, 1 prompt** | 1 | worker read rights (found while measuring) |
 | – | Reserve for fixes | 1 | – |
 
 **1b-i – DONE 31-Oct-2026; migration `20261030194846` applied to live 31-Oct after Anoop's OK (backup first; checked read-only after: 103 header decisions, 33 / 31 / 39, no TDS decision, all 452 rows have scheme and header key).** Evidence:
@@ -78,6 +78,19 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - Done when: each pilot hospital needs each distinct header decided once; the 7 headers are correct; Ignore survives a refresh; a bulk confirm can be undone; tests pass.
 
 **Detailed plan for 1c, 1d, 1e (31-Oct-2026, drafted after 1b-ii; design review below).** Live facts checked read-only on 31-Oct: every repo migration is recorded as applied, but 11 tables are missing; `claims_staging` already has `scheme`; `rules` / `rule_versions` already have scheme fields; `claims_staging` is empty (0 rows), so key and column changes need no data move.
+
+**1e – DONE 31-Oct-2026.** Evidence:
+- Commits `7e3973c` (`measure-runs` script), `6cdd2d4` + `06802f1` (worker rights migration, applied to live as `20261031055948` after Anoop's OK, backup first; drift check after: zero differences, 793 names, fingerprint `9a39d2fdafce5db91c69706e55528c9a`), `b7e936e` (`drive-modified-test` script).
+- **Found while measuring:** the worker key could not read `mapping_fields` (and could not add `version_groups` rows), so every live sheet run stopped at reading the field list – the cause of the failed test runs of 29-Oct. Fixed by `20261031055948`.
+- **Run time per sheet** (3 runs each from the Mac, 31-Oct, real read + discovery + cleaning, writes not sent): Badagara (HOSPPVTP0001) 10 tabs, 719 rows, 225,405 cells, 3 Sheets API calls, read 3.5–4.6 s, total 4.9–7.0 s; Tree G (HOSPPVTP0002) 3 tabs, 12 rows, 5,618 cells, 3 calls, read 0.9–1.1 s, total 2.0–2.7 s; HMS (HOSPPVTP0003) 8 tabs, 389 rows, 135,203 cells, 3 calls, read 2.8–3.6 s, total 4.1–5.3 s. All three stopped at "layout" (headers still to decide, see 1b-ii fixtures), so claim writing is not in these numbers. Cells are mostly pre-made empty rows (about 1,000 per tab). Hosting input: 3 API calls and about 2–7 s per sheet; 130 sheets ≈ 390 calls and roughly 10–15 minutes one after another (the Sheets read quota is per minute, so a few sheets at a time stay well inside it).
+- **Drive modified-time test** (TEST sheet in the Question Sheets drive, never a hospital sheet; read about 75 s after each step):
+  1. Robot value typed in a cell (API): modified time did NOT move.
+  2. Robot formatting only (background colour): did NOT move.
+  3. Robot formula `=NOW()` + "recalculate every minute" setting: moved (06:04:34 UTC; may include steps 1–2 arriving late).
+  4. Nobody edits, `=NOW()` recalculates by itself for 3 minutes: did NOT move.
+  5. Browser edit by a person (admin@oksy.in, Chrome, C1 = "Browser Test", about 15:10 IST): moved to 09:39:46 UTC (15:09:46 IST) – within seconds of the edit.
+- **Decision (Anoop, 31-Oct):** the modified time does not reliably move after a value change (step 1), so every run reads the full sheet; change detection by modified time stays off until proven.
+- The TEST sheet was moved to the trash after the test. Note: `GOOGLE_QUESTION_SHEETS_FOLDER_ID` in `apps/web/.env.local` ends with a typed `\n` (two characters); the test script cleans it; Anoop to fix the value before Stage 4 (Question Sheets).
 
 **1d – DONE 31-Oct-2026; migration `20261031054200_claim_identity_history_source.sql` applied to live 31-Oct after Anoop's OK (backup first). Drift check after: zero differences (790 names, fingerprint `2557c4048e98ad888bdc85a7c426d965`); 2 MEDISEP rows in `scheme_insurers`. Unused-table decision (`district_heads`, `open_checks`) left open until the Stage 1 close (Anoop, 31-Oct).** Evidence:
 - Commits `776c6cc` (claim identity in `recordKeyFor` + `openKeyOf`), `7f280d2` (worker: `checkSameClaims`, claims keep their record when the discharge date comes, AUTO lane), `9f38cb5` (migration + pgTAP 15).

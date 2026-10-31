@@ -3,8 +3,8 @@
 Short "where are we now" note. Last updated: 31-Oct-2026.
 
 ## Current stage
-**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i, 1b-ii, 1c and 1d done 31-Oct-2026 (migrations on live, zero drift). Next: 1e.**
-Next: `/build-substage 1e`; then the Stage 1 close (code review, the open unused-table decision on `district_heads` and `open_checks`, push); one push at the end of Stage 1.
+**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i, 1b-ii, 1c, 1d and 1e done 31-Oct-2026 (migrations on live, zero drift). Next: Stage 1 close (code-reviewer run, open decision on `district_heads` / `open_checks`, Anoop's push).**
+Next: the Stage 1 close – code-reviewer run on the Stage 1 diff, the open unused-table decision on `district_heads` and `open_checks`, then Anoop pushes; one push at the end of Stage 1.
 
 ## What the portal is (one line)
 Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, asks hospital staff through Question Sheets, and gives correct combined reports. Details: `claude/requirements.md`.
@@ -19,7 +19,7 @@ Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, a
 ## Live systems
 - Local folder (Mac): `~/Projects/oksy-portal`. GitHub: `Oksy-Admin/oksy-portal` (private, HTTPS remote).
 - Vercel project `admin-oksy/oksy-portal`: deploys automatically from `main`. Commits must use the git identity `admin@oksy.in` (a Vercel team member).
-- Supabase project `oksy-data-cleanse` (Mumbai, ref `ciorqudslbprfzxedcfy`). Migrations up to `20261031054200` (1d; 1c reconcile `20261031051558`, applied 31-Oct after Anoop's OK; rollback snapshots in `supabase/.temp/backup_before_*_20261031.sql`) are applied to live. Live and the migration files match (`bash scripts/schema-drift.sh`, fingerprint `2557c404…` after 1d).
+- Supabase project `oksy-data-cleanse` (Mumbai, ref `ciorqudslbprfzxedcfy`). Migrations up to `20261031055948` (1e worker rights; 1d `20261031054200`; 1c reconcile `20261031051558`, applied 31-Oct after Anoop's OK; rollback snapshots in `supabase/.temp/backup_before_*_20261031.sql`) are applied to live. Live and the migration files match (`bash scripts/schema-drift.sh`, fingerprint `9a39d2fd…` after 1e).
 - Google: hospital sheets in Drive folder `Oksy Hospital Sheets`; Question Sheets in Shared Drive `Oksy Question Sheets Drive`. Robot = Google service account with read access to the 3 pilot sheets.
 - Pilots: HOSPPVTP0001 Badagara, HOSPPVTP0002 Tree G Eye Care, HOSPPVTP0003 HMS (links in `claude/requirements.md` section 5).
 
