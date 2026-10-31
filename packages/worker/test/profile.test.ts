@@ -3,7 +3,7 @@ import { buildHospitalProfile, type DictionaryRow } from "../src/profile.ts";
 
 // Stage 2b: the profile is built only from CONFIRMED rows (decisions.md section 9, lane 1).
 // A SUGGESTED or REJECTED row must never be applied without a person deciding it.
-const facts = { tab_stage_facts: { PAID: "SETTLED" as const }, tpa_cell_may_hold_insurer: true, paid_meaning_open_tabs: ["OLD"] };
+const facts = { tab_stage_facts: { PAID: "SETTLED" as const }, tpa_cell_may_hold_insurer: true, paid_meaning_open_tabs: ["OLD"], pod_start_date: null };
 
 function row(over: Partial<DictionaryRow>): DictionaryRow {
   return { kind: "STATUS_WORD", scheme: "PRIVATE", hospital_code: "HOSP32P000107", spelling_key: "paid", standard_value: "SETTLED", status: "CONFIRMED", ...over };
@@ -40,6 +40,12 @@ describe("buildHospitalProfile", () => {
     expect(p.tabStage).toEqual({ PAID: "SETTLED" });
     expect(p.tpaCellMayHoldInsurer).toBe(true);
     expect(p.paidMeaningOpenTabs).toEqual(["OLD"]);
+    expect(p.podStartDate).toBeNull();
+  });
+
+  it("carries the hospital's POD Start Date (Stage 2c, 1-Nov: moved here from `hospitals`, which the worker cannot read)", () => {
+    const p = buildHospitalProfile("HOSP32P000107", "PRIVATE", { ...facts, pod_start_date: "2026-09-01" }, []);
+    expect(p.podStartDate).toBe("2026-09-01");
   });
 
   it("a different scheme's rows never leak in", () => {

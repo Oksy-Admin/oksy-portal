@@ -32,18 +32,18 @@ const TABS: Record<string, CellData[][]> = {
   "PORTAL LIST": [[v("FAKE-SECRET-123")]],
 };
 
-function fakeSheets(requested: string[][]): SheetsReader {
+function fakeSheets(requested: string[][], tabs: Record<string, CellData[][]> = TABS): SheetsReader {
   return {
     spreadsheets: {
       async get(p) {
-        if (!p.includeGridData) return { data: { sheets: Object.keys(TABS).map((title, index) => ({ properties: { title, index } })) } };
+        if (!p.includeGridData) return { data: { sheets: Object.keys(tabs).map((title, index) => ({ properties: { title, index } })) } };
         requested.push(p.ranges ?? []);
         // A header probe asks for 'TAB'!1:10; a full read for 'TAB'.
         const asked = (p.ranges ?? []).map((r) => {
           const [, quoted = "", rows] = r.match(/^'(.*)'(?:!1:(\d+))?$/) ?? [];
           return { title: quoted.replace(/''/g, "'"), rows: rows ? Number(rows) : undefined };
         });
-        return { data: { sheets: asked.map(({ title, rows }) => ({ properties: { title }, data: [{ rowData: (TABS[title] ?? []).slice(0, rows).map((values) => ({ values })) }] })) } };
+        return { data: { sheets: asked.map(({ title, rows }) => ({ properties: { title }, data: [{ rowData: (tabs[title] ?? []).slice(0, rows).map((values) => ({ values })) }] })) } };
       },
     },
   };
@@ -60,7 +60,7 @@ function seed() {
     ],
     // Stage 2b: confirmed facts and dictionary come from hospital_profile_facts /
     // dictionary_entries, not hard-coded profile code or the old questions/answers path.
-    hospital_profile_facts: [{ hospital_code: HMS_CODE, tab_stage_facts: { PAID: "SETTLED" }, tpa_cell_may_hold_insurer: false, paid_meaning_open_tabs: [] }],
+    hospital_profile_facts: [{ hospital_code: HMS_CODE, tab_stage_facts: { PAID: "SETTLED" }, tpa_cell_may_hold_insurer: false, paid_meaning_open_tabs: [], pod_start_date: null }],
     dictionary_entries: [
       { kind: "DOCTOR", scheme: "PRIVATE", hospital_code: HMS_CODE, spelling_key: "drfake", standard_value: "Dr. Fake Std", status: "CONFIRMED" },
       { kind: "COLOUR", scheme: "PRIVATE", hospital_code: HMS_CODE, spelling_key: "#ff9900", standard_value: "PAID", status: "CONFIRMED" },
@@ -69,10 +69,10 @@ function seed() {
   };
 }
 
-async function run(db: ReturnType<typeof fakeDb>, requested: string[][], mode: "WRITE" | "DRY_RUN" = "WRITE") {
+async function run(db: ReturnType<typeof fakeDb>, requested: string[][], mode: "WRITE" | "DRY_RUN" = "WRITE", tabs?: Record<string, CellData[][]>, at = "2026-10-26T06:00:00Z") {
   const events: Array<GoogleEvent & { at: string }> = [];
-  const read = createReadPath(fakeSheets(requested), makeLogger((e) => events.push(e)));
-  return runSheetJob({ id: crypto.randomUUID(), sheet_key: `${HMS_CODE}|PRIVATE`, mode }, { db, read, events, now: () => new Date("2026-10-26T06:00:00Z") });
+  const read = createReadPath(fakeSheets(requested, tabs), makeLogger((e) => events.push(e)));
+  return runSheetJob({ id: crypto.randomUUID(), sheet_key: `${HMS_CODE}|PRIVATE`, mode }, { db, read, events, now: () => new Date(at) });
 }
 
 /** A sheet whose column mapping was proposed by a first run and then confirmed once by a person. */
@@ -166,7 +166,7 @@ describe("one HMS-shaped sheet run (fake data)", () => {
     try {
       const db = await confirmedDb();
       const s = await run(db, []);
-      expect(s.identity).toEqual({ duplicates: 1, conflicting: 0, samePatientSameDay: 0 });
+      expect(s.identity).toEqual({ duplicates: 1, conflicting: 0, sameUtr: 0, samePatientSameDay: 0 });
       expect(db.tables.claims_staging!.filter((c) => c.preauth_or_claim_no === "FAKECLM001")).toHaveLength(1);
       expect(new Set(db.tables.change_log!.map((c) => c.actor))).toEqual(new Set(["AUTO"]));
     } finally {
@@ -217,6 +217,90 @@ describe("one HMS-shaped sheet run (fake data)", () => {
     const requested: string[][] = [];
     await expect(run(fakeDb(sd), requested)).rejects.toThrow(/SYNC = HOLD/);
     expect(requested).toHaveLength(0);
+  });
+});
+
+describe("two-part approval (Stage 2c, decisions.md section 7, 1-Nov)", () => {
+  const FAKECLM010_KEY = `${HMS_CODE}|PRIVATE|C:FAKECLM010|2026-10-01|2026-10-05`;
+  // A separate tab (not "PAID", so tab_stage_facts does not force SETTLED): two rows, same
+  // claim identity, both Approved, same approved amount, different UTR and paid amount.
+  function twoPartTabs(): Record<string, CellData[][]> {
+    return {
+      ...TABS,
+      PAID2: [
+        row(HEAD),
+        row(["1", "Fake Patient Ten", "FAKECLM010", "01/10/2026", "05/10/2026", "Fake Insurance", "Ortho", "Fake procedure", "Dr Fake", "60000", "40000", "5000", "20000", "FAKEUTR00010", "10/11/2026", "APPROVED", ""]),
+        row(["2", "Fake Patient Ten", "FAKECLM010", "01/10/2026", "05/10/2026", "Fake Insurance", "Ortho", "Fake procedure", "Dr Fake", "60000", "40000", "5000", "15000", "FAKEUTR00011", "20/11/2026", "APPROVED", ""]),
+      ],
+    };
+  }
+
+  async function twoPartDb() {
+    const sd = seed();
+    sd.sheet_tabs.push({ spreadsheet_id: HMS_SHEET, tab_name: "PAID2", policy: "ALLOW", kind: "DATA" });
+    sd.dictionary_entries.push({ kind: "STATUS_WORD", scheme: "PRIVATE", hospital_code: HMS_CODE, spelling_key: "approved", standard_value: "APPROVED", status: "CONFIRMED" });
+    const db = fakeDb(sd);
+    const tabs = twoPartTabs();
+    const first = await run(db, [], "WRITE", tabs, "2026-12-05T06:00:00Z");
+    expect(first.result).toBe("STOPPED_LAYOUT");
+    // "STATUS" has no alias match to status_text (fields.ts: "Claim Status" / "Status of
+    // Claim" / "Current Status" only) and is otherwise read into extra_fields unmapped, same
+    // as in the other fixtures here (they rely on tab_stage_facts instead); this test's rows
+    // need the column itself, since neither PAID2 nor its PAID/PENDING siblings are a forced-stage tab.
+    decideAll(db, { status: "status_text" });
+    db.tables.snapshots = [];
+    db.tables.reconciliations = [];
+    return { db, tabs };
+  }
+
+  it("a candidate match is suggested once; both rows are stored under different keys, never flagged as a conflict", async () => {
+    const { db, tabs } = await twoPartDb();
+    const s = await run(db, [], "WRITE", tabs, "2026-12-05T06:00:00Z");
+    expect(s.twoPart).toEqual({ confirmed: 0, pending: 1, newSuggestions: 1 });
+    const rows = (db.tables.claims_staging ?? []).filter((c) => c.preauth_or_claim_no === "FAKECLM010");
+    expect(rows.map((r) => r.record_key).sort()).toEqual([FAKECLM010_KEY, `${FAKECLM010_KEY}#2`]);
+    expect((db.tables.issues ?? []).filter((i) => i.rule_id === "R-K02" && rows.some((r) => r.record_uid === i.record_uid))).toHaveLength(0);
+    expect(db.tables.claim_links ?? []).toHaveLength(1);
+    expect((db.tables.claim_links ?? [])[0]).toMatchObject({ primary_record_key: FAKECLM010_KEY, secondary_record_key: `${FAKECLM010_KEY}#2`, status: "SUGGESTED" });
+
+    // A second run with no decision yet never inserts a second SUGGESTED row for the same pair.
+    const s2 = await run(db, [], "WRITE", tabs, "2026-12-05T06:00:00Z");
+    expect(s2.twoPart).toEqual({ confirmed: 0, pending: 1, newSuggestions: 0 });
+    expect(db.tables.claim_links ?? []).toHaveLength(1);
+  });
+
+  it("confirming the match combines the two rows on the next run (decide_claim_link, then re-run)", async () => {
+    const { db, tabs } = await twoPartDb();
+    await run(db, [], "WRITE", tabs, "2026-12-05T06:00:00Z");
+    const link = (db.tables.claim_links ?? [])[0]!;
+    link.status = "CONFIRMED"; // stands in for decide_claim_link(), applied by the worker on the next run
+    const s = await run(db, [], "WRITE", tabs, "2026-12-05T06:00:00Z");
+    expect(s.twoPart).toEqual({ confirmed: 1, pending: 0, newSuggestions: 0 });
+
+    const primary = (db.tables.claims_staging ?? []).find((c) => c.record_key === FAKECLM010_KEY)!;
+    const secondary = (db.tables.claims_staging ?? []).find((c) => c.record_key === `${FAKECLM010_KEY}#2`)!;
+    expect(primary.settled_amount).toBe("35000.00");
+    expect(primary.utr_no).toEqual(["FAKEUTR00010", "FAKEUTR00011"]);
+    expect(String(primary.remarks)).toContain("Two-part payment");
+    expect(String(primary.remarks)).toContain("20000.00");
+    expect(String(primary.remarks)).toContain("15000.00");
+    expect(secondary.combined_into_record_uid).toBe(primary.record_uid);
+
+    // Re-running again (same CONFIRMED link) keeps combining the same way, not twice over.
+    await run(db, [], "WRITE", tabs, "2026-12-05T06:00:00Z");
+    const primaryAgain = (db.tables.claims_staging ?? []).find((c) => c.record_key === FAKECLM010_KEY)!;
+    expect(primaryAgain.settled_amount).toBe("35000.00");
+  });
+
+  it("a rejected match falls back to the normal conflicting-values flag (R-K02)", async () => {
+    const { db, tabs } = await twoPartDb();
+    await run(db, [], "WRITE", tabs, "2026-12-05T06:00:00Z");
+    const link = (db.tables.claim_links ?? [])[0]!;
+    link.status = "REJECTED";
+    await run(db, [], "WRITE", tabs, "2026-12-05T06:00:00Z");
+    const rows = (db.tables.claims_staging ?? []).filter((c) => c.preauth_or_claim_no === "FAKECLM010");
+    const issues = (db.tables.issues ?? []).filter((i) => rows.some((r) => r.record_uid === i.record_uid) && i.status !== "RESOLVED");
+    expect(issues.map((i) => i.rule_id)).toEqual(["R-K02", "R-K02"]);
   });
 });
 

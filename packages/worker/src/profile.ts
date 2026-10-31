@@ -19,6 +19,8 @@ export interface HospitalFacts {
   tab_stage_facts: Record<string, Stage>;
   tpa_cell_may_hold_insurer: boolean;
   paid_meaning_open_tabs: string[];
+  /** POD Number rules (R-K06) run only from this date (decisions.md section 8, moved here 1-Nov: the worker cannot read `hospitals`). */
+  pod_start_date: string | null;
 }
 
 export function buildHospitalProfile(hospitalCode: string, scheme: string, facts: HospitalFacts, rows: DictionaryRow[]): HospitalProfile {
@@ -41,5 +43,6 @@ export function buildHospitalProfile(hospitalCode: string, scheme: string, facts
     tpaCellMayHoldInsurer: facts.tpa_cell_may_hold_insurer,
     insurerKeys: insurerRows.map((r) => r.spelling_key),
     paidMeaningOpenTabs: facts.paid_meaning_open_tabs,
+    podStartDate: facts.pod_start_date,
   };
 }

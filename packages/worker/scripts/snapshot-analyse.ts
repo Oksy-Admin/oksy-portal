@@ -15,8 +15,8 @@ const [snap] = await db.select<{ id: string; raw: RawTab[]; taken_at: string }>(
 if (!snap) throw new Error("no snapshot");
 const kind = Object.fromEntries((await db.select<{ tab_name: string; kind: string }>(`sheet_tabs?select=tab_name,kind`)).map((t) => [t.tab_name, t.kind]));
 const legendLabels = legendLabelsFrom(snap.raw.find((t) => kind[t.name] === "LEGEND"));
-const [factsRow] = await db.select<HospitalFacts>(`hospital_profile_facts?hospital_code=eq.${HMS_CODE}&select=tab_stage_facts,tpa_cell_may_hold_insurer,paid_meaning_open_tabs`);
-const facts: HospitalFacts = factsRow ?? { tab_stage_facts: {}, tpa_cell_may_hold_insurer: false, paid_meaning_open_tabs: [] };
+const [factsRow] = await db.select<HospitalFacts>(`hospital_profile_facts?hospital_code=eq.${HMS_CODE}&select=tab_stage_facts,tpa_cell_may_hold_insurer,paid_meaning_open_tabs,pod_start_date`);
+const facts: HospitalFacts = factsRow ?? { tab_stage_facts: {}, tpa_cell_may_hold_insurer: false, paid_meaning_open_tabs: [], pod_start_date: null };
 const dictRows = await db.select<DictionaryRow>(
   `dictionary_entries?status=eq.CONFIRMED&scheme=eq.${SCHEME}&or=(hospital_code.eq.${HMS_CODE},hospital_code.is.null)&select=kind,scheme,hospital_code,spelling_key,standard_value,status`,
 );
