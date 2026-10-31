@@ -9,6 +9,28 @@ Last updated: 31-Oct-2026 (prompting and token-saving rules).
 - When Anoop gives a new decision, add it here in the same session, with the date. If it replaces an older one, move the older one to section 15.
 - This file replaces: `oksy_confirmed_decisions_full.md`, `oksy_confirmed_decisions.md`, `oksy_stage_playbook.md` (decision parts), the two `Claude outputs/` addenda, `handoff.md` section 9, and the 30-Oct handover report.
 
+**Section index** (use this + `grep -n '^## ' claude/decisions.md` to jump straight to a section instead of reading the whole file)
+
+| # | Title | Lines |
+|---|---|---|
+| 1 | Purpose and direction | 34-44 |
+| 2 | Scope and users | 45-52 |
+| 3 | Access and roles | 53-62 |
+| 4 | Hospitals and sheets | 63-76 |
+| 5 | Column mapping | 77-104 |
+| 6 | Fields | 105-116 |
+| 7 | Claim identity and duplicates | 117-129 |
+| 8 | Money rules | 130-142 |
+| 9 | Cleaning engine and AI | 143-162 |
+| 10 | Runs, worker and change detection | 163-179 |
+| 11 | Question Sheets | 180-189 |
+| 12 | Reports and data | 190-197 |
+| 13 | Portal layout and UI | 198-204 |
+| 14 | How we work | 205-238 |
+| 15 | Superseded | moved to `claude/archive/decisions-superseded.md` |
+
+Line numbers are approximate (shift a little as the file is edited) — if in doubt, re-run the grep above.
+
 ---
 
 ## 1. Purpose and direction
@@ -215,36 +237,8 @@ Last updated: 31-Oct-2026 (prompting and token-saving rules).
 - **Old tables retired (31-Oct):** `hospital_aliases` (replaced by `other_names`), `golden_tests`, `discount2_decisions` (the plan first called it `discount`), `import_runs` are not created on live; code that names them is changed.
 - **Unused old tables kept (31-Oct):** `district_heads` and `open_checks` (0 rows, no current writer) are kept for now, not removed. Removal is reviewed later with Anoop's OK.
 - **One migration per sub-stage** when a stage needs several: 1c and 1d each get their own migration and their own OK. (31-Oct)
+- **Repo housekeeping (31-Oct):** the repo (`claude/`, `handoff.md`, `CLAUDE.md`, `AGENTS.md`) is the only source of truth; the Claude Project holds only instructions plus a stable handoff pointer, never a mirror of working files — stop mirroring reports there. A GitHub Action (`.github/workflows/vercel-deploy-hook.yml`) calls the Vercel Deploy Hook on every push to `main` as a backup to Vercel's own Git auto-deploy, and Vercel's project-level "Skip deployments" / `git.deploymentEnabled` must stay `true` (it was found `false` in `apps/web/vercel.json`, silently blocking auto-deploys — fixed). `claude/my-tasks.md` is read first by `/plan-stage` and `/build-substage`; an open "Before each stage/sub-stage starts" item for the sub-stage blocks the start. Every `/close-substage` report opens with an "Anoop must do now" block built from live checks (Supabase MCP, Vercel MCP, `my-tasks.md`). Stage-plan evidence from now on is one status-table line plus detail in `claude/reports/`, never appended to `stage-plan.md` itself. Replies to Anoop in the terminal stay English (section 14 above); day-to-day chat replies may be in Malayalam.
 
 ## 15. Superseded (do not use)
 
-| Old decision | Replaced by |
-|---|---|
-| Pilot = HMS only (26-Oct) | 3 pilots (section 4) |
-| Hospital other names in a `hospital_aliases` table | `other_names` column (section 4) |
-| "Congratulations, your sheet is clean" message / checkbox | Status line (section 11) |
-| 7-page portal (v2 section 2) | 4 main menus (section 13) |
-| Runs at 6 AM and 6 PM | 6 AM only (section 10) |
-| Run now at 5 levels (30-Oct evening) | 3 levels now; scheme levels later (section 10) |
-| Stage plan 0–8 (v2 section 12) and Stage Playbook | New stage plan in `stage-plan.md` |
-| First monthly report by 10-Nov-2026; critical path first | No build deadline (section 1) |
-| Mapping approval per hospital + scheme + header layout; headers strict between months | Policy B + D (section 5) |
-| Only Owner and Admin confirm mappings (migration 0027) | Owner, Admin, Users with Hospitals edit tick (section 5) |
-| Replies to Anoop in Malayalam (26-Oct) | Replies in English, report also in `claude/reports/last-report.md` (section 14) |
-| Room No and Room Category set to Ignore | ROOM CATEGORY → room_category (section 5) |
-| Follow-up Remarks as its own column (v2 section 7) | All remark columns → one `remarks` field (section 5) |
-| Two remark columns = "duplicate header" error | One `remarks` field (section 5) |
-| Query Details as a clean-data column | Not needed (section 6) |
-| Settlement Delay from discharge **or hardcopy** date (v2 section 7) | From discharge date only (section 8) |
-| Dark cyberpunk UI concept | Light theme (section 13) |
-| Global header approval with auto-approve (proposal v1) | Policy B + D (section 5) |
-| Separate "Decision Inbox" page | "Needs your decision" list on Home (section 13) |
-| Change log page deferred to Stage 6 | Change log required; verify in Stage 1 (stage-plan) |
-| Vercel git deployments off | Git deployments ON |
-| AI spending limit USD 20 | About USD 25 / INR 2,000 (section 10) |
-| Anoop does git commit and push himself | Claude commits, Anoop pushes (section 14) |
-| "Do not delete the untracked Docs/ folder" | Rule removed; `docs/` held only copies and is deleted (30-Oct night) |
-| Old stage reports kept | Deleted; only the new file set is kept (30-Oct night) |
-| Phase 1 critical path = Stages 2, 3, 4, 5, 7 | New stage plan (`stage-plan.md`) |
-| Each sub-stage approved by Anoop before the next starts (27-Oct) | Stage-level approval (section 14, 31-Oct) |
-| Push after each sub-stage | Push once per stage (section 14, 31-Oct) |
+Moved to `claude/archive/decisions-superseded.md` (31-Oct-2026 housekeeping) to keep this file short. Old decisions that no longer apply; never act on them.
