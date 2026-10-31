@@ -137,10 +137,10 @@ async function ClaimsPage({ searchParams }: { searchParams: Promise<ClaimFilters
                 <th>Bill</th>
                 <th>Approved</th>
                 <th>Copay</th>
-                <th>Discount 1</th>
-                <th>TDS</th>
+                <th>Deduction</th>
+                <th>Total TDS</th>
                 <th>Settled</th>
-                <th>Discount 2</th>
+                <th>Balance</th>
                 <th>Stage</th>
                 <th>Row class</th>
                 <th>Issues</th>
@@ -159,12 +159,12 @@ async function ClaimsPage({ searchParams }: { searchParams: Promise<ClaimFilters
                   <td className="num">{inr(r.bill_amount)}</td>
                   <td className="num">{inr(r.approved_amount)}</td>
                   <td className="num">{inr(r.copay_amount)}</td>
-                  <td className="num">{inr(r.discount_1_amount)}</td>
+                  <td className="num">{inr(r.deduction_amount)}</td>
                   <td className="num" title={r.tds_rate_source ? `TDS rate source: ${r.tds_rate_source}` : ""}>
                     {inr(r.tds_amount)}
                   </td>
                   <td className="num">{inr(r.settled_amount)}</td>
-                  <td className="num">{inr(r.discount_2_amount)}</td>
+                  <td className="num">{inr(r.balance_amount)}</td>
                   <td title={`from ${r.status_source}`}>
                     <Pill value={String(r.claim_status)} />
                   </td>
