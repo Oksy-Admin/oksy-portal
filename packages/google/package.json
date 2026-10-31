@@ -12,7 +12,8 @@
     "hms-list-tabs": "node --import ./scripts/timing.ts scripts/hms-list-tabs.ts",
     "pilot-answers-structure": "node --import ./scripts/timing.ts scripts/pilot-answers-structure.ts",
     "sci-notation-check": "node --import ./scripts/timing.ts scripts/sci-notation-check.ts",
-    "check-access": "node --import ./scripts/timing.ts scripts/check-access.ts"
+    "check-access": "node --import ./scripts/timing.ts scripts/check-access.ts",
+    "drive-modified-test": "node --import ./scripts/timing.ts scripts/drive-modified-test.ts"
   },
   "dependencies": {
     "@googleapis/drive": "26.0.2",
