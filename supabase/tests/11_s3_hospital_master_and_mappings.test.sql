@@ -19,11 +19,12 @@ $$;
 select has_table('public', 'version_groups', 'version_groups table exists');
 select ok((select relrowsecurity from pg_class where oid = 'public.version_groups'::regclass), 'RLS active on version_groups');
 
--- 2. service_role cannot write to hospitals or version_groups
+-- 2. service_role cannot write to hospitals; it may add version_groups rows but never change them (1e)
 select ok(not has_table_privilege('service_role', 'public.hospitals', 'INSERT')
           and not has_table_privilege('service_role', 'public.hospitals', 'UPDATE'), 'service_role cannot write to hospitals');
-select ok(not has_table_privilege('service_role', 'public.version_groups', 'INSERT')
-          and not has_table_privilege('service_role', 'public.version_groups', 'UPDATE'), 'service_role cannot write to version_groups');
+select ok(has_table_privilege('service_role', 'public.version_groups', 'INSERT')
+          and not has_table_privilege('service_role', 'public.version_groups', 'UPDATE')
+          and not has_table_privilege('service_role', 'public.version_groups', 'DELETE'), 'service_role only adds version_groups rows');
 
 -- 3. Set up test hospital and column mapping
 insert into public.hospitals (hospital_code, hospital_name, district, status)

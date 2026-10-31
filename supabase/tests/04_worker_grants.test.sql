@@ -3,7 +3,7 @@
 -- The test database grants nothing by default (scripts/db-test-local.sh), as live.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(14);
 
 -- 1. The whole list of service_role rights on public tables, compared as a set.
 select is(
@@ -16,13 +16,16 @@ select is(
   'answers.INSERT, answers.SELECT, change_log.INSERT, change_log.SELECT, '
   || 'claims_staging.INSERT, claims_staging.SELECT, claims_staging.UPDATE, column_mappings.INSERT, column_mappings.SELECT, '
   || 'google_events.INSERT, google_events.SELECT, header_decisions.SELECT, hospital_sheets.SELECT, '
-  || 'issues.INSERT, issues.SELECT, issues.UPDATE, jobs.SELECT, payments.INSERT, payments.SELECT, payments.UPDATE, '
+  || 'issues.INSERT, issues.SELECT, issues.UPDATE, jobs.SELECT, mapping_fields.SELECT, payments.INSERT, payments.SELECT, payments.UPDATE, '
   || 'questions.INSERT, questions.SELECT, questions.UPDATE, reconciliations.INSERT, reconciliations.SELECT, '
   || 'record_keys.INSERT, record_keys.SELECT, rule_versions.SELECT, rules.SELECT, scheme_insurers.SELECT, sheet_tabs.INSERT, sheet_tabs.SELECT, sheet_tabs.UPDATE, '
-  || 'snapshots.INSERT, snapshots.SELECT',
-  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 1b-i, the 1c reconcile and 1d, no others');
+  || 'snapshots.INSERT, snapshots.SELECT, version_groups.INSERT, version_groups.SELECT',
+  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 1b-i, the 1c reconcile, 1d and 1e, no others');
 
 -- 2. Named checks, so a failure says which right is wrong.
+select ok(has_table_privilege('service_role', 'public.mapping_fields', 'SELECT')
+          and has_table_privilege('service_role', 'public.version_groups', 'INSERT'),
+  'worker reads the field list and records new header layouts (1e)');
 select ok(has_table_privilege('service_role', 'public.sheet_tabs', 'SELECT'), 'worker can read sheet_tabs');
 select ok(has_table_privilege('service_role', 'public.sheet_tabs', 'INSERT'), 'worker can add tabs');
 select ok(has_table_privilege('service_role', 'public.sheet_tabs', 'UPDATE'), 'worker can update tabs (last seen, missing)');
