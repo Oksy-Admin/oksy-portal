@@ -196,6 +196,7 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 - **Golden fixtures (31-Oct):** headers and value shapes of the 3 pilot sheets (no patient names, phones or policy numbers) are kept as test fixtures; built in 1b-ii.
 - **Playwright for UI checks (31-Oct):** dev-only; Claude checks screens itself instead of Anoop testing each one.
 - **Git: Claude makes the commits; Anoop runs `git push` himself** from the Mac Terminal. Claude tells him what each commit contains first. HTTPS remote only (`https://github.com/Oksy-Admin/oksy-portal.git`); the SSH remote is broken. (30-Oct night) **Push once at the end of each stage**, not after every sub-stage. (31-Oct)
+- **Stage work on its own branch (31-Oct, from Stage 2 onward):** Claude builds a stage's sub-stages on a branch (not on `main`), so Anoop can check the Vercel preview deployment before merging. Claude commits to the branch as usual and never pushes. When Anoop wants a preview, he pushes the branch himself; Vercel builds a preview from it. Anoop merges to `main` (then pushes `main`) once he approves the stage; that push is still the one production deploy per stage.
 - Small commits, one purpose each. One tool works on one file at a time.
 - **Schema changes:** take a backup, write the SQL as a migration in `supabase/migrations/`, show it to Anoop, apply to live only after his OK. (26-Oct)
 - **Secrets:** never print or commit API keys, service account JSON or `.env` values; checks show shape only (length, prefix, names). (27-Oct)

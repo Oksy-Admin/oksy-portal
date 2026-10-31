@@ -25,6 +25,7 @@ Never ask Anoop a decision that is already in `claude/decisions.md`.
 - **Anoop runs `git push` himself** from the Mac Terminal, once at the end of each stage. Claude does not push.
 - Remote: HTTPS only (`https://github.com/Oksy-Admin/oksy-portal.git`). The SSH remote (`git@github-oksy`) is broken.
 - Vercel deploys automatically from GitHub `main` after a push. Database changes are not deployed by a push; they are applied separately (see Schema changes).
+- **Stage work on its own branch (from Stage 2 onward):** Claude builds a stage's sub-stages on a branch, not on `main`, so Anoop can check the Vercel preview before merging. Anoop pushes the branch himself for a preview, and merges + pushes `main` once he approves the stage.
 - One tool (Claude Code, Codex or Antigravity) works on one file at a time; commit, then switch tools.
 
 ## Talking to Anoop
