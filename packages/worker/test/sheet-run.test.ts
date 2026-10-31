@@ -122,7 +122,18 @@ describe("one HMS-shaped sheet run (fake data)", () => {
     expect(second.sync).toEqual({ new: 0, changed: 0, unchanged: 3, missing: 0 });
     expect(db.tables.claims_staging).toHaveLength(3);
     expect(db.tables.payments).toHaveLength(2);
-    expect(db.tables.snapshots).toHaveLength(2); // each run keeps its own snapshot
+    expect(db.tables.snapshots).toHaveLength(1); // unchanged sheet: the first copy is reused (decision 31-Oct)
+    expect(db.tables.reconciliations?.map((r) => r.snapshot_id)).toEqual([db.tables.snapshots![0]!.id, db.tables.snapshots![0]!.id]);
+  });
+
+  it("a copy older than 12 months is deleted; a changed sheet gets a new copy", async () => {
+    const db = await confirmedDb();
+    await run(db, []);
+    db.tables.snapshots![0]!.taken_at = "2025-01-01T00:00:00Z";
+    db.tables.snapshots![0]!.raw_sha256 = "0".repeat(64); // as if the sheet changed since
+    await run(db, []);
+    expect(db.tables.snapshots).toHaveLength(1);
+    expect(db.tables.snapshots![0]!.taken_at).not.toBe("2025-01-01T00:00:00Z");
   });
 
   it("stops until the mapping is confirmed; one confirmation covers both tabs with that header", async () => {

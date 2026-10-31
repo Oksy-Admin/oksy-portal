@@ -172,30 +172,40 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   const rawTabs = toRawTabs(read);
   const tabsSkipped = tabRows.filter((t) => t.policy !== "ALLOW").map((t) => ({ tab: t.tab_name, policy: t.policy }));
 
-  // 4. Layouts and the timestamped raw snapshot (never edited).
+  // 4. Layouts and the timestamped raw snapshot (never edited). A new copy only when the
+  //    sheet changed since its last copy (decision 31-Oct); copies older than 12 months go.
   const dataTabs = rawTabs.filter((t) => kind[t.name] === "DATA");
   const found: TabLayout[] = dataTabs.map((t) => layoutOf(t, extraHeaders, fields));
   const raw = JSON.stringify(rawTabs);
-  const [snap] = await step("snapshot", () =>
-    db.insert<{ id: string }>(
-      "snapshots",
-      [
-        {
-          job_id: job.id,
-          hospital_code: sheet.hospital_code,
-          sheet_key: sheet.sheet_key,
-          spreadsheet_id: fileId,
-          tabs: rawTabs.map((t) => {
-            const l = found.find((x) => x.tab === t.name);
-            return { name: t.name, kind: kind[t.name] ?? null, rows: t.rows.length, header_row: l?.headerRow ?? null, header_fp: l?.fingerprint ?? null };
-          }),
-          raw: JSON.parse(raw),
-          raw_sha256: sha256(raw),
-        },
-      ],
-      { returning: true },
-    ),
-  );
+  const rawSha = sha256(raw);
+  const snap = await step("snapshot", async () => {
+    const [last] = await db.select<{ id: string; raw_sha256: string }>(
+      `snapshots?sheet_key=eq.${enc(sheet.sheet_key)}&select=id,raw_sha256&order=taken_at.desc&limit=1`,
+    );
+    const kept = last?.raw_sha256 === rawSha ? last : undefined;
+    const [stored] = kept
+      ? [kept]
+      : await db.insert<{ id: string }>(
+          "snapshots",
+          [
+            {
+              job_id: job.id,
+              hospital_code: sheet.hospital_code,
+              sheet_key: sheet.sheet_key,
+              spreadsheet_id: fileId,
+              tabs: rawTabs.map((t) => {
+                const l = found.find((x) => x.tab === t.name);
+                return { name: t.name, kind: kind[t.name] ?? null, rows: t.rows.length, header_row: l?.headerRow ?? null, header_fp: l?.fingerprint ?? null };
+              }),
+              raw: JSON.parse(raw),
+              raw_sha256: rawSha,
+            },
+          ],
+          { returning: true },
+        );
+    await db.rpc<number>("purge_old_snapshots");
+    return stored;
+  });
   if (!snap) throw new Error("snapshot not stored");
 
   // 5. Mapping: one decision per hospital + scheme + header (header_decisions, Stage 1b),

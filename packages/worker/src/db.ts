@@ -5,6 +5,8 @@ export interface Db {
   select<T>(path: string): Promise<T[]>;
   insert<T>(table: string, rows: object[], opts?: { onConflict?: string; ignoreDuplicates?: boolean; returning?: boolean }): Promise<T[]>;
   update(pathWithFilter: string, patch: object): Promise<void>;
+  /** Calls a database function the worker may run (POST /rpc/<name>). */
+  rpc<T>(name: string, args?: object): Promise<T>;
 }
 
 export class DbError extends Error {
@@ -47,6 +49,9 @@ export function restDb(url: string, key: string, fetchFn: typeof fetch = fetch):
     },
     async update(pathWithFilter: string, patch: object) {
       await call("PATCH", pathWithFilter, patch, "return=minimal");
+    },
+    async rpc<T>(name: string, args: object = {}) {
+      return (await call("POST", `rpc/${name}`, args)) as T;
     },
   };
 }

@@ -37,7 +37,16 @@ export function fakeDb(seed: Record<string, Row[]> = {}): Db & { tables: Record<
     tables,
     async select<T>(path: string) {
       const { table, filters } = parse(path);
-      return t(table).filter((r) => match(r, filters)).map((r) => ({ ...r })) as T[];
+      const q = new URLSearchParams(path.split("?")[1] ?? "");
+      let rows = t(table).filter((r) => match(r, filters));
+      const order = q.get("order")?.match(/^(\w+)\.(asc|desc)$/);
+      if (order) {
+        const [, col, dir] = order as unknown as [string, string, string];
+        rows = [...rows].sort((a, b) => String(a[col] ?? "").localeCompare(String(b[col] ?? "")) * (dir === "desc" ? -1 : 1));
+      }
+      const limit = q.get("limit");
+      if (limit) rows = rows.slice(0, Number(limit));
+      return rows.map((r) => ({ ...r })) as T[];
     },
     async insert<T>(table: string, rows: object[], opts: { onConflict?: string; ignoreDuplicates?: boolean; returning?: boolean } = {}) {
       const out: Row[] = [];
@@ -50,7 +59,8 @@ export function fakeDb(seed: Record<string, Row[]> = {}): Db & { tables: Record<
           continue;
         }
         const idCol = DEFAULT_IDS[table] ?? "id";
-        const fresh = { [idCol]: randomUUID(), first_seen_at: new Date().toISOString(), ...row };
+        const now = new Date().toISOString();
+        const fresh = { [idCol]: randomUUID(), first_seen_at: now, ...(table === "snapshots" ? { taken_at: now } : {}), ...row };
         t(table).push(fresh);
         out.push({ ...fresh });
       }
@@ -59,6 +69,15 @@ export function fakeDb(seed: Record<string, Row[]> = {}): Db & { tables: Record<
     async update(path: string, patch: object) {
       const { table, filters } = parse(path);
       for (const r of t(table)) if (match(r, filters)) Object.assign(r, patch);
+    },
+    /** purge_old_snapshots: drops snapshots taken more than 12 months ago. */
+    async rpc<T>(name: string) {
+      if (name !== "purge_old_snapshots") throw new Error(`fake db: rpc ${name}`);
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - 12);
+      const before = t("snapshots").length;
+      tables.snapshots = t("snapshots").filter((r) => !r.taken_at || new Date(String(r.taken_at)) > cutoff);
+      return (before - tables.snapshots.length) as T;
     },
   };
 }
