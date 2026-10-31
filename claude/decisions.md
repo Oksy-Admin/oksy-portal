@@ -1,7 +1,7 @@
 # Oksy Data Cleanse – Confirmed Decisions
 
 Owner and decision-maker: Anoop Das (anoop@oksy.in).
-Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
+Last updated: 31-Oct-2026 (prompting and token-saving rules).
 
 **How to use this file**
 - Check here before asking Anoop anything. A decision listed here is never asked again.
@@ -201,6 +201,16 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 - **Schema changes:** take a backup, write the SQL as a migration in `supabase/migrations/`, show it to Anoop, apply to live only after his OK. (26-Oct)
 - **Secrets:** never print or commit API keys, service account JSON or `.env` values; checks show shape only (length, prefix, names). (27-Oct)
 - Before a stage is reported done: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
+- **Prompting and token-saving rules (31-Oct):** the usage limit must never be spent on nothing; every prompt and every Claude reply is built for maximum value per token. (Anoop, 31-Oct)
+  1. **Prompt shape (Anoop → Claude):** Goal in one line → files to read → what not to touch → "Done when" (checkable) → report format (done / blocked / decision needed). One prompt = one job.
+  2. **Prompt types we use:** contextual (the 5 session-start files); instruction-based (skills `/plan-stage`, `/build-substage`, `/close-substage`); constraint-based (scope-lock, file-scope guard); verification (tests, typecheck, Playwright, pgTAP: Claude proves its own work); role-based (fresh `design-reviewer` / `code-reviewer` agents); prompt chaining (one sub-stage's result feeds the next); zero-shot only for small questions; one-shot example (never more than 1–2) for formats and fixtures.
+  3. **Interview-first for new ideas:** for a new requirement or redesign Claude asks its (max 3–5) questions in one go, with reasons and a recommendation, before any plan or build.
+  4. **When a result is wrong, Anoop names the exact file / screen / value** that is wrong. Claude then fixes only that, with a one-line edit where possible, and does not re-explain or re-plan.
+  5. **Claude's replies:** short; no recap of steps, no repeating the question, no long code or long outputs in chat (write to `claude/reports/last-report.md` instead); one status line per sub-stage; tables only for real comparisons.
+  6. **Claude's work:** read only the files the sub-stage names; use targeted `grep` / line ranges instead of whole large files; run only the checks that are due (full set at sub-stage close); batch independent tool calls; never re-read a file just edited; do not re-open decided questions.
+  7. **Session hygiene:** `/clear` after every closed sub-stage; start each session from `handoff.md` only plus what the task needs; keep `CLAUDE.md`, `handoff.md` and `decisions.md` lean (they are read every session), moving old detail to the "Superseded" table.
+  8. **Model routing:** Opus for `/plan-stage`, design review and code review; Sonnet for `/build-substage` and routine fixes; extra thinking only for hard planning or a stubborn bug.
+  9. **Stop on repeat failure:** if the same check fails twice with the same cause, Claude stops and reports the cause and a recommendation instead of trying a third time (each retry costs tokens).
 
 - **Old tables retired (31-Oct):** `hospital_aliases` (replaced by `other_names`), `golden_tests`, `discount2_decisions` (the plan first called it `discount`), `import_runs` are not created on live; code that names them is changed.
 - **Unused old tables kept (31-Oct):** `district_heads` and `open_checks` (0 rows, no current writer) are kept for now, not removed. Removal is reviewed later with Anoop's OK.

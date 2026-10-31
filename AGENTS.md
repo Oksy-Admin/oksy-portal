@@ -51,5 +51,11 @@ Never ask Anoop a decision that is already in `claude/decisions.md`.
 - Agents in `.claude/agents/`: `design-reviewer` (mandatory in `/plan-stage`), `code-reviewer` (end of each stage). MCP (`.mcp.json`): Supabase read-only, Context7 docs.
 - Read only what the task needs; keep outputs short; `/clear` after each closed sub-stage.
 
+## Token saving (full rules: `claude/decisions.md` section 14, "Prompting and token-saving rules")
+- Replies short: one status line, no recap of steps, no repeating the question, no long code or output in chat (use `claude/reports/last-report.md`).
+- Read only files the sub-stage names; use `grep` or line ranges for big files; never re-read a file just edited; run full checks at sub-stage close only.
+- New requirement: ask all questions in one go (3–5, with reason and recommendation) before planning. Fix a reported error with a minimal edit only.
+- Same check fails twice for the same cause: stop and report the cause plus a recommendation; do not try a third time.
+
 ## Commands
 See `README.md` (`pnpm dev`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm worker`).
