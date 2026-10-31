@@ -1,6 +1,6 @@
 # Column Dictionary – Oksy Data Cleanse
 
-Standard fields every hospital's sheet is mapped to. Last updated: 30-Oct-2026 night.
+Standard fields every hospital's sheet is mapped to. Last updated: 1-Nov-2026.
 The live list is the `mapping_fields` table (Settings › Fields). The 35 core fields come from `packages/rules/src/fields.ts`; they cannot be deleted and their type cannot be changed. Fields added on the Fields page store their data in `extra_fields`.
 Decisions behind this file: `claude/decisions.md` sections 5–8.
 
@@ -43,7 +43,7 @@ Key: **C** = calculated by the portal (never taken from the sheet). **Ignore** =
 | payment_date | Settlement Date | date | Per payment |
 | payment_amount | Settled Amount | amount | Per payment; amount received after TDS |
 | payment_utr | UTR | text | Per payment; never guessed |
-| tds_amount_stated | TDS Amount | amount | TDS amount as written by staff; rules apply. HMS's plain "TDS" header maps here (pending a sheet check, see `claude/my-tasks.md`); Badagara/Tree G's plain "TDS" maps to the `tds` field (section 2) instead. A header literally named "TDS %" is Ignored |
+| tds_amount_stated | TDS Amount | amount | TDS amount as written by staff; rules apply. No pilot's plain "TDS" header maps here — all 3 map to the `tds` field (section 2) instead; this field is reached only by a header literally named "TDS AMOUNT" |
 | remarks | Remarks | text | Takes **every** remark column (including follow-up remarks); values joined with " \| " and prefixed by the source column name (prefix to be built in Stage 1b) |
 
 ## 2. Added fields (stored in `extra_fields`)
@@ -52,7 +52,7 @@ Key: **C** = calculated by the portal (never taken from the sheet). **Ignore** =
 |---|---|---|---|
 | balance_status | Balance Status | text | Not decided / Waived off / Grievance. Added 30-Oct. Mapping test waits for a safe source column; never map BALANCE AMOUNT here |
 | uhid | UHID | text | Hospital patient ID (not the IP number). To be added in Stage 1b |
-| tds | TDS % | number | A TDS **rate**, not an amount. Badagara and Tree G's plain "TDS" header maps here (31-Oct); HMS's plain "TDS" maps to `tds_amount_stated` instead |
+| tds | TDS % | number | A TDS **rate**, not an amount. Badagara, Tree G and HMS's plain "TDS" header all map here — checked against the real HMS sheet, 1-Nov |
 
 The live list also has 3 older custom fields (added 27-Oct); they are reviewed in Stage 1b.
 

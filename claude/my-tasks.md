@@ -41,10 +41,7 @@ Do these in order — each one unblocks the next.
 
 ## Before each stage/sub-stage starts (prerequisites)
 
-- **Check that HMS's PAID and PENDING tabs hold rupee amounts, not a rate, in the plain "TDS" column.** Needed before the engine treats HMS's plain "TDS" header as the TDS *amount* (`tds_amount_stated` / "TDS Amount") rather than a rate — today that mapping is only an assumption (`decisions.md` section 5, 31-Oct), not yet checked against the real sheet.
-  - What to do: open the HMS Google Sheet (or ask Claude to read it read-only), look at the PAID and PENDING tabs' "TDS" column, and confirm the values look like rupee amounts (hundreds/thousands) rather than a percentage (0–30-ish).
-  - Why: if it turns out to hold a rate instead, HMS's plain "TDS" should map to the new `tds` ("TDS %") field like Badagara and Tree G's does, not to TDS Amount — getting this wrong would record a rate as if it were money.
-  - If skipped: no immediate block, but any TDS money-rule check run against HMS data before this is confirmed is checking an unverified assumption.
+(none currently open)
 
 ## Until the end of the project
 
