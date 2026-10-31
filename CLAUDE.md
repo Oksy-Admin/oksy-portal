@@ -20,42 +20,12 @@ Never ask Anoop a decision that is already in `claude/decisions.md`.
 - **Stage-level approval.** Anoop approves a whole stage plan once; sub-stages are then built one after another and reported together. The next stage starts only after Anoop approves. Every migration SQL still needs his OK before live.
 - **Discuss first:** for new requirements or redesigns, propose; build nothing until Anoop agrees.
 
-## Git
-- Claude makes the commits: small, one purpose each, clear English message. Tell Anoop what each commit contains.
-- **Anoop runs `git push` himself** from the Mac Terminal, once at the end of each stage. Claude does not push.
-- Remote: HTTPS only (`https://github.com/Oksy-Admin/oksy-portal.git`). The SSH remote (`git@github-oksy`) is broken.
-- Vercel deploys automatically from GitHub `main` after a push. Database changes are not deployed by a push; they are applied separately (see Schema changes).
-- **Stage work on its own branch (from Stage 2 onward):** Claude builds a stage's sub-stages on a branch, not on `main`, so Anoop can check the Vercel preview before merging. Anoop pushes the branch himself for a preview, and merges + pushes `main` once he approves the stage.
-- One tool (Claude Code, Codex or Antigravity) works on one file at a time; commit, then switch tools.
+## How we work
+Git workflow, talking to Anoop, closing a sub-stage, saving prompts and the full token-saving rules all live in **`claude/decisions.md` section 14 ("How we work")** — that is the one copy; nothing here repeats it. Read it before any git action, any report to Anoop, or any sub-stage close.
 
-## Talking to Anoop
-- Reply in **English**, plain words, short: done / blocked / decision needed. Code, file names and commit messages in English.
-- Write every final report also to `claude/reports/last-report.md` (overwrite it each time), so Anoop can read it without copying from the terminal.
-- Anoop is not a programmer. For any step he must do: which app, which screen, exact text to type or click, what to check, what it is for, what happens if skipped.
-- Every question gives the reason and Claude's recommendation, answerable yes/no. At most 3–5 questions at a stage gate.
-- Do not paste long code or long outputs in chat.
+Session-start reading order: `handoff.md` → `claude/my-tasks.md` → only the `decisions.md` sections the task needs (use its section index + `grep`).
 
-## Closing a sub-stage (same session)
-1. Run `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`; check the done-criteria in `claude/stage-plan.md`.
-2. Update the status table in `claude/stage-plan.md` (DONE + date + evidence).
-3. Update the "Current stage" line here, in `AGENTS.md` and in `handoff.md`.
-4. Add any new decision to `claude/decisions.md` (move replaced ones to its "Superseded" table).
-5. Report to Anoop and wait for approval.
-
-## Saving prompts (target ~55 prompts to the pilot finish line)
-- One prompt = one full sub-stage: build → tests until green → commits → close. Do not stop to ask what is already decided.
-- Skills in `.claude/skills/`: `/plan-stage N`, `/build-substage Nx`, `/close-substage Nx`.
-- Stop hook (`scripts/claude-stop-check.sh`) runs typecheck, lint and test on uncommitted code changes; fix failures in the same prompt.
-- `.claude/settings.json` allows routine commands and blocks `git push`, live `supabase db push` and reading `.env` files.
-- Agents in `.claude/agents/`: `design-reviewer` (mandatory in `/plan-stage`), `code-reviewer` (end of each stage). MCP (`.mcp.json`): Supabase read-only, Context7 docs.
-- Read only what the task needs; keep outputs short; `/clear` after each closed sub-stage.
-
-## Token saving (full rules: `claude/decisions.md` section 14, "Prompting and token-saving rules")
-- Replies short: one status line, no recap of steps, no repeating the question, no long code or output in chat (use `claude/reports/last-report.md`).
-- Read only files the sub-stage names; use `grep` or line ranges for big files; never re-read a file just edited; run full checks at sub-stage close only.
-- New requirement: ask all questions in one go (3–5, with reason and recommendation) before planning. Fix a reported error with a minimal edit only.
-- Same check fails twice for the same cause: stop and report the cause plus a recommendation; do not try a third time.
-- Opus for planning/reviews, Sonnet for building; `/clear` after each closed sub-stage.
+**Prerequisite guard (`/plan-stage`, `/build-substage`):** read `claude/my-tasks.md` first; if an item under "Before each stage/sub-stage starts" is open for this sub-stage, stop and tell Anoop instead of starting.
 
 ## Commands
 See `README.md` (`pnpm dev`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm worker`).
