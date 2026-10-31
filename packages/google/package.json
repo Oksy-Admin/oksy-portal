@@ -12,7 +12,6 @@
     "hms-list-tabs": "node --import ./scripts/timing.ts scripts/hms-list-tabs.ts",
     "pilot-answers-structure": "node --import ./scripts/timing.ts scripts/pilot-answers-structure.ts",
     "sci-notation-check": "node --import ./scripts/timing.ts scripts/sci-notation-check.ts",
-    "pilot-answers-store": "node --import ./scripts/timing.ts scripts/pilot-answers-store.ts",
     "check-access": "node --import ./scripts/timing.ts scripts/check-access.ts"
   },
   "dependencies": {

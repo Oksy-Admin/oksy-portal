@@ -1,32 +1,32 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { can } from "@/lib/roles";
+import { canViewHospitals } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 import { NoAccess, PageHead, Pill } from "../../ui";
 import { AddDeskAccount, RemoveDeskAccount } from "./desk-forms";
 import { withTiming } from "@/lib/timing";
 
 // One hospital: register details, its sheets, other names, desk staff and the desk Google
-// accounts its Question Sheet is shared with (D-048). Staff and desk accounts are personal
-// data: HELPER, APPROVER and ADMIN only (RLS).
+// accounts its Question Sheet is shared with (D-048). The Hospitals view tick opens the page;
+// staff phones and desk accounts are personal data, shown only where RLS allows them.
 async function HospitalPage({ params }: { params: Promise<{ code: string }> }) {
   const me = await getMe();
-  if (!can(me?.role, "helper_work")) return <NoAccess title="Hospital" who="HELPER, APPROVER or ADMIN" />;
+  if (!canViewHospitals(me)) return <NoAccess title="Hospital" who="users with the Hospitals view tick" />;
   const { code } = await params;
-  if (!/^HOSP32P\d{6}$/.test(code)) notFound();
+  // Same limits as hospitals_hospital_code_check (3 to 32 characters); live IDs look like HOSPPVTP0001.
+  if (!/^[A-Z0-9]{3,32}$/.test(code)) notFound();
 
   const supabase = await createClient();
   const { data: h } = await supabase
     .from("hospitals")
-    .select("hospital_code, hospital_name, district, status, rohini_id, kasp_portal_name, medisep_portal_name, check_flag, remarks, missing_from_register_since")
+    .select("hospital_code, hospital_name, district, status, other_names, rohini_id, kasp_portal_name, medisep_portal_name, check_flag, remarks, missing_from_register_since")
     .eq("hospital_code", code).maybeSingle();
   if (!h) notFound();
-  const [sheets, aliases, staff, desk, checks, heads, retired] = await Promise.all([
+  const [sheets, staff, desk, checks, heads, retired] = await Promise.all([
     supabase
       .from("hospital_sheets")
       .select("sheet_key, scheme, sheet_status, spreadsheet_id, sheet_url, sync, read_skip_reason, check_flag, access_status, access_error, last_checked_at")
       .eq("hospital_code", code).order("scheme"),
-    supabase.from("hospital_aliases").select("alias, source").eq("hospital_code", code).order("alias"),
     supabase.from("staff_contacts").select("staff_name, designation, phone").eq("hospital_code", code).is("retired_at", null),
     supabase.from("desk_google_accounts").select("id, email, added_at").eq("hospital_code", code).is("removed_at", null).order("email"),
     supabase.from("open_checks").select("check_no, status, what_to_decide, decision").eq("hospital_code", code).order("check_no"),
@@ -67,12 +67,11 @@ async function HospitalPage({ params }: { params: Promise<{ code: string }> }) {
         </div>
         <div className="card">
           <h2>Other names</h2>
-          {aliases.data?.length ? (
+          {/* hospitals.other_names (decision 27-Oct); the old hospital_aliases table is retired. */}
+          {h.other_names?.length ? (
             <ul className="list-plain">
-              {aliases.data.map((a) => (
-                <li key={a.alias}>
-                  {a.alias} <span className="muted">({a.source})</span>
-                </li>
+              {h.other_names.map((name: string) => (
+                <li key={name}>{name}</li>
               ))}
             </ul>
           ) : (
