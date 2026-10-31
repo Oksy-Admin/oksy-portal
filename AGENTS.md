@@ -2,7 +2,7 @@
 
 This file has the same rules as `CLAUDE.md`. Keep the two in step.
 
-**Current stage: Stage 1 closed and pushed 31-Oct-2026 (all sub-stages done, migrations on live with zero drift, code-reviewer run with one Must fixed). Next: Stage 2 plan, not started.**
+**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a done 31-Oct-2026 (rule engine as data, money rules rewritten per decisions section 8; migration `20261031060500_rule_engine_data.sql` tested locally, waiting for Anoop's OK before live). Next: `/build-substage 2b`.**
 
 ## Read first, in this order
 1. `handoff.md` – where we are now and the next step

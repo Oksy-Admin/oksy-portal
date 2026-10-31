@@ -3,8 +3,8 @@
 Short "where are we now" note. Last updated: 31-Oct-2026.
 
 ## Current stage
-**Current stage: Stage 1 closed and pushed 31-Oct-2026 (all sub-stages done, migrations on live with zero drift, code-reviewer run with one Must fixed). Next: Stage 2 plan, not started.**
-Next: `/plan-stage 2`.
+**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a done 31-Oct-2026 (rule engine as data, money rules rewritten per decisions section 8; migration `20261031060500_rule_engine_data.sql` tested locally, waiting for Anoop's OK before live). Next: `/build-substage 2b`.**
+Next: `/build-substage 2b`.
 
 ## What the portal is (one line)
 Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, asks hospital staff through Question Sheets, and gives correct combined reports. Details: `claude/requirements.md`.
