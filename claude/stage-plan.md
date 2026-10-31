@@ -20,7 +20,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
 | 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **DONE and pushed 31-Oct-2026 (all sub-stages 1a–1e done, migrations on live, zero drift; code-reviewer run, one Must fixed). Next: Stage 2 plan, not started.** |
-| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | **Approved 31-Oct-2026, building on branch `stage-2-rule-library`. 2a done 31-Oct-2026.** |
+| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | **Approved 31-Oct-2026, building on branch `stage-2-rule-library`. 2a, 2b done 31-Oct-2026; 2c done 1-Nov-2026.** |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
 | 5 | Data & Reports: claims, payments, report download, reconciliation | Not started |
@@ -102,14 +102,16 @@ Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_v
 - Tests: confirmed word applied; new word listed once; colour never used unless confirmed; swap cases; undo of a Confirm all.
 - Done when: no status word, colour or name list in code; pilot words and names listed for confirmation; migration applied after OK.
 
-**2c – Claim checks, two-part approvals, "value is correct"** (2 prompts; 1 migration)
+**2c – Claim checks, two-part approvals, "value is correct" — DONE 1-Nov-2026, 1 prompt** (2 prompts; 1 migration)
 - **Cross-row rules** run after all rows of a hospital are read: same UTR on several claims, same patient + same admission date (moved from the 1d R-Y03 wording into the library), claim number repeat under the claim identity rule.
-- **Two-part approval:** combining method per `decisions.md` section 7 (1-Nov: same claim number + admission + discharge + same Approved Amount + different UTR, combined automatically); parts stay as rows and are linked to one claim, never deleted; each part's payment stays its own payment with its own UTR. Claim-level checks (balance, settled equal to approved, TDS) and their issues and confirmations attach to the combined claim; payment checks stay on each part.
+- **Two-part approval:** combining method per `decisions.md` section 7 (1-Nov: same claim number + admission + discharge + same Approved Amount + different UTR, listed for a person to confirm first, never automatic); parts stay as rows and are linked to one claim, never deleted; each part's payment stays its own payment with its own UTR. Claim-level checks (balance, settled equal to approved, TDS) and their issues and confirmations attach to the combined claim; payment checks stay on each part.
 - **"Value is correct":** a person (decision list) or staff (Question Sheet, Stage 4) confirms a Warning once; stored in `issue_confirmations` (claim, rule, field, value fingerprint, who, when, reason). The fingerprint is made from the **cleaned** values of only the fields that rule reads, so a format fix (spaces, date format) never clears a confirmation. The Warning stays cleared until the value changes; never asked again. Errors cannot be confirmed away.
 - **Issue reason:** every issue shows the rule's message with the values involved (amounts and dates only, never names); the claims page shows it.
 - Clean status per claim and per hospital: zero Errors and zero Warnings (confirmed Warnings count as cleared).
 - Tests: confirmation survives a rerun, is lost when the value changes; Error not confirmable; two-part cases; same UTR across claims.
 - Done when: tests pass; migration applied after OK.
+
+**2c – DONE 1-Nov-2026; migration `20261101120000_claim_checks_two_part.sql` written and tested locally (`bash scripts/db-test-local.sh`: all migrations replay on a fresh database, all pgTAP tests pass), waiting for Anoop's OK before live.** Full evidence: `claude/reports/2026-11-01-close-2c.md`.
 
 **2d – Rule Library page** (2 prompts; 1 migration)
 - Improve the existing `/rules` page: list with filters (scheme, severity, status, hits in last run); three-part form; Edit makes a new version (history kept); Delete = Inactive.
