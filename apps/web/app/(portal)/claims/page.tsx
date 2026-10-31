@@ -47,6 +47,20 @@ async function ClaimsPage({ searchParams }: { searchParams: Promise<ClaimFilters
   const rows = list.data ?? [];
   const total = list.count ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Stage 2c, decisions.md section 9: "every issue shows the rule's message with the values
+  // involved (amounts and dates only, never names)" - detail is built that way already
+  // (clean.ts / identity.ts never put a name in it), so it is safe to show as-is.
+  const recordUids = rows.map((r) => String(r.record_uid));
+  const issuesRes = recordUids.length
+    ? await supabase.from("issues").select("record_uid, rule_id, detail, status").in("record_uid", recordUids).in("status", ["OPEN", "CONFIRMED"])
+    : { data: [] };
+  const issuesByRecord = new Map<string, Array<{ rule_id: string; detail: string | null; status: string }>>();
+  for (const i of issuesRes.data ?? []) {
+    const list = issuesByRecord.get(i.record_uid) ?? [];
+    list.push({ rule_id: i.rule_id, detail: i.detail, status: i.status });
+    issuesByRecord.set(i.record_uid, list);
+  }
   const qs = (over: Partial<Record<string, string | number>>) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...f, ...over })) if (v !== "" && v != null && !(k === "page" && v === 1)) p.set(k, String(v));
@@ -171,7 +185,15 @@ async function ClaimsPage({ searchParams }: { searchParams: Promise<ClaimFilters
                   <td>
                     <Pill value={String(r.row_class)} />
                   </td>
-                  <td className="muted">{(r.issue_codes as string[] | null)?.join(", ") || ""}</td>
+                  <td className="muted">
+                    {(issuesByRecord.get(String(r.record_uid)) ?? []).map((i, idx) => (
+                      <span key={i.rule_id} title={i.detail ?? i.rule_id}>
+                        {idx > 0 ? ", " : ""}
+                        {i.rule_id}
+                        {i.status === "CONFIRMED" ? " (confirmed)" : ""}
+                      </span>
+                    ))}
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 && (

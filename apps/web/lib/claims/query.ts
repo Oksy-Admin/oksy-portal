@@ -51,10 +51,13 @@ export interface Filterable<T> {
   eq(col: string, v: string): T;
   neq(col: string, v: string): T;
   or(expr: string): T;
+  is(col: string, v: null): T;
 }
 
 export function applyFilters<T extends Filterable<T>>(query: T, f: ReturnType<typeof cleanFilters>): T {
-  let q = query.neq("row_class", "NON_DATA_ROW");
+  // Stage 2c: a two-part approval's secondary row is never listed on its own; the primary
+  // row already carries the combined totals (decisions.md section 7).
+  let q = query.neq("row_class", "NON_DATA_ROW").is("combined_into_record_uid", null);
   if (f.hospital) q = q.eq("hospital_code", f.hospital);
   if (f.stage) q = q.eq("claim_status", f.stage);
   if (f.cls) q = q.eq("row_class", f.cls);
