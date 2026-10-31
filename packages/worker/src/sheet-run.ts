@@ -412,8 +412,9 @@ async function writeRows(db: Db, job: Job, sheet: SheetRow, fileId: string, rows
     const old = openKey ? byKey.get(openKey) : undefined;
     if (!old || old.discharge_date != null) continue;
     await db.update(`claims_staging?record_uid=eq.${enc(old.record_uid)}`, { record_key: r.recordKey });
+    old.record_key = r.recordKey;
     byKey.delete(openKey!);
-    byKey.set(r.recordKey, { ...old, record_key: r.recordKey });
+    byKey.set(r.recordKey, old);
   }
   const counts = { new: 0, changed: 0, unchanged: 0, missing: 0 };
   const changedRows: Array<Record<string, unknown>> = [];

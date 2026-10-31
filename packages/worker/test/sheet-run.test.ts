@@ -142,6 +142,8 @@ describe("one HMS-shaped sheet run (fake data)", () => {
       const after = db.tables.claims_staging!.find((c) => c.preauth_or_claim_no === "FAKECLM003")!;
       expect(after.record_uid).toBe(before.record_uid);
       expect(after.record_key).toMatch(/\|C:FAKECLM003\|2026-09-03\|2026-09-06$/);
+      expect(after.sync_status).toBe("CHANGED");
+      expect(after.missing_since).toBeNull();
       const keys = db.tables.record_keys!.filter((k) => k.record_uid === before.record_uid).map((k) => String(k.record_key));
       expect(keys).toHaveLength(2); // the old key still points to the same claim
       expect(keys.some((k) => k.endsWith("|2026-09-03|-")) && keys.some((k) => k.endsWith("|2026-09-03|2026-09-06"))).toBe(true);
