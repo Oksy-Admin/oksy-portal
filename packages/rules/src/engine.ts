@@ -201,3 +201,23 @@ export function evaluateRule(rule: EngineRule, ctx: EngineContext): EngineIssue[
 export function evaluateRules(rules: EngineRule[], ctx: EngineContext): EngineIssue[] {
   return rules.flatMap((r) => evaluateRule(r, ctx));
 }
+
+/**
+ * The ctx fields a check definition actually reads (Stage 2c, decisions.md section 9: a
+ * "value is correct" confirmation's fingerprint is made from only these, never the issueField
+ * by itself, since issueField is just where the issue is attached, not necessarily read).
+ * Generic over any check: never a per-rule list, so a rule can still change without code.
+ */
+export function fieldsReadBy(def: CheckDefinition): string[] {
+  const fields = new Set<string>();
+  if (def.kind === "SIMPLE_FOR_EACH") {
+    for (const f of def.fieldList) fields.add(f);
+    if (def.compareField) fields.add(def.compareField);
+    return [...fields];
+  }
+  for (const c of def.conditions.slice(0, 5)) {
+    fields.add(c.field);
+    if (c.compareField) fields.add(c.compareField);
+  }
+  return [...fields];
+}

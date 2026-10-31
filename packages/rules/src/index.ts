@@ -13,3 +13,5 @@ export * from "./tabs.ts";
 export * from "./engine.ts";
 export * from "./initial-rules.ts";
 export * from "./dictionary.ts";
+export * from "./confirmations.ts";
+export * from "./two-part.ts";

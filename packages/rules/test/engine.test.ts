@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateRule, evaluateRules, type EngineContext, type EngineRule } from "../src/index.ts";
+import { evaluateRule, evaluateRules, fieldsReadBy, type CheckDefinition, type EngineContext, type EngineRule } from "../src/index.ts";
 
 // Stage 2a: the engine is fixed code (operators, SIMPLE / SIMPLE_FOR_EACH); every threshold,
 // field, scope, severity, action and message a rule uses comes from the rule itself.
@@ -115,5 +115,31 @@ describe("engine: evaluateRules runs the whole active list", () => {
   });
   it("a rule with no check_definition (REFERENCE / PARAMETER rows) never fires", () => {
     expect(evaluateRule(simpleRule({ checkDefinition: null }), ctx({ approved_amount: "9999999" }))).toEqual([]);
+  });
+});
+
+// Stage 2c, decisions.md section 9: a "value is correct" confirmation is fingerprinted from
+// exactly these fields, never the issueField by itself (issueField is only where the issue is
+// attached - see R-F04, whose issueField "settled_amount" is never a condition field at all).
+describe("engine: fieldsReadBy", () => {
+  it("SIMPLE: every condition's field and compareField, never the issueField, no duplicates", () => {
+    const def: CheckDefinition = {
+      kind: "SIMPLE",
+      logic: "AND",
+      conditions: [
+        { field: "total_settled", operator: "NOT_EMPTY" },
+        { field: "total_settled", operator: "DIFFERS_BY_MORE_THAN", compareField: "expected_settlement", toleranceAmount: 1 },
+      ],
+      issueField: "settled_amount",
+    };
+    expect(fieldsReadBy(def).sort()).toEqual(["expected_settlement", "total_settled"]);
+  });
+  it("SIMPLE: a literal compareValue (not a field) contributes nothing", () => {
+    const def: CheckDefinition = { kind: "SIMPLE", logic: "AND", conditions: [{ field: "los_days", operator: "GREATER_THAN", compareValue: 30 }], issueField: "discharge_date" };
+    expect(fieldsReadBy(def)).toEqual(["los_days"]);
+  });
+  it("SIMPLE_FOR_EACH: the whole field list plus compareField", () => {
+    const def: CheckDefinition = { kind: "SIMPLE_FOR_EACH", fieldList: ["department", "treatment_or_surgery", "doctor_name"], operator: "EMPTY" };
+    expect(fieldsReadBy(def).sort()).toEqual(["department", "doctor_name", "treatment_or_surgery"]);
   });
 });

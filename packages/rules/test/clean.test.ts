@@ -36,6 +36,7 @@ const profile: HospitalProfile = {
   tpaCellMayHoldInsurer: true,
   insurerKeys: ["fakeinsurance"],
   paidMeaningOpenTabs: ["OLD"],
+  podStartDate: null,
 };
 const c = (text: string) => ({ text });
 
@@ -61,6 +62,7 @@ function row(over: Partial<SourceRow> = {}, cells: SourceRow["cells"] = {}): Sou
       payment_date: c("10/09/2026"),
       payment_utr: c("FAKEUTR00001"),
       tds_amount_stated: c("10000"),
+      policy_holder_name: c("Fake Holder"),
       ...cells,
     },
     ...over,
@@ -245,6 +247,44 @@ describe("dynamic rule status lifecycle (PROPOSED -> ACTIVE -> RETIRED)", () => 
     });
     expect(r.issues.find((i) => i.ruleId === "R-A07")).toBeUndefined();
     expect(r.rowClass).toBe("CLEAN");
+  });
+});
+
+// Stage 2c, 1-Nov: phone_number, policy_holder_name and courier_no (POD Number) were mappable
+// fields (fields.ts) that cleanRow never actually read or stored before - found while building
+// R-K04/R-K05/R-K06, fixed on the way (same pattern as 2a's discount_amount fix).
+describe("Stage 2c: fields clean.ts did not read before", () => {
+  it("phone_number, policy_holder_name and courier_no are stored and exposed to the engine", () => {
+    const r = cleanRow(profile, row({}, { phone_number: c("9876543210"), policy_holder_name: c("Fake Holder"), courier_no: c("POD123") }), opts);
+    expect(r.claim).toMatchObject({ phone_number: "9876543210", policy_holder_name: "Fake Holder", courier_no: "POD123" });
+  });
+
+  it("R-K04: policy number equal to phone number is asked", () => {
+    const r = cleanRow(profile, row({}, { policy_or_card_no: c("9876543210"), phone_number: c("9876543210") }), opts);
+    expect(r.issues.map((i) => i.ruleId)).toContain("R-K04");
+  });
+
+  it("R-K04: a different policy number and phone number: no issue", () => {
+    const r = cleanRow(profile, row({}, { policy_or_card_no: c("POLICY001"), phone_number: c("9876543210") }), opts);
+    expect(r.issues.map((i) => i.ruleId)).not.toContain("R-K04");
+  });
+
+  it("R-K05: Policy Holder Name empty while a claim number is present", () => {
+    const r = cleanRow(profile, row({}, { policy_holder_name: undefined }), opts);
+    expect(r.issues.map((i) => i.ruleId)).toContain("R-K05");
+  });
+
+  it("R-K06: POD Number empty while Hardcopy Sent Date is present, only from the hospital's POD Start Date", () => {
+    const withCasesheet = (cells: Parameters<typeof row>[1] = {}) => row({}, { casesheet_sent_date: c("20/09/2026"), courier_no: undefined, ...cells });
+    const noPodStart = cleanRow(profile, withCasesheet(), opts);
+    expect(noPodStart.issues.map((i) => i.ruleId)).not.toContain("R-K06"); // no POD Start Date set: the rule never runs
+
+    const withPodStart: HospitalProfile = { ...profile, podStartDate: "2026-09-01" };
+    const afterStart = cleanRow(withPodStart, withCasesheet(), opts);
+    expect(afterStart.issues.map((i) => i.ruleId)).toContain("R-K06"); // hardcopy sent after POD Start Date, POD Number still empty
+
+    const beforeStart = cleanRow({ ...withPodStart, podStartDate: "2026-10-01" }, withCasesheet(), opts);
+    expect(beforeStart.issues.map((i) => i.ruleId)).not.toContain("R-K06"); // hardcopy sent before POD Start Date
   });
 });
 

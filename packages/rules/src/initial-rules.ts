@@ -207,4 +207,61 @@ export const INITIAL_RULES: SeedRule[] = [
   simple("R-X01", "Status sources disagree", "W", "claim_status", "AND",
     [{ field: "status_sources_disagree", operator: "FLAG_TRUE" }],
     "The tab, status column and row colour do not all agree on the status.", "ASK_STAFF"),
+
+  // --- Stage 2c: cross-row rules (decisions.md section 7). The comparison itself stays in
+  // code (packages/worker/src/identity.ts, packages/rules/src/two-part.ts: the flat per-row
+  // engine above cannot compare one row against another), the same allowed exception as
+  // R-C01/R-N02 above; only severity, action and staffMessage are read from here, which the
+  // reading-level REFERENCE rows above still do not do (unchanged, out of scope for 2c).
+  // R-Y03 was deliberately kept ACTIVE (not retired) by the 2a migration; its wording moves
+  // here now. checkDefinition stays undefined, so these never reach the engine (toEngineRule
+  // in clean.ts requires one) - they exist here only so severity/action/message are data.
+  {
+    ruleId: "R-Y03",
+    type: "CHECK",
+    title: "Same patient with the same admission date under another claim number",
+    status: "ACTIVE",
+    severity: "W",
+    action: "ASK_STAFF",
+    staffMessage: "Same patient with the same admission date under another claim number.",
+  },
+  {
+    ruleId: "R-K01",
+    type: "CHECK",
+    title: "Same UTR appears on more than one claim",
+    status: "ACTIVE",
+    severity: "W",
+    action: "ASK_STAFF",
+    staffMessage: "Same UTR appears on more than one claim: please confirm this is not a data entry error.",
+  },
+  {
+    ruleId: "R-K02",
+    type: "CHECK",
+    title: "Claim number repeats under a different admission or discharge date",
+    status: "ACTIVE",
+    severity: "W",
+    action: "ASK_STAFF",
+    staffMessage: "Claim number {preauth_or_claim_no} repeats under a different admission or discharge date.",
+  },
+
+  // --- Stage 2c: Anoop's decisions of 1-Nov-2026 ---
+  simple("R-K04", "Policy number equals phone number", "W", "policy_or_card_no", "AND",
+    [{ field: "policy_or_card_no", operator: "EQUALS", compareField: "phone_number" }],
+    "Policy number is the same as the phone number: please confirm this is correct.", "ASK_STAFF"),
+  simple("R-K05", "Policy Holder Name empty with a claim number present", "W", "policy_holder_name", "AND",
+    [
+      { field: "policy_holder_name", operator: "EMPTY" },
+      { field: "preauth_or_claim_no", operator: "NOT_EMPTY" },
+    ],
+    "Policy Holder Name is empty but a claim number is present.", "ASK_STAFF"),
+  // POD Number rules run only from the hospital's POD Start Date (decisions.md section 8): with
+  // no POD Start Date set, pod_start_date resolves to null, AFTER always returns false, and the
+  // rule never fires - no extra code needed for "if a hospital has none yet, it does not run".
+  simple("R-K06", "POD Number empty while Hardcopy Sent Date is present", "W", "courier_no", "AND",
+    [
+      { field: "courier_no", operator: "EMPTY" },
+      { field: "casesheet_sent_date", operator: "NOT_EMPTY" },
+      { field: "casesheet_sent_date", operator: "AFTER", compareField: "pod_start_date" },
+    ],
+    "Hardcopy was sent on {casesheet_sent_date} but no POD Number is recorded.", "ASK_STAFF"),
 ];

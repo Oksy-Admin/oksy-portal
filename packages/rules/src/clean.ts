@@ -55,6 +55,8 @@ export interface HospitalProfile {
   insurerKeys: string[];
   /** Tabs whose paid cell meaning (gross or net) is still an open question: no Discount 2. */
   paidMeaningOpenTabs: string[];
+  /** POD Number rules (R-K06) run only from this date on; null = the rule never fires (decisions.md section 8). */
+  podStartDate: string | null;
 }
 
 export interface SourceRow {
@@ -101,6 +103,8 @@ export interface CleanClaim {
   patient_name: string | null;
   patient_ip_no: string | null;
   policy_or_card_no: string | null;
+  phone_number: string | null;
+  policy_holder_name: string | null;
   preauth_or_claim_no: string | null;
   admission_date: string | null;
   discharge_date: string | null;
@@ -117,6 +121,8 @@ export interface CleanClaim {
   /** The hospital's own "Discount" column (decisions section 8); compared with deduction_amount by rule R-F01. */
   discount_amount: string | null;
   casesheet_sent_date: string | null;
+  /** POD Number (column-dictionary.md section 1); rules apply from the hospital's POD Start Date. */
+  courier_no: string | null;
   followup_log: string | null;
   claim_status: Stage;
   status_source: "column" | "colour" | "remarks" | "tab" | "unknown";
@@ -246,6 +252,14 @@ export interface CleanOptions {
   dateOrder: DateOrder | "MIXED";
   tds?: TdsChoice;
   ruleVersions?: RuleVersion[];
+  /**
+   * Two-part approval (decisions.md section 7, 1-Nov): a confirmed second part's own payments,
+   * merged in so Total Settled / Total TDS / Balance are computed over both parts together.
+   * Only ever set by packages/rules/src/two-part.ts, after a person has confirmed the match.
+   */
+  extraPayments?: Array<{ amount: string | null; date: string | null; utr: string | null; tdsStated: string | null }>;
+  /** Two-part approval: the "Part 1 ... | Part 2 ..." breakdown, appended after the row's own remarks. */
+  remarksSuffix?: string | null;
 }
 
 export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): CleanRow {
@@ -326,6 +340,10 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
   // Identity and case
   const patient = text("patient_name");
   const claimNo = ident("preauth_or_claim_no", true);
+  const policyOrCardNo = ident("policy_or_card_no");
+  const phoneNumber = ident("phone_number");
+  const policyHolderName = text("policy_holder_name");
+  const courierNo = ident("courier_no");
   let admission = date("admission_date");
   let discharge = date("discharge_date");
   const casesheet = date("casesheet_sent_date");
@@ -449,8 +467,17 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     payments.push({ paymentNo: 1, paymentDate, utrNo: utrs, amountReceived: settledCell, tdsAmountStated: tdsStated, flags: pf });
     if (utrGroups.length > 1) flags.push("AMOUNT_SPLIT_UNKNOWN");
   }
+  // Two-part approval (decisions.md section 7, 1-Nov): a confirmed second part's own payments,
+  // added as their own payment rows (never merged into one, each keeps its own UTR).
+  const extraUtrs: string[] = [];
+  for (const p of o.extraPayments ?? []) {
+    const u = p.utr ? p.utr.split("|") : [];
+    extraUtrs.push(...u);
+    payments.push({ paymentNo: payments.length + 1, paymentDate: p.date, utrNo: u, amountReceived: p.amount, tdsAmountStated: p.tdsStated, flags: [] });
+  }
+  const allUtrs = [...utrs, ...extraUtrs];
   let utrShapeInvalid = false;
-  for (const u of utrs) {
+  for (const u of allUtrs) {
     if (u.length < 8 || u.length > 25 || /[^A-Z0-9]/.test(u)) {
       utrShapeInvalid = true;
       break;
@@ -528,7 +555,7 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
   const isSettled = stage === "SETTLED";
   const isRejected = stage === "REJECTED";
   const isCancelled = stage === "CANCELLED";
-  const hasUtr = utrs.length > 0;
+  const hasUtr = allUtrs.length > 0;
   const totalSettledVal = money.totalSettled.value;
   const losDays = admission && discharge ? daysBetween(admission, discharge) : null;
 
@@ -554,6 +581,11 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
       claim_status: stage,
       patient_name: patient,
       preauth_or_claim_no: claimNo,
+      policy_or_card_no: policyOrCardNo,
+      phone_number: phoneNumber,
+      policy_holder_name: policyHolderName,
+      courier_no: courierNo,
+      pod_start_date: p.podStartDate,
       department,
       treatment_or_surgery: treatment,
       doctor_name: doctor,
@@ -603,7 +635,9 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     tpa_name: tpa,
     patient_name: patient,
     patient_ip_no: ident("patient_ip_no"),
-    policy_or_card_no: ident("policy_or_card_no"),
+    policy_or_card_no: policyOrCardNo,
+    phone_number: phoneNumber,
+    policy_holder_name: policyHolderName,
     preauth_or_claim_no: claimNo,
     admission_date: admission,
     discharge_date: discharge,
@@ -618,6 +652,7 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     deduction_amount: fmt(money.deduction.value),
     discount_amount: discountStated,
     casesheet_sent_date: casesheet,
+    courier_no: courierNo,
     followup_log: r.cells.followup_log?.text?.trim() || null,
     claim_status: stage,
     status_source: source,
@@ -625,8 +660,8 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     cancellation_reason: r.cells.cancellation_reason?.text?.trim() || null,
     settled_amount: fmt(money.totalSettled.value),
     settlement_date: money.settlementDate,
-    utr_no: utrs,
-    remarks: r.cells.remarks?.text?.trim() || null,
+    utr_no: allUtrs,
+    remarks: [r.cells.remarks?.text?.trim() || null, o.remarksSuffix ?? null].filter(Boolean).join(" | ") || null,
     los_days: losDays,
     date_swap_applied: dateSwapApplied,
     tds_rate_used: money.tdsRateSource ? chosenTds.rate : null,
