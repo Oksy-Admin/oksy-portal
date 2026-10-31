@@ -43,9 +43,15 @@ export interface HospitalProfile {
   colourLegend: Record<string, ColourMeaning>;
   /** nameKey(spelling) -> confirmed standard doctor name (G3, staff answer). */
   doctorAliases: Record<string, string>;
+  /** nameKey(spelling) -> confirmed standard insurer name (Stage 2b dictionary, one list per scheme). */
+  insurerAliases: Record<string, string>;
+  /** nameKey(spelling) -> confirmed standard TPA name (Stage 2b dictionary, one list per scheme). */
+  tpaAliases: Record<string, string>;
+  /** nameKey(spelling) -> confirmed standard department name (Stage 2b dictionary, one list per scheme). */
+  departmentAliases: Record<string, string>;
   /** Confirmed: a TPA cell holding an insurer name means no separate TPA (HMS 25-Oct). */
   tpaCellMayHoldInsurer: boolean;
-  /** Known insurer name keys, to recognise an insurer in the TPA cell. */
+  /** Known insurer name keys (Stage 2b: the scheme's confirmed insurer dictionary), to recognise an insurer in the TPA cell. */
   insurerKeys: string[];
   /** Tabs whose paid cell meaning (gross or net) is still an open question: no Discount 2. */
   paidMeaningOpenTabs: string[];
@@ -359,7 +365,23 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
   }
 
   let insurer = text("insurer_name");
+  if (insurer) {
+    const std = p.insurerAliases[nameKey(insurer)];
+    if (std && std !== insurer) {
+      changes.push({ field: "insurer_name", oldValue: insurer, newValue: std, ruleId: "M-ALIAS-INSURER", tier: "B" });
+      extra["insurer_name (as entered)"] = insurer;
+      insurer = std;
+    }
+  }
   let tpa = text("tpa_name");
+  if (tpa) {
+    const std = p.tpaAliases[nameKey(tpa)];
+    if (std && std !== tpa) {
+      changes.push({ field: "tpa_name", oldValue: tpa, newValue: std, ruleId: "M-ALIAS-TPA", tier: "B" });
+      extra["tpa_name (as entered)"] = tpa;
+      tpa = std;
+    }
+  }
   if (p.tpaCellMayHoldInsurer && tpa && p.insurerKeys.some((k) => nameKey(tpa!).includes(k))) {
     if (!insurer) {
       changes.push({ field: "insurer_name", oldValue: null, newValue: tpa, ruleId: "HMS-TPA-IS-INSURER", tier: "B" });
@@ -395,7 +417,15 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     sel = selectRules(o.ruleVersions, ruleContext);
   }
 
-  const department = text("department");
+  let department = text("department");
+  if (department) {
+    const std = p.departmentAliases[nameKey(department)];
+    if (std && std !== department) {
+      changes.push({ field: "department", oldValue: department, newValue: std, ruleId: "M-ALIAS-DEPARTMENT", tier: "B" });
+      extra["department (as entered)"] = department;
+      department = std;
+    }
+  }
   const treatment = text("treatment_or_surgery");
   for (const f of ["department", "treatment_or_surgery", "doctor_name"] as const) {
     if (r.cells[f] === undefined) nullReasons[f] = "NOT_RECORDED_IN_SOURCE"; // the sheet has no such column

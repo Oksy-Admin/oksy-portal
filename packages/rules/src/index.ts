@@ -12,3 +12,4 @@ export * from "./clean.ts";
 export * from "./tabs.ts";
 export * from "./engine.ts";
 export * from "./initial-rules.ts";
+export * from "./dictionary.ts";
