@@ -191,16 +191,34 @@ function stageFromColour(m: ColourMeaning, hasApproved: boolean): Stage | null {
   }
 }
 
+/**
+ * Claim identity (decision section 7, 30-Oct night): same claim = same claim number + same
+ * admission date + same discharge date, inside one hospital + scheme. A blank date is "-" (a
+ * patient still in hospital has no discharge date yet). Without a claim number the fallback
+ * is patient name + admission date.
+ */
 export function recordKeyFor(
   p: HospitalProfile,
   claimNo: string | null,
   patient: string | null,
   doa: string | null,
+  dod: string | null = null,
 ): { key: string | null; type: "CLAIM_NO" | "FALLBACK" | null } {
   const base = `${p.hospitalCode}|${p.scheme}`;
-  if (claimNo) return { key: `${base}|C:${claimNo.toUpperCase().replace(/\s+/g, "")}`, type: "CLAIM_NO" };
+  if (claimNo) return { key: `${base}|C:${claimNo.toUpperCase().replace(/\s+/g, "")}|${doa ?? "-"}|${dod ?? "-"}`, type: "CLAIM_NO" };
   if (patient && doa) return { key: `${base}|F:${nameKey(patient)}|${doa}`, type: "FALLBACK" };
   return { key: null, type: null };
+}
+
+/**
+ * The key the same claim had before its discharge date was known ("-"), or null when the key
+ * is not a claim-number key or has no discharge date. A claim found under this key keeps its
+ * record (record_uid) when the discharge date is filled in.
+ */
+export function openKeyOf(key: string): string | null {
+  const parts = key.split("|");
+  if (parts.length !== 5 || !parts[2]?.startsWith("C:") || parts[4] === "-") return null;
+  return [...parts.slice(0, 4), "-"].join("|");
 }
 
 export interface CleanOptions {
@@ -484,7 +502,7 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     bucket = pendingDays > 180 ? "180+" : pendingDays > 90 ? "91-180" : pendingDays > 60 ? "61-90" : null;
   }
 
-  let { key, type } = recordKeyFor(p, claimNo, patient, admission);
+  let { key, type } = recordKeyFor(p, claimNo, patient, admission, discharge);
   if (!key) {
     // Never dropped: kept under its row reference until staff give a claim no or name + date.
     maybeIssue("R-N02", "E", "C", false, "record_key", "No claim no, or no patient name and admission date");

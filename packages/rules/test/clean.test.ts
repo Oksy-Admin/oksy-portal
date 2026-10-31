@@ -66,7 +66,7 @@ describe("worked example in the stored row values", () => {
   });
   it("one payment, record key from the claim no, doctor name standardised (tier B = AUTO_FIXED)", () => {
     expect(r.payments).toHaveLength(1);
-    expect(r.recordKey).toBe("HOSP32P900001|PRIVATE|C:CLM001");
+    expect(r.recordKey).toBe("HOSP32P900001|PRIVATE|C:CLM001|2026-08-01|2026-08-05"); // claim no + DOA + DOD (decision section 7)
     expect(r.claim?.doctor_name).toBe("Dr. Fake Doctor");
     expect(r.changes.map((x) => x.ruleId)).toEqual(["M-ALIAS-DOCTOR"]);
     expect(r.rowClass).toBe("AUTO_FIXED");
