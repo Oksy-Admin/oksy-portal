@@ -29,10 +29,12 @@ import {
   type MappingRow,
   type SuggestFn,
 } from "./discovery.ts";
-import { defaultProfile, doctorAliasesFrom, HMS_CODE, HMS_HEADERS, HMS_SHEET, hmsProfile } from "./hms-profile.ts";
+import { syncDictionarySuggestions } from "./dictionary-sync.ts";
+import { HMS_HEADERS, HMS_SHEET } from "./hospital-headers.ts";
 import { checkSameClaims } from "./identity.ts";
+import { buildHospitalProfile, type DictionaryRow, type HospitalFacts } from "./profile.ts";
 import { emptyReconciliation, reconcile, type Reconciliation } from "./reconcile.ts";
-import { layoutOf, legendFrom, sourceRows, toRawTabs, type TabLayout } from "./sheet-data.ts";
+import { layoutOf, legendLabelsFrom, sourceRows, toRawTabs, type TabLayout } from "./sheet-data.ts";
 
 export interface Job {
   id: string;
@@ -256,24 +258,27 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     layouts.push(l);
   }
 
-  // 6. Hospital facts confirmed by staff (25-Oct answers) and the confirmed colour legend.
+  // 6. Hospital facts (hospitals table) and dictionaries (Stage 2b): only CONFIRMED rows are
+  //    ever applied without asking (decisions.md section 9, lane 1). A SUGGESTED row waits for
+  //    a person on the "Words and names to confirm" list.
   const legendTab = rawTabs.find((t) => kind[t.name] === "LEGEND");
-  const doctorQs = await db.select<{ id: string; question_text: string; status: string }>(
-    `questions?hospital_code=eq.${enc(sheet.hospital_code)}&question_type=eq.M&scope=eq.HOSPITAL&select=id,question_text,status`,
+  const legendLabels = legendLabelsFrom(legendTab);
+  const [factsRow] = await db.select<HospitalFacts>(
+    `hospital_profile_facts?hospital_code=eq.${enc(sheet.hospital_code)}&select=tab_stage_facts,tpa_cell_may_hold_insurer,paid_meaning_open_tabs`,
   );
-  const confirmedIds = new Set(
-    (
-      await db.select<{ question_id: string }>(
-        `answers?outcome=eq.CONFIRMED&question_id=in.(${doctorQs.map((q) => q.id).join(",") || "00000000-0000-0000-0000-000000000000"})&select=question_id`,
-      )
-    ).map((a) => a.question_id),
-  );
-  const doctorAliases = doctorAliasesFrom(doctorQs.map((q) => ({ ...q, confirmed: confirmedIds.has(q.id) })));
-  const legend = legendFrom(legendTab);
-
-  const profile = sheet.hospital_code === HMS_CODE
-    ? hmsProfile(legend, doctorAliases)
-    : defaultProfile(sheet.hospital_code, sheet.scheme, legend, doctorAliases);
+  const facts: HospitalFacts = factsRow ?? { tab_stage_facts: {}, tpa_cell_may_hold_insurer: false, paid_meaning_open_tabs: [] };
+  // Two reads, not an "or" filter: hospital-scoped kinds (status words, colours, doctors) and
+  // scheme-wide kinds (insurer, TPA, department names, hospital_code IS NULL).
+  const [hospitalDict, schemeDict] = await Promise.all([
+    db.select<DictionaryRow>(
+      `dictionary_entries?status=eq.CONFIRMED&scheme=eq.${enc(sheet.scheme)}&hospital_code=eq.${enc(sheet.hospital_code)}&select=kind,scheme,hospital_code,spelling_key,standard_value,status`,
+    ),
+    db.select<DictionaryRow>(
+      `dictionary_entries?status=eq.CONFIRMED&scheme=eq.${enc(sheet.scheme)}&hospital_code=is.null&select=kind,scheme,hospital_code,spelling_key,standard_value,status`,
+    ),
+  ]);
+  const dictRows = [...hospitalDict, ...schemeDict];
+  const profile = buildHospitalProfile(sheet.hospital_code, sheet.scheme, facts, dictRows);
 
   // 7. Clean every non-empty row; one date order for the sheet (file 02 section 3).
   const [rawRules, rawVersions] = await Promise.all([
@@ -330,6 +335,30 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   );
   const cleaned = await step("clean", () => srcRows.map((r) => cleanRow(profile, r, { today, dateOrder, ruleVersions })));
   const same = checkSameClaims(cleaned, sheet.scheme);
+
+  // 7b. New spellings this run go to the decision list once (Stage 2b); never blocks the run.
+  await step("dictionary-sync", async () => {
+    try {
+      const textOf = (f: "status_text" | "doctor_name" | "insurer_name" | "tpa_name" | "department") =>
+        srcRows.map((r) => r.cells[f]?.text?.trim()).filter((t): t is string => !!t);
+      await syncDictionarySuggestions(
+        db,
+        sheet.hospital_code,
+        sheet.scheme,
+        {
+          statusWords: textOf("status_text"),
+          doctors: textOf("doctor_name"),
+          insurers: textOf("insurer_name"),
+          tpas: textOf("tpa_name"),
+          departments: textOf("department"),
+          colours: legendLabels,
+        },
+        dataTabs.map((t) => t.name),
+      );
+    } catch {
+      // Non-critical sidecar (decisions.md section 9): the spelling is listed again next run.
+    }
+  });
 
   // 8. Reconcile before any write.
   const rec = reconcile(dataTabs, layouts, cleaned);

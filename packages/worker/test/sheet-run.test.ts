@@ -1,7 +1,7 @@
 import { createReadPath, makeLogger, type CellData, type GoogleEvent, type SheetsReader } from "@oksy/google";
 import { describe, expect, it } from "vitest";
-import { HMS_CODE, HMS_SHEET } from "../src/hms-profile.ts";
-import { colourHex, legendFrom } from "../src/sheet-data.ts";
+import { HMS_CODE, HMS_SHEET } from "../src/hospital-headers.ts";
+import { colourHex, legendLabelsFrom } from "../src/sheet-data.ts";
 import { runSheetJob } from "../src/sheet-run.ts";
 import { decideAll, fakeDb } from "./fake-db.ts";
 
@@ -58,8 +58,14 @@ function seed() {
       { spreadsheet_id: HMS_SHEET, tab_name: "COLOURS", policy: "ALLOW", kind: "LEGEND" },
       { spreadsheet_id: HMS_SHEET, tab_name: "PORTAL LIST", policy: "DENY", kind: null },
     ],
-    questions: [{ id: "q1", hospital_code: HMS_CODE, question_type: "M", scope: "HOSPITAL", status: "ANSWERED", question_text: 'Doctor name "Dr. Fake Std" for the spellings: Dr Fake; DR FAKE' }],
-    answers: [{ question_id: "q1", outcome: "CONFIRMED" }],
+    // Stage 2b: confirmed facts and dictionary come from hospital_profile_facts /
+    // dictionary_entries, not hard-coded profile code or the old questions/answers path.
+    hospital_profile_facts: [{ hospital_code: HMS_CODE, tab_stage_facts: { PAID: "SETTLED" }, tpa_cell_may_hold_insurer: false, paid_meaning_open_tabs: [] }],
+    dictionary_entries: [
+      { kind: "DOCTOR", scheme: "PRIVATE", hospital_code: HMS_CODE, spelling_key: "drfake", standard_value: "Dr. Fake Std", status: "CONFIRMED" },
+      { kind: "COLOUR", scheme: "PRIVATE", hospital_code: HMS_CODE, spelling_key: "#ff9900", standard_value: "PAID", status: "CONFIRMED" },
+      { kind: "COLOUR", scheme: "PRIVATE", hospital_code: HMS_CODE, spelling_key: "#00ff00", standard_value: "CLAIM_SUBMITTED", status: "CONFIRMED" },
+    ],
   };
 }
 
@@ -215,11 +221,11 @@ describe("one HMS-shaped sheet run (fake data)", () => {
 });
 
 describe("colour legend", () => {
-  it("white is no colour; a label's fill becomes the legend; one fill for two meanings is left out", () => {
+  it("white is no colour; a label's fill becomes the legend label; two labels for one fill is left out", () => {
     expect(colourHex({ red: 1, green: 1, blue: 1 })).toBeNull();
     expect(colourHex({ red: 1, green: 0.6 })).toBe("#ff9900");
-    expect(legendFrom({ name: "COLOURS", rows: [[["PAID", null, "#ff9900"]], [["DISCHARGED", null, "#ff9900"]], [["CLAIM SUBMITTED", null, "#00ff00"]]] })).toEqual({
-      "#00ff00": "CLAIM_SUBMITTED",
+    expect(legendLabelsFrom({ name: "COLOURS", rows: [[["PAID", null, "#ff9900"]], [["DISCHARGED", null, "#ff9900"]], [["CLAIM SUBMITTED", null, "#00ff00"]]] })).toEqual({
+      "#00ff00": "CLAIM SUBMITTED",
     });
   });
 });
