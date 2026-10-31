@@ -104,7 +104,7 @@ Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_v
 
 **2c – Claim checks, two-part approvals, "value is correct"** (2 prompts; 1 migration)
 - **Cross-row rules** run after all rows of a hospital are read: same UTR on several claims, same patient + same admission date (moved from the 1d R-Y03 wording into the library), claim number repeat under the claim identity rule.
-- **Two-part approval:** combining method per question 2 below; parts stay as rows and are linked to one claim, never deleted; each part's payment stays its own payment with its own UTR. Claim-level checks (balance, settled equal to approved, TDS) and their issues and confirmations attach to the combined claim; payment checks stay on each part.
+- **Two-part approval:** combining method per `decisions.md` section 7 (1-Nov: same claim number + admission + discharge + same Approved Amount + different UTR, combined automatically); parts stay as rows and are linked to one claim, never deleted; each part's payment stays its own payment with its own UTR. Claim-level checks (balance, settled equal to approved, TDS) and their issues and confirmations attach to the combined claim; payment checks stay on each part.
 - **"Value is correct":** a person (decision list) or staff (Question Sheet, Stage 4) confirms a Warning once; stored in `issue_confirmations` (claim, rule, field, value fingerprint, who, when, reason). The fingerprint is made from the **cleaned** values of only the fields that rule reads, so a format fix (spaces, date format) never clears a confirmation. The Warning stays cleared until the value changes; never asked again. Errors cannot be confirmed away.
 - **Issue reason:** every issue shows the rule's message with the values involved (amounts and dates only, never names); the claims page shows it.
 - Clean status per claim and per hospital: zero Errors and zero Warnings (confirmed Warnings count as cleared).
@@ -136,7 +136,7 @@ Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_v
 
 **Design review (design-reviewer agent, 31-Oct):** "Change before build" – all applied above. Must: status words pre-filled across hospitals; default for names with no similar spelling (needs question 4); most specific rule wins; dictionary unique key with `nulls not distinct`. Should: dictionary entries retired not overwritten; two-part issues on the combined claim; fingerprint of cleaned values; rule test as a worker job; seed approver + batch; check set from Settled claims + accept new values; one words-and-names list across hospitals. Could: write only changed issues; hide old developer columns. Budget holds at 14; reserve goes to 2a first.
 
-**Questions for Anoop (31-Oct):** 1 rule conditions = simple conditions + fixed calculated-check kinds; 2 two-part approval combining method; 3 fresh initial rule list instead of the old 53 seed; 4 default for names with no similar spelling; 5 check-set pass rule. Text and recommendations in `claude/reports/last-report.md`.
+**Questions for Anoop (31-Oct):** 1 rule conditions = simple conditions + fixed calculated-check kinds — answered yes, built in 2a; 2 two-part approval combining method — answered 1-Nov, `decisions.md` section 7; 3 fresh initial rule list instead of the old 53 seed — answered yes, built in 2a; 4 default for names with no similar spelling — answered yes, built in 2b; 5 check-set pass rule — still open, needed for 2e.
 
 ## Stage 3 – Hosted worker
 
