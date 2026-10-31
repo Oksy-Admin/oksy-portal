@@ -1,45 +1,36 @@
-# Stage 2 plan – for your approval (31-Oct-2026)
+# 2a done – Rule engine as data (31-Oct-2026)
 
-**Status: plan written, nothing built. Decision needed: approve the plan + answer 5 yes/no questions.**
-Full plan: `claude/stage-plan.md`, section "Stage 2 plan".
+**Status: done, all checks pass. Decision needed: OK the migration SQL before it goes to live.**
+Branch: `stage-2-rule-library` (not merged to `main`, not pushed). Full evidence: `claude/stage-plan.md`, Stage 2 → 2a.
 
-## What we start from
-- Rule tables exist, but live has **0 rules**. The checks are written in code; the library only switches them on or off. That breaks "no rule is hard-coded", so 2a fixes it first.
-- The money code still uses the old "Discount 1 / Discount 2" model. It changes to today's money rules.
-- Status words, colours and insurer names are written in code (one file, with the old HMS code). They move into a table.
+## What changed
+- Every check the portal runs now comes from the Rule Library's data (a rule's condition, severity, scope, action and message), not from program code. A test fails the build if a business rule ID ever creeps back into the code.
+- About 30 rules loaded (old rule numbers kept where the meaning is the same): the dates, amounts, status and UTR checks from the requirements. A few reading-only checks (unreadable cell, non-data row, date out of a plausible range, header changed) stay in code, since they are about reading the sheet, not a business condition — they are still listed with a title.
+- Money rules rewritten to match decisions.md section 8: Deduction, Total Settled, Total TDS and Balance. **TDS is now only ever what the hospital wrote**, never worked out by the portal. The old "Discount 1 / Discount 2" model is gone.
+- The hospital's own "Discount" column is now read and compared with the computed Deduction — before, it was collected but never checked against anything.
+- The day-month swap (when a date's day and month could be swapped) now really swaps the date when that fixes a too-long stay, instead of only ever warning.
 
-## Sub-stages (14 prompts, inside the budget)
+## Checks
+`pnpm typecheck`, `pnpm lint`, `pnpm test` (273 tests), `pnpm build` all pass. The migration was tested on a throwaway local database (`bash scripts/db-test-local.sh`): every migration file replays cleanly and all 230+ database tests pass.
 
-| # | What is built | Done when | Migration | Prompts |
-|---|---|---|---|---|
-| 2a | Rule engine: every check comes from the Rule Library (simple conditions + calculated checks whose numbers sit in the rule). Money rules changed to today's rules. About 30 initial rules (requirements section 12) loaded. Most specific rule wins (for example an insurer's own TDS rate beats 10%). | No check written in code (a test enforces it); making a rule Inactive stops it on the next run; money rules match decisions section 8 | Rule definition columns + seed of initial rules (you shown as approver; can be undone as a group) | 2 |
-| 2b | Word and name lists: status words, insurer / TPA / department / doctor names. AI suggests, a person confirms once; confirmed spellings fixed automatically everywhere. Words confirmed in one hospital are pre-filled for the others ("Confirm all"). One list page across all hospitals. Day–month swap rule. | No word, colour or name list left in code; pilot words and names listed for confirmation | `dictionary_entries` table (+ insurer Hardcopy Required, hospital POD Start Date) | 2 |
-| 2c | Claim checks across rows (same UTR on several claims, same patient + same admission date), two-part approval combining, "value is correct" for Warnings (who, when; never asked again; a format fix does not undo it). Every issue shows its reason. | Tests pass for all these cases | `issue_confirmations` + two-part link | 2 |
-| 2d | Rule Library page: three-part form, edit (new version), Delete = Inactive, upload with preview, conflict warning on save, test before save (runs in the background, shows hits per hospital), plain-words box (AI fills the form, never saves). | A rule can be added, tested, edited, made Inactive and uploaded from the page; screen check passes | `save_rule_version` function | 2 |
-| 2e | Rule trial: per-hospital summary (Errors and Warnings per rule) that you approve once; questions in Stage 4 go out only after that. Check sets: you pick 5 known-correct claims per pilot; re-checked after every mapping, rule or name change; alert if one fails. | Trial and check sets work on test data | `rule_trials`, `check_set_claims` | 2 |
-| 2f | Real trial on the 3 pilots, you approve the 3 summaries and pick the check sets; code review of the whole stage; you push. | Stage done-criteria met | none expected | 2 |
-| – | Reserve for fixes (2a first, it is the largest) | – | – | 2 |
+## Migration waiting for your OK
 
-**Migrations to expect:** 5 (2a–2e), each shown to you before live, backup first.
+**File:** `supabase/migrations/20261031060500_rule_engine_data.sql`
+**Backup:** will be taken before applying, as always.
 
-**Your work in the stage (only in 2f):** decide the few headers still open (HMS MAIL SENT DATE, MAIL SUBJECT; TDS in Badagara and Tree G; a few value-shape items), confirm the pilot words and names, pick 5 claims per pilot, approve the 3 trial summaries. I will give you the exact list and screens at that time.
+**What it does:**
+1. Adds 4 new columns to the claims table for the new money fields (Discount as entered, Balance, and two comparison-only numbers), and a few columns to the Rule Library's `rule_versions` table so a rule's condition can be stored as data.
+2. Retires every rule that was active or proposed before today — except one (the "same patient, same admission date" check, which stays in code until a later sub-stage moves it into the library too). Nothing is deleted; retired rules keep their history.
+3. Loads the ~30 new rules as data, recording you as the approver with a note "approved with the Stage 2 plan."
 
-## Design review (design-reviewer agent): "Change before build" – all findings applied
-- Must: status words pre-filled from other hospitals (otherwise ~1,000 confirmations at 130 hospitals) – applied.
-- Must: default for department / doctor names with no similar spelling (otherwise ~6,000 confirmations) – applied, needs your yes (Q4).
-- Must: say which rule wins when a general and a specific rule both match – applied (most specific wins).
-- Must: one spelling can never map to two names (database key fix) – applied.
-- Should (applied): name changes keep history; two-part checks on the combined claim; "value is correct" survives format fixes; rule test runs in the background; initial rules recorded with you as approver; check sets from Settled claims with "accept new values"; one names list across all hospitals.
-- Could (applied): write only changed issues each run; hide old developer columns.
+**Nothing is deleted. No existing hospital, claim or payment data is touched.** Only the rule list and a few new/relabelled claim columns change.
 
-## Questions (yes/no)
+## What I deliberately left for later (not a problem now)
+- "Settlement Delay" (a reporting figure) isn't built yet — no rule in this batch needs it; it belongs with Stage 5's reports.
+- The "undo this batch of rules in one click" feature isn't built — reverting, if ever needed, is a two-line change by hand. The proper undo button is part of 2d (the Rule Library page itself).
+- A couple of old, unused columns on the Rule Library table are left as they are; hiding them from the page is 2d's job.
 
-1. **Rules = simple conditions + a fixed list of calculated checks?** Most rules are "field + condition + compare". Some (money balance, TDS rate, duplicates, same UTR, days without payment) need calculation; their kinds are fixed in code, but their numbers, severity, scope, message and on/off live in the Rule Library. Why: this is how "no rule is hard-coded" is built. A brand-new calculation kind would need code. **Recommend: yes.**
-2. **Two-part approval: combine only after a person confirms?** The portal finds rows with the same claim (number + admission + discharge date), both approved, with different approved amounts and different UTRs, and lists them once as "two parts of one approval?". After a yes: one claim, Approved = sum of the two parts, each payment kept with its own UTR. Why: the combining method was left for Stage 2; a wrong automatic combine would change approved amounts. **Recommend: yes.** (If the second approval in your hospitals is the new total, not an extra amount, answer no and say so.)
-3. **Start the Rule Library fresh** with about 30 rules from requirements sections 11–12, instead of the old 53-rule list (which has Claimed Amount and Discount 1/2 rules that no longer apply)? Old rule IDs kept where the meaning is the same. Why: live has 0 rules anyway; the old list conflicts with today's money rules. **Recommend: yes.**
-4. **Department and doctor names: keep as written when there is no similar spelling?** Only groups of similar spellings ("Dr. Rajesh" / "Dr Rajeesh") are asked; departments are one shared list for all hospitals of a scheme. Why: otherwise every name in every hospital needs a click (about 6,000 at 130 hospitals). Insurer, TPA and status words are still always confirmed once. **Recommend: yes.**
-5. **Check set passes when** the 5 claims have zero Errors and Warnings and their key values (dates, amounts, status, claim number) are unchanged; a change for a real reason (for example a new payment) is shown with one "accept new values" click? Why: this defines what the automatic re-check tests. **Recommend: yes.**
+## Next
+If you OK the migration, I'll apply it to live (backup first), then move to 2b (the word and name lists — status words, insurers, TPAs, departments, doctors).
 
-**Next:** if you approve, reply "Stage 2 approved" with the answers (for example "1 yes, 2 yes, …"). I then start with `/build-substage 2a`.
-
-Commit made: `docs: plan Stage 2` (stage-plan.md + this report). Nothing to push now.
+**Please reply:** "2a migration OK" (or tell me what to change).
