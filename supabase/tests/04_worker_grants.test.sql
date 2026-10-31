@@ -15,12 +15,13 @@ select is(
       and has_table_privilege('service_role', c.oid, p.priv)),
   'answers.INSERT, answers.SELECT, change_log.INSERT, change_log.SELECT, '
   || 'claims_staging.INSERT, claims_staging.SELECT, claims_staging.UPDATE, column_mappings.INSERT, column_mappings.SELECT, '
-  || 'google_events.INSERT, google_events.SELECT, header_decisions.SELECT, hospital_sheets.SELECT, '
+  || 'dictionary_entries.INSERT, dictionary_entries.SELECT, '
+  || 'google_events.INSERT, google_events.SELECT, header_decisions.SELECT, hospital_profile_facts.SELECT, hospital_sheets.SELECT, '
   || 'issues.INSERT, issues.SELECT, issues.UPDATE, jobs.SELECT, mapping_fields.SELECT, payments.INSERT, payments.SELECT, payments.UPDATE, '
   || 'questions.INSERT, questions.SELECT, questions.UPDATE, reconciliations.INSERT, reconciliations.SELECT, '
   || 'record_keys.INSERT, record_keys.SELECT, rule_versions.SELECT, rules.SELECT, scheme_insurers.SELECT, sheet_tabs.INSERT, sheet_tabs.SELECT, sheet_tabs.UPDATE, '
   || 'snapshots.INSERT, snapshots.SELECT, version_groups.INSERT, version_groups.SELECT',
-  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 1b-i, the 1c reconcile, 1d and 1e, no others');
+  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 1b-i, the 1c reconcile, 1d, 1e and 2b, no others');
 
 -- 2. Named checks, so a failure says which right is wrong.
 select ok(has_table_privilege('service_role', 'public.mapping_fields', 'SELECT')
