@@ -21,12 +21,12 @@ select is((select count(*)::int from public.users_roles
             where email like 't-%@example.test' and user_id is not null), 4,
   'first sign-in links each registered email to its login');
 
--- 1. Invite only: an unregistered Google account cannot create a login.
-select throws_ok(
-  $$insert into auth.users (id, email, aud, role) values
-    ('00000000-0000-0000-0000-0000000000ff', 'stranger@example.test', 'authenticated', 'authenticated')$$,
-  '42501', 'This account is not registered for the Oksy portal',
-  'an unregistered account cannot sign in');
+-- 1. A new Google sign-in waits for approval (decisions section 3, 27-Oct): it gets an
+--    inactive USER row and sees nothing until Owner or Admin approves it.
+insert into auth.users (id, email, aud, role) values
+  ('00000000-0000-0000-0000-0000000000ff', 'stranger@example.test', 'authenticated', 'authenticated');
+select is((select role::text || '|' || active::text from public.users_roles where email = 'stranger@example.test'), 'USER|false',
+  'an unregistered account waits for approval (inactive USER)');
 
 -- Fake hospital and personal data.
 insert into public.hospitals (hospital_code, hospital_name) values ('HOSP32P999901', 'Test Hospital One');
@@ -52,11 +52,12 @@ select is((select count(*)::int from public.staff_contacts), 0, 'USER cannot see
 select is((select count(*)::int from public.desk_google_accounts), 0, 'USER cannot see desk Google accounts');
 select is((select count(*)::int from public.audit_log), 0, 'USER cannot see the audit log');
 select is((select count(*)::int from public.users_roles), 1, 'USER sees only their own role row');
-select is((select count(*)::int from public.hospitals where hospital_code = 'HOSP32P999901'), 1, 'USER can see hospital names');
-select is((select count(*)::int from public.rule_versions where rule_id = 'R-Z99'), 1, 'USER can view the rule library');
-select lives_ok(
+-- Stage 1 access model: a USER sees a page only with its view tick (none given here).
+select is((select count(*)::int from public.hospitals where hospital_code = 'HOSP32P999901'), 0, 'USER without the Hospitals view tick sees no hospital');
+select is((select count(*)::int from public.rule_versions where rule_id = 'R-Z99'), 0, 'USER without the Rule Library view tick sees no rule');
+select throws_ok(
   $$insert into public.rule_versions (rule_id, version, condition_text) values ('R-Z99', 2, 'user proposal')$$,
-  'USER can propose a rule (PROPOSED)');
+  '42501', null, 'USER without the Rule Library edit tick cannot propose a rule');
 select throws_ok(
   $$insert into public.rule_versions (rule_id, version, condition_text, status) values ('R-Z99', 3, 'sneaky', 'ACTIVE')$$,
   '42501', null, 'USER cannot insert an ACTIVE rule');
@@ -76,7 +77,7 @@ select throws_ok(
   '42501', null, 'HELPER cannot activate a rule by editing the table');
 select throws_ok($$select public.set_user_role('x@example.test', 'USER')$$,
   '42501', null, 'HELPER cannot manage users');
-select is((select count(*)::int from public.staff_contacts), 1, 'HELPER can see staff contacts (for messages)');
+select is((select count(*)::int from public.staff_contacts), 0, 'HELPER without the Hospitals edit tick sees no staff phones (Stage 1c)');
 select is((select count(*)::int from public.desk_google_accounts), 1, 'HELPER can see desk Google accounts (to share Question Sheets)');
 select lives_ok(
   $$insert into public.desk_google_accounts (hospital_code, email) values ('HOSP32P999901', 'desk.two@example.test')$$,
@@ -91,9 +92,9 @@ reset role;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000a2');
 set local role authenticated;
 select throws_ok($$select public.set_user_role('x@example.test', 'USER')$$,
-  '42501', 'Only an ADMIN can manage users', 'APPROVER cannot manage users');
+  '42501', null, 'APPROVER cannot manage users');
 select throws_ok($$select public.retire_user('t-helper@example.test')$$,
-  '42501', 'Only an ADMIN can manage users', 'APPROVER cannot retire users');
+  '42501', null, 'APPROVER cannot retire users');
 select lives_ok($$select public.approve_rule_version('00000000-0000-0000-0000-00000000b001', true, 'test approval')$$,
   'APPROVER can approve and activate a rule');
 reset role;

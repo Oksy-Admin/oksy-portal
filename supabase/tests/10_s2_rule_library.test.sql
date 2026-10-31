@@ -5,7 +5,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(13);
 
 insert into public.users_roles (email, role) values
-  ('t-approver@example.test', 'APPROVER'), ('t-helper@example.test', 'HELPER'), ('t-user@example.test', 'USER')
+  ('t-approver@example.test', 'ADMIN'), ('t-helper@example.test', 'HELPER'), ('t-user@example.test', 'USER')
 on conflict (email) do nothing;
 
 insert into auth.users (id, email, aud, role) values
@@ -55,12 +55,12 @@ select throws_ok(
   '42501', null, 'HELPER cannot approve or activate a rule');
 reset role;
 
--- 9. APPROVER can approve and activate a rule
+-- 9. ADMIN can approve and activate a rule (APPROVER was folded into Owner / Admin on 27-Oct)
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000a2');
 set local role authenticated;
 select lives_ok(
   $$select public.approve_rule_version((select id from public.rule_versions where rule_id = 'R-D02' and version = 2), true, 'S2 test approval')$$,
-  'APPROVER can approve and activate a rule');
+  'ADMIN can approve and activate a rule');
 select is((select status::text from public.rule_versions where rule_id = 'R-D02' and version = 2), 'ACTIVE',
   'approved rule version status became ACTIVE');
 reset role;

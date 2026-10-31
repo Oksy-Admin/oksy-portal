@@ -41,17 +41,18 @@ set local role authenticated;
 select throws_ok(
   $$select public.approve_column_mapping('00000000-0000-0000-0000-0000000000d1'::uuid, 'patient_name')$$,
   '42501',
-  'Only HELPER, APPROVER or ADMIN can approve column mappings (G1)',
-  'USER cannot approve column mapping'
+  null,
+  'USER without the Hospitals edit tick cannot approve a column mapping'
 );
 reset role;
 
--- 5. HELPER can approve column mapping (G1)
+-- 5. The Hospitals edit tick approves column mappings (decision section 5, 27-Oct night)
+insert into public.user_access_ticks (email, hospitals_add_edit) values ('t-s3-helper@example.test', true);
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
 set local role authenticated;
 select lives_ok(
   $$select public.approve_column_mapping('00000000-0000-0000-0000-0000000000d1'::uuid, 'patient_name')$$,
-  'HELPER can approve column mapping via G1'
+  'a user with the Hospitals edit tick approves a column mapping'
 );
 reset role;
 

@@ -1,4 +1,5 @@
--- Worker (service_role) table rights: exactly the ones in migrations 0004, 0005, 0007 and 0008, no others.
+-- Worker (service_role) table rights: exactly the ones in migrations 0004, 0005, 0007, 0008 and the
+-- Stage 1c reconcile (which also removed TRUNCATE / REFERENCES / TRIGGER everywhere), no others.
 -- The test database grants nothing by default (scripts/db-test-local.sh), as live.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -14,13 +15,12 @@ select is(
       and has_table_privilege('service_role', c.oid, p.priv)),
   'answers.INSERT, answers.SELECT, change_log.INSERT, change_log.SELECT, '
   || 'claims_staging.INSERT, claims_staging.SELECT, claims_staging.UPDATE, column_mappings.INSERT, column_mappings.SELECT, '
-  || 'discount2_decisions.INSERT, discount2_decisions.SELECT, '
-  || 'golden_tests.INSERT, golden_tests.SELECT, google_events.INSERT, google_events.SELECT, header_decisions.SELECT, hospital_sheets.SELECT, '
+  || 'google_events.INSERT, google_events.SELECT, header_decisions.SELECT, hospital_sheets.SELECT, '
   || 'issues.INSERT, issues.SELECT, issues.UPDATE, jobs.SELECT, payments.INSERT, payments.SELECT, payments.UPDATE, '
   || 'questions.INSERT, questions.SELECT, questions.UPDATE, reconciliations.INSERT, reconciliations.SELECT, '
   || 'record_keys.INSERT, record_keys.SELECT, rule_versions.SELECT, rules.SELECT, sheet_tabs.INSERT, sheet_tabs.SELECT, sheet_tabs.UPDATE, '
   || 'snapshots.INSERT, snapshots.SELECT',
-  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 0010 and 1b-i, no others');
+  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 1b-i and the 1c reconcile, no others');
 
 -- 2. Named checks, so a failure says which right is wrong.
 select ok(has_table_privilege('service_role', 'public.sheet_tabs', 'SELECT'), 'worker can read sheet_tabs');

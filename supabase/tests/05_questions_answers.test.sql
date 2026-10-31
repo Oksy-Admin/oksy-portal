@@ -2,7 +2,7 @@
 -- PROPOSED rules. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(10);
 
 insert into public.users_roles (email, role) values
   ('t-approver@example.test', 'APPROVER'), ('t-helper@example.test', 'HELPER'), ('t-user@example.test', 'USER');
@@ -16,7 +16,8 @@ create function pg_temp.act_as(p_uid text) returns void language sql as $$
          set_config('request.jwt.claim.sub', coalesce(p_uid, ''), true);
 $$;
 
--- The worker stores a fake pilot question, its answer and a Discount 2 proposal.
+-- The worker stores a fake pilot question and its answer. (Discount 2 decisions and Golden
+-- Tests were retired on 31-Oct with their tables.)
 set local role service_role;
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 insert into public.questions (id, q_code, hospital_code, question_type, origin, spreadsheet_id, tab_name, row_number,
@@ -26,17 +27,6 @@ values ('00000000-0000-0000-0000-00000000c001', 'P0-T5-001', 'HOSP32P000107', 'E
 insert into public.answers (id, question_id, channel, answer_value, outcome, source_file_id, source_tab, source_row)
 values ('00000000-0000-0000-0000-00000000d001', '00000000-0000-0000-0000-00000000c001', 'PILOT_WORKBOOK',
         'Final - hospital discount', 'CONFIRMED', 'FAKEanswers0000000000000001', 'TAB 5', 3);
-select lives_ok($$insert into public.discount2_decisions (id, hospital_code, spreadsheet_id, tab_name, row_number,
-    discount_2_amount, decision, reason, answer_id)
-  values ('00000000-0000-0000-0000-00000000e001', 'HOSP32P000107', 'FAKEsheet000000000000000000000003', 'PAID', 12,
-    500, 'ELIGIBLE', 'staff: Final - hospital discount', '00000000-0000-0000-0000-00000000d001')$$,
-  'the worker can store a Discount 2 proposal');
-select throws_ok($$insert into public.discount2_decisions (hospital_code, spreadsheet_id, tab_name, row_number,
-    discount_2_amount, decision, status, reason)
-  values ('HOSP32P000107', 'FAKEsheet000000000000000000000003', 'PAID', 13, 100, 'ELIGIBLE', 'CONFIRMED', 'x')$$,
-  '42501', null, 'the worker cannot store a CONFIRMED decision');
-select throws_ok($$update public.discount2_decisions set status = 'CONFIRMED'$$, '42501', null,
-  'the worker cannot confirm a decision');
 select throws_ok($$insert into public.questions (q_code, hospital_code, question_type, origin, question_text,
     source_file_id, source_tab, source_question_no)
   values ('P0-T5-002', 'HOSP32P000107', 'E', 'PILOT_2026_10', 'again', 'FAKEanswers0000000000000001', 'TAB 5', '1')$$,
@@ -52,27 +42,16 @@ select ok(exists (select 1 from public.audit_log where table_name = 'answers' an
 -- USER sees no patient-related tables.
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000a4');
 set local role authenticated;
-select is((select count(*)::int from public.questions) + (select count(*)::int from public.answers)
-          + (select count(*)::int from public.discount2_decisions), 0, 'USER sees no questions, answers or Discount 2 decisions');
+select is((select count(*)::int from public.questions) + (select count(*)::int from public.answers), 0,
+  'USER sees no questions or answers');
 reset role;
 
--- HELPER does question work but cannot confirm G12 and cannot see Golden Tests.
+-- HELPER does question work.
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000a3');
 set local role authenticated;
 select is((select count(*)::int from public.answers), 1, 'HELPER can see answers');
-select throws_ok($$select public.confirm_discount2_decision('00000000-0000-0000-0000-00000000e001', true)$$,
-  '42501', 'Only ADMIN or APPROVER can confirm a Discount 2 decision (G12)', 'HELPER cannot confirm a Discount 2 decision');
-select is((select count(*)::int from public.golden_tests), 0, 'HELPER cannot see Golden Tests (raw patient rows)');
 reset role;
 
--- APPROVER confirms; the approver's user ID is stored.
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000a2');
-set local role authenticated;
-select lives_ok($$select public.confirm_discount2_decision('00000000-0000-0000-0000-00000000e001', true, 'test G12')$$,
-  'APPROVER can confirm a Discount 2 decision');
-reset role;
-select is((select confirmed_by::text from public.discount2_decisions where id = '00000000-0000-0000-0000-00000000e001'),
-  '00000000-0000-0000-0000-0000000000a2', 'the confirmation stores the approver''s user ID');
 
 -- The pilot rules exist and none is ACTIVE.
 select is((select count(*)::int from public.rule_versions where rule_id in ('R-H01', 'R-H02', 'R-H03')), 3,

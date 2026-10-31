@@ -26,16 +26,16 @@ select is((select count(*)::int from public._rls_probe), 0, 'no policy means no 
 reset role;
 
 -- 4. The private schema: anonymous visitors cannot use it at all; logged-in users may
---    call only the two role helpers that RLS policies need (from M2), nothing else.
+--    call only the role and tick helpers that RLS policies need, nothing else.
 select ok(
   not has_schema_privilege('anon', 'private', 'usage')
   and not exists (
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'private'
       and has_function_privilege('authenticated', p.oid, 'execute')
-      and p.proname not in ('current_app_role', 'has_role')
+      and p.proname not in ('current_app_role', 'has_role', 'has_tick')
   ),
-  'private schema: no anon access; authenticated may run only current_app_role and has_role'
+  'private schema: no anon access; authenticated may run only current_app_role, has_role and has_tick'
 );
 
 select * from finish();

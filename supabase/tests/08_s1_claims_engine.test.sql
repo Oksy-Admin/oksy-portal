@@ -3,7 +3,7 @@
 -- Fake data only (HOSP32P9xxxxx codes and FAKE sheet IDs are not real).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(24);
 
 insert into public.users_roles (email, role) values
   ('t8-approver@example.test', 'APPROVER'),
@@ -29,19 +29,18 @@ select is((select sync from public.hospital_sheets where sheet_key = 'HOSP32P000
   'the HMS PRIVATE sheet row exists with SYNC = YES (register v4)');
 
 -------------------------------------------------------------------------------
--- "Run now": ADMIN or APPROVER only; never a HOLD sheet; one active job per sheet
+-- "Run now": open to every approved user (decision section 3, 27-Oct); never a HOLD sheet;
+-- one active job per sheet
 -------------------------------------------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-0000000008a2');
 set local role authenticated;
-select throws_ok($$select public.request_sheet_run('HOSP32P908001|PRIVATE')$$, '42501',
-  'Only ADMIN or APPROVER can start a sheet run', 'HELPER cannot start a run');
+select throws_ok($$select public.request_sheet_run('HOSP32P908001|KASP')$$, '42501', null,
+  'a HOLD sheet is never queued (hard rule 4)');
+select lives_ok($$select public.request_sheet_run('HOSP32P908001|PRIVATE')$$, 'an approved user (here HELPER) queues a run');
 reset role;
 
 select pg_temp.act_as('00000000-0000-0000-0000-0000000008a1');
 set local role authenticated;
-select throws_ok($$select public.request_sheet_run('HOSP32P908001|KASP')$$, '42501', null,
-  'a HOLD sheet is never queued (hard rule 4)');
-select lives_ok($$select public.request_sheet_run('HOSP32P908001|PRIVATE')$$, 'APPROVER queues a run');
 select throws_ok($$select public.request_sheet_run('HOSP32P908001|PRIVATE')$$, '23505', null,
   'a second run for the same sheet is refused while one is queued');
 select is((select count(*)::int from public.jobs where sheet_key = 'HOSP32P908001|PRIVATE' and status = 'QUEUED'), 1,
