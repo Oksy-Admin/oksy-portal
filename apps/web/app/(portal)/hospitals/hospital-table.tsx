@@ -4,11 +4,12 @@ import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
 import { Pill } from "../ui";
 import { RunNowButton } from "../run-now";
+import { previewHospitalList, type UploadPreview } from "@/lib/hospital-upload";
 import {
   saveHospitalProfileAction,
   saveHospitalSchemeAction,
   triggerCheckAccessAction,
-  uploadHospitalListAction,
+  saveHospitalListAction,
 } from "./actions";
 
 export type SchemeLink = {
@@ -54,6 +55,12 @@ export function HospitalTable({ initialRows, canEdit, running = [] }: HospitalTa
   const [profileModalRow, setProfileModalRow] = useState<HospitalRowData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  /** The checked file waiting for "Save" (step 2 of the upload). */
+  const [upload, setUpload] = useState<{ preview: UploadPreview; text: string; message: string } | null>(null);
+  const closeUpload = () => {
+    setIsUploadModalOpen(false);
+    setUpload(null);
+  };
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Collect distinct schemes across all hospitals
@@ -119,13 +126,29 @@ export function HospitalTable({ initialRows, canEdit, running = [] }: HospitalTa
     });
   };
 
+  // Step 1: check the file in the browser and show every row (nothing is sent or saved).
   const handleUploadSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+    const file = new FormData(e.currentTarget).get("csv_file") as File | null;
+    if (!file || file.size === 0) {
+      setNotice({ message: "Please select a CSV file to upload." });
+      return;
+    }
     startTransition(async () => {
-      const res = await uploadHospitalListAction(null, fd);
+      const text = await file.text();
+      const preview = previewHospitalList(text);
+      if (preview.fileError) setNotice({ message: preview.fileError });
+      else setUpload({ preview, text, message: `${preview.rows.length} ${preview.rows.length === 1 ? "row" : "rows"} read, ${preview.errorCount} with problems.` });
+    });
+  };
+
+  // Step 2: save the checked file (refused while any row has a problem).
+  const handleUploadSave = () => {
+    if (!upload) return;
+    startTransition(async () => {
+      const res = await saveHospitalListAction(upload.text);
       setNotice({ message: res.message, details: res.details });
-      if (res.ok) setIsUploadModalOpen(false);
+      if (res.ok) closeUpload();
     });
   };
 
@@ -514,9 +537,56 @@ export function HospitalTable({ initialRows, canEdit, running = [] }: HospitalTa
 
       {/* Upload Hospital List Modal */}
       {isUploadModalOpen && (
-        <div className="modal-backdrop" onClick={() => setIsUploadModalOpen(false)}>
-          <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+        <div className="modal-backdrop" onClick={closeUpload}>
+          <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: upload ? 960 : 560 }}>
             <h3 style={{ marginTop: 0 }}>Upload Hospital List</h3>
+            {upload ? (
+              <div className="stack" data-testid="upload-preview">
+                <p style={{ margin: 0 }}>
+                  <strong>{upload.message}</strong>{" "}
+                  {upload.preview.errorCount > 0
+                    ? "Nothing can be saved until every row is right: correct the file and upload it again."
+                    : "Check the rows, then save."}
+                </p>
+                <div className="table-wrap" style={{ maxHeight: 360, overflow: "auto" }}>
+                  <table className="data">
+                    <thead>
+                      <tr>
+                        <th>Row</th>
+                        <th>Hospital ID</th>
+                        <th>Name</th>
+                        <th>Scheme</th>
+                        <th>Status</th>
+                        <th>Sheet</th>
+                        <th>Problems</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {upload.preview.rows.map((r) => (
+                        <tr key={r.row} style={r.errors.length ? { background: "rgba(220, 38, 38, 0.06)" } : undefined}>
+                          <td>{r.row}</td>
+                          <td>{r.hospitalCode || "—"}</td>
+                          <td>{r.hospitalName || "—"}</td>
+                          <td>{r.scheme}</td>
+                          <td>{r.status}</td>
+                          <td>{r.spreadsheetId ? "OK" : "—"}</td>
+                          <td style={{ color: r.errors.length ? "var(--red, #b91c1c)" : undefined }}>{r.errors.length ? r.errors.join(" ") : "OK"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                  <button type="button" className="btn secondary" onClick={() => setUpload(null)} disabled={isPending}>
+                    Choose another file
+                  </button>
+                  <button type="button" className="btn" data-testid="upload-save" onClick={handleUploadSave} disabled={isPending || upload.preview.errorCount > 0}>
+                    {isPending ? "Saving..." : `Save ${upload.preview.rows.length} ${upload.preview.rows.length === 1 ? "row" : "rows"}`}
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <>
             <p style={{ fontSize: 13, color: "var(--color-muted)" }}>
               Upload a CSV file containing hospital details and scheme Google Sheet links. One row per hospital + scheme.
             </p>
@@ -531,6 +601,7 @@ export function HospitalTable({ initialRows, canEdit, running = [] }: HospitalTa
                 <li><code>Scheme</code> (Private, KASP, or MEDISEP)</li>
                 <li><code>Google Sheet Link</code> (Google Sheet URL)</li>
                 <li><code>Question Sheet Link</code> (Optional)</li>
+                <li><code>District</code> (Optional)</li>
               </ol>
             </div>
 
@@ -559,16 +630,18 @@ export function HospitalTable({ initialRows, canEdit, running = [] }: HospitalTa
                   <button
                     type="button"
                     className="btn secondary"
-                    onClick={() => setIsUploadModalOpen(false)}
+                    onClick={closeUpload}
                   >
                     Cancel
                   </button>
                   <button type="submit" className="btn" disabled={isPending}>
-                    {isPending ? "Uploading..." : "Upload & Process"}
+                    {isPending ? "Checking..." : "Check file"}
                   </button>
                 </div>
               </div>
             </form>
+            </>
+            )}
           </div>
         </div>
       )}

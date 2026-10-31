@@ -1,19 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { extractSpreadsheetId, previewHospitalList } from "@/lib/hospital-upload";
 import { canEditHospitals } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 
 export type HospitalActionResult = { ok: boolean; message: string; details?: string[] };
-
-function extractSpreadsheetId(urlOrId: string): string | null {
-  const trimmed = urlOrId.trim();
-  if (!trimmed) return null;
-  const match = trimmed.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  if (match && match[1]) return match[1];
-  if (/^[a-zA-Z0-9-_]{20,}$/.test(trimmed)) return trimmed;
-  return null;
-}
 
 export async function saveHospitalProfileAction(
   _prev: HospitalActionResult | null,
@@ -142,197 +134,50 @@ export async function triggerCheckAccessAction(): Promise<HospitalActionResult> 
   }
 }
 
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let currentRow: string[] = [];
-  let currentVal = "";
-  let insideQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    const nextChar = text[i + 1];
-
-    if (char === '"') {
-      if (insideQuotes && nextChar === '"') {
-        currentVal += '"';
-        i++;
-      } else {
-        insideQuotes = !insideQuotes;
-      }
-    } else if (char === ',' && !insideQuotes) {
-      currentRow.push(currentVal.trim());
-      currentVal = "";
-    } else if ((char === '\r' || char === '\n') && !insideQuotes) {
-      if (char === '\r' && nextChar === '\n') i++;
-      currentRow.push(currentVal.trim());
-      if (currentRow.some((c) => c.length > 0)) {
-        rows.push(currentRow);
-      }
-      currentRow = [];
-      currentVal = "";
-    } else {
-      currentVal += char;
-    }
-  }
-  if (currentVal || currentRow.length > 0) {
-    currentRow.push(currentVal.trim());
-    if (currentRow.some((c) => c.length > 0)) {
-      rows.push(currentRow);
-    }
-  }
-  return rows;
-}
-
-export async function uploadHospitalListAction(
-  _prev: HospitalActionResult | null,
-  form: FormData
-): Promise<HospitalActionResult> {
+/**
+ * Hospital list upload (decision section 4, 27-Oct night): the browser shows the checked rows
+ * first (previewHospitalList, nothing saved); this saves them. The file is checked again here; nothing is saved while any
+ * row has a problem (correct the file and upload again). Each row goes through
+ * save_hospital_scheme, which checks the Hospitals edit tick and writes the audit log.
+ */
+export async function saveHospitalListAction(text: string): Promise<HospitalActionResult> {
   const me = await getMe();
   if (!canEditHospitals(me)) {
     return { ok: false, message: "Only Owner, Admin or users with the Hospitals edit tick can upload hospital lists." };
   }
-
-  const file = form.get("csv_file") as File | null;
-  if (!file || file.size === 0) {
-    return { ok: false, message: "Please select a CSV file to upload." };
-  }
-
-  const text = await file.text();
-  const parsed = parseCsv(text);
-  if (parsed.length < 2 || !parsed[0]) {
-    return { ok: false, message: "The CSV file must contain a header row and at least one data row." };
-  }
-
-  const headerRow = parsed[0];
-  const dataRows = parsed.slice(1);
-  const headerMap = new Map<string, number>();
-  headerRow.forEach((h, idx) => {
-    headerMap.set(h.toLowerCase().replace(/[^a-z0-9]/g, ""), idx);
-  });
-
-  const getCol = (row: string[] | undefined, ...names: string[]): string => {
-    if (!row) return "";
-    for (const name of names) {
-      const idx = headerMap.get(name.toLowerCase().replace(/[^a-z0-9]/g, ""));
-      if (idx !== undefined && row[idx] !== undefined) return row[idx].trim();
-    }
-    return "";
-  };
+  const preview = previewHospitalList(text);
+  if (preview.fileError) return { ok: false, message: preview.fileError };
+  if (preview.errorCount > 0) return { ok: false, message: `Nothing saved: ${preview.errorCount} rows have problems. Correct the file and upload it again.` };
 
   const supabase = await createClient();
-  let accepted = 0;
-  let rejected = 0;
-  const rejectionDetails: string[] = [];
-
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
-    const rowNum = i + 2;
-
-    const hospitalCode = getCol(row, "Hospital ID", "Hospital Code", "ID").toUpperCase();
-    const hospitalName = getCol(row, "Hospital Name", "Name");
-    const otherNamesRaw = getCol(row, "Other Names", "Aliases");
-    const statusRaw = getCol(row, "Status").toUpperCase() || "ACTIVE";
-    const status = statusRaw === "STOPPED" || statusRaw === "INACTIVE" ? "STOPPED" : "ACTIVE";
-    const schemeRaw = getCol(row, "Scheme").toUpperCase() || "PRIVATE";
-    const scheme = schemeRaw.includes("KASP") ? "KASP" : schemeRaw.includes("MEDISEP") ? "MEDISEP" : "PRIVATE";
-    const sheetUrl = getCol(row, "Google Sheet Link", "Sheet Link", "Sheet URL");
-    const questionSheetUrl = getCol(row, "Question Sheet Link", "Question Sheet URL") || null;
-
-    if (!hospitalCode) {
-      rejected++;
-      rejectionDetails.push(`Row ${rowNum}: Hospital ID is required.`);
-      continue;
+  let saved = 0;
+  const failed: string[] = [];
+  for (const r of preview.rows) {
+    const { error } = await supabase.rpc("save_hospital_scheme", {
+      p_hospital_code: r.hospitalCode,
+      p_hospital_name: r.hospitalName,
+      p_district: r.district,
+      p_scheme: r.scheme,
+      p_sheet_url: r.sheetUrl,
+      p_spreadsheet_id: r.spreadsheetId,
+      p_status: r.status,
+      p_sync: "YES",
+    });
+    if (!error && (r.otherNames.length > 0 || r.questionSheetUrl)) {
+      const extra = await supabase
+        .from("hospitals")
+        .update({ other_names: r.otherNames, question_sheet_url: r.questionSheetUrl })
+        .eq("hospital_code", r.hospitalCode);
+      if (extra.error) failed.push(`Row ${r.row} (${r.hospitalCode}): saved, but other names / Question Sheet link not saved: ${extra.error.message}`);
     }
-    if (!hospitalName) {
-      rejected++;
-      rejectionDetails.push(`Row ${rowNum} (${hospitalCode}): Hospital Name is required.`);
-      continue;
-    }
-    if (!sheetUrl) {
-      rejected++;
-      rejectionDetails.push(`Row ${rowNum} (${hospitalCode}): Google Sheet Link is required.`);
-      continue;
-    }
-
-    const spreadsheetId = extractSpreadsheetId(sheetUrl);
-    if (!spreadsheetId) {
-      rejected++;
-      rejectionDetails.push(`Row ${rowNum} (${hospitalCode}): Invalid Google Sheet link.`);
-      continue;
-    }
-
-    const otherNames = otherNamesRaw
-      ? otherNamesRaw.split(";").map((n) => n.trim()).filter(Boolean)
-      : [];
-
-    // 1. Upsert hospital
-    const { error: hospErr } = await supabase.from("hospitals").upsert(
-      {
-        hospital_code: hospitalCode,
-        hospital_name: hospitalName,
-        other_names: otherNames,
-        status: status,
-        question_sheet_url: questionSheetUrl,
-        district: "UNKNOWN",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "hospital_code" }
-    );
-
-    if (hospErr) {
-      rejected++;
-      rejectionDetails.push(`Row ${rowNum} (${hospitalCode}): Database error - ${hospErr.message}`);
-      continue;
-    }
-
-    // 2. Upsert hospital_sheets
-    const sheetKey = `${hospitalCode}|${scheme}`;
-    const { error: sheetErr } = await supabase.from("hospital_sheets").upsert(
-      {
-        sheet_key: sheetKey,
-        hospital_code: hospitalCode,
-        scheme: scheme,
-        sheet_status: "LINKED",
-        spreadsheet_id: spreadsheetId,
-        sheet_url: sheetUrl,
-        sync: "YES",
-        access_status: "NOT_CHECKED",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "sheet_key" }
-    );
-
-    if (sheetErr) {
-      rejected++;
-      rejectionDetails.push(`Row ${rowNum} (${hospitalCode}): Sheet error - ${sheetErr.message}`);
-      continue;
-    }
-
-    accepted++;
+    if (error) failed.push(`Row ${r.row} (${r.hospitalCode}): ${error.message}`);
+    else saved++;
   }
 
-  // Record upload batch in audit_log
-  await supabase.from("audit_log").insert({
-    actor_user_id: me?.userId ?? null,
-    actor_email: me?.email ?? null,
-    action: "UPLOAD",
-    table_name: "hospitals",
-    record_id: file.name || "hospital_list_upload.csv",
-    before: null,
-    after: {
-      file_name: file.name || "hospital_list_upload.csv",
-      total_rows: dataRows.length,
-      accepted_rows: accepted,
-      rejected_rows: rejected,
-    },
-    reason: `Bulk upload hospital list: ${accepted} accepted, ${rejected} rejected`,
-  });
-
   revalidatePath("/hospitals");
-
   return {
-    ok: accepted > 0,
-    message: `Upload complete: ${accepted} accepted, ${rejected} rejected.`,
-    details: rejectionDetails.slice(0, 10),
+    ok: failed.length === 0,
+    message: `Saved ${saved} of ${preview.rows.length} rows.${failed.length ? ` ${failed.length} problems below.` : ""}`,
+    details: failed.slice(0, 10),
   };
 }
