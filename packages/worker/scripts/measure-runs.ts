@@ -15,7 +15,7 @@ const RUNS = 3;
 /** Reads go to live; writes are counted and answered locally (fake ids when rows are asked back). */
 function noWriteDb(db: Db, counts: { inserts: number; updates: number; rpcs: number }): Db {
   return {
-    // Until migration 20261031140000 the worker key may not read mapping_fields: the run then
+    // Before migration 20261031055948 the worker key could not read mapping_fields: the run then
     // uses the code's field list (same timing).
     async select<T>(path: string) {
       try {
