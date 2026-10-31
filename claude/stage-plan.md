@@ -19,7 +19,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 | Stage | Content | Status |
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
-| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; plan approved 31-Oct-2026; 1b-i DONE 31-Oct-2026 (migration on live); 1b-ii DONE 31-Oct-2026 (migration on live); 1c DONE 31-Oct-2026 (migration on live, zero drift); 1d DONE 31-Oct-2026 (migration waiting for OK); next 1e** |
+| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; plan approved 31-Oct-2026; 1b-i DONE 31-Oct-2026 (migration on live); 1b-ii DONE 31-Oct-2026 (migration on live); 1c DONE 31-Oct-2026 (migration on live, zero drift); 1d DONE 31-Oct-2026 (migration on live, zero drift); next 1e** |
 | 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | Not started |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
@@ -79,7 +79,7 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 
 **Detailed plan for 1c, 1d, 1e (31-Oct-2026, drafted after 1b-ii; design review below).** Live facts checked read-only on 31-Oct: every repo migration is recorded as applied, but 11 tables are missing; `claims_staging` already has `scheme`; `rules` / `rule_versions` already have scheme fields; `claims_staging` is empty (0 rows), so key and column changes need no data move.
 
-**1d – DONE 31-Oct-2026; migration `20261031130000_claim_identity_history_source.sql` waiting for Anoop's OK (not applied).** Evidence:
+**1d – DONE 31-Oct-2026; migration `20261031054200_claim_identity_history_source.sql` applied to live 31-Oct after Anoop's OK (backup first). Drift check after: zero differences (790 names, fingerprint `2557c4048e98ad888bdc85a7c426d965`); 2 MEDISEP rows in `scheme_insurers`. Unused-table decision (`district_heads`, `open_checks`) left open until the Stage 1 close (Anoop, 31-Oct).** Evidence:
 - Commits `776c6cc` (claim identity in `recordKeyFor` + `openKeyOf`), `7f280d2` (worker: `checkSameClaims`, claims keep their record when the discharge date comes, AUTO lane), `9f38cb5` (migration + pgTAP 15).
 - Checks: typecheck, lint, build pass; 263 tests (rules 148, google 40, worker 44, web 31); pgTAP 230 checks pass on a fresh database.
 - Built: key = hospital + scheme + claim no + admission date + discharge date ("-" while unknown; fallback patient + admission date). In one run: an exact repeat is stored once and counted; the same claim with different values is flagged R-Y03 and kept as `#2`; the same patient with the same admission date under two claim numbers is a warning (not for KASP Dialysis); the same IP number with another claim number is not an error. A claim stored without a discharge date keeps its `record_uid` when the date comes (key moved, old key kept in `record_keys`, date change in `change_log` as SHEET). Lanes in `change_log.actor`: AUTO / SHEET / AI_ACCEPTED / HUMAN; person lanes need reason + who. `claims_staging.record_source` (GOOGLE_SHEET / TMS_IMPORT). `scheme_insurers` seeded with MEDISEP → Oriental Insurance → Vidal, FHPL (dates left empty).
