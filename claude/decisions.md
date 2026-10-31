@@ -13,20 +13,20 @@ Last updated: 31-Oct-2026 (prompting and token-saving rules).
 
 | # | Title | Lines |
 |---|---|---|
-| 1 | Purpose and direction | 34-44 |
-| 2 | Scope and users | 45-52 |
-| 3 | Access and roles | 53-62 |
-| 4 | Hospitals and sheets | 63-76 |
-| 5 | Column mapping | 77-104 |
-| 6 | Fields | 105-116 |
-| 7 | Claim identity and duplicates | 117-129 |
-| 8 | Money rules | 130-142 |
-| 9 | Cleaning engine and AI | 143-162 |
-| 10 | Runs, worker and change detection | 163-179 |
-| 11 | Question Sheets | 180-189 |
-| 12 | Reports and data | 190-197 |
-| 13 | Portal layout and UI | 198-204 |
-| 14 | How we work | 205-238 |
+| 1 | Purpose and direction | 36-46 |
+| 2 | Scope and users | 47-54 |
+| 3 | Access and roles | 55-64 |
+| 4 | Hospitals and sheets | 65-78 |
+| 5 | Column mapping | 79-106 |
+| 6 | Fields | 107-118 |
+| 7 | Claim identity and duplicates | 119-131 |
+| 8 | Money rules | 132-144 |
+| 9 | Cleaning engine and AI | 145-164 |
+| 10 | Runs, worker and change detection | 165-181 |
+| 11 | Question Sheets | 182-191 |
+| 12 | Reports and data | 192-199 |
+| 13 | Portal layout and UI | 200-206 |
+| 14 | How we work | 207-244 |
 | 15 | Superseded | moved to `claude/archive/decisions-superseded.md` |
 
 Line numbers are approximate (shift a little as the file is edited) — if in doubt, re-run the grep above.
@@ -95,12 +95,12 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 | SETTLEMENT DELAY | Ignore |
 | ROOM CATEGORY | room_category (fix the Badagara tab wrongly approved as room_no) |
 | UHID | new extra field "UHID" (hospital patient ID, not the IP number) |
-| TDS (amount column) | tds_amount_stated, with rules. TDS % column → Ignore |
+| TDS (amount column) | tds_amount_stated ("TDS Amount"), with rules. (The "TDS % column → Ignore" half of this row is superseded — see the plain-"TDS" bullet below.) |
 | REMARK (any remark column, including follow-up remarks) | one `remarks` field; values joined with "\|" and prefixed by the source column name |
 | DISCOUNT | discount_amount |
 | PAYMENT FOLLOW UP DATE | followup_date; data only, no rules, low priority |
 
-- **Plain "TDS" next to "TDS AMOUNT" (31-Oct):** in a hospital + scheme that also has a "TDS AMOUNT" header, a plain "TDS" header gets no stored decision from the old approvals (they disagreed). The value-based auto-Ignore (TDS rates) or the decision list handles it.
+- **Plain "TDS" header resolved per hospital (31-Oct, replaces the same-day note above — moved to the Superseded archive):** a new extra field `tds` (label "TDS %", type number) holds the TDS **rate** where a hospital's plain "TDS" header turns out to hold one. Badagara and Tree G's plain "TDS" headers map to this new `tds` field. HMS's plain "TDS" header maps to the core field `tds_amount_stated` (now labelled **"TDS Amount"**, was "TDS") instead, because its PAID/PENDING tabs are taken to hold a rupee amount there, not a rate — **still to be checked against the real sheet** (`claude/my-tasks.md`). A header literally named **"TDS %"** is still auto-Ignored (`column-dictionary.md` section 3); this decision only resolves the ambiguous plain "TDS" header, which is no longer auto-Ignored.
 
 - **AI in mapping** sees headers, cell shapes and counts only, never patient names, phones or policy numbers. (27-Oct)
 
@@ -238,6 +238,9 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 - **Unused old tables kept (31-Oct):** `district_heads` and `open_checks` (0 rows, no current writer) are kept for now, not removed. Removal is reviewed later with Anoop's OK.
 - **One migration per sub-stage** when a stage needs several: 1c and 1d each get their own migration and their own OK. (31-Oct)
 - **Repo housekeeping (31-Oct):** the repo (`claude/`, `handoff.md`, `CLAUDE.md`, `AGENTS.md`) is the only source of truth; the Claude Project holds only instructions plus a stable handoff pointer, never a mirror of working files — stop mirroring reports there. A GitHub Action (`.github/workflows/vercel-deploy-hook.yml`) calls the Vercel Deploy Hook on every push to `main` as a backup to Vercel's own Git auto-deploy, and Vercel's project-level "Skip deployments" / `git.deploymentEnabled` must stay `true` (it was found `false` in `apps/web/vercel.json`, silently blocking auto-deploys — fixed). `claude/my-tasks.md` is read first by `/plan-stage` and `/build-substage`; an open "Before each stage/sub-stage starts" item for the sub-stage blocks the start. Every `/close-substage` report opens with an "Anoop must do now" block built from live checks (Supabase MCP, Vercel MCP, `my-tasks.md`). Stage-plan evidence from now on is one status-table line plus detail in `claude/reports/`, never appended to `stage-plan.md` itself. Replies to Anoop in the terminal stay English (section 14 above); day-to-day chat replies may be in Malayalam.
+- **Setup list and "Active" status (31-Oct):** `claude/setup-checklist.md` is the one list of every repo/process setup (stage-level approval, skills, hooks, permissions, MCP servers, agents, scope-lock, etc.), each rated Must keep / Worthful / Can skip with a usage-cost and frequency note. A setup counts as **"Active"** only when `scripts/check-setup.sh` can actually confirm it (greps the repo, no Claude, no network); a setup that can't be grep-checked is tracked in the list but is never called "Active" on that basis alone. `/close-substage` runs this script every time; any FAIL goes in the "Anoop must do now" block.
+- **Health monitoring moves off a nightly Claude check (31-Oct):** the earlier idea of a nightly Claude-run health check is dropped in favour of a plain (non-Claude) GitHub Action that emails Anoop **only on failure** — covering the Vercel deploy status and, once it exists, the 6 AM worker run. This is built after the hosted worker exists (Stage 3), not now. "explain-usage" (a usage/cost summary) is explicitly **not** added to the `/close-substage` checkpoint — `scripts/check-setup.sh` plus the advisors check cover what that checkpoint needs.
+- **Model routing is agent-only, not skill-only (31-Oct, checked against the current Claude Code docs via Context7):** a subagent definition (`.claude/agents/*.md`) supports a `model` field (`opus`/`sonnet`/`haiku`/`inherit`) — `design-reviewer` and `code-reviewer` are now both set to `opus`. A `SKILL.md` (`/plan-stage`, `/build-substage`, `/close-substage`) has no `model` field in its frontmatter — a skill runs inline in whatever model the session is already using, so model routing for those three stays a human choice (pick Opus or Sonnet for the session before typing the command), not something the skill file can set. Project-level MCP servers in `.mcp.json` can include OAuth-based remote servers (not only plain token-free ones like Supabase/Context7) — but no Vercel MCP entry was added here: Vercel MCP already works in this session through the account's own connection, not through `.mcp.json`, and guessing its exact server URL/OAuth settings risks a broken or stuck entry. Anoop can add one properly later with `claude mcp add` from the terminal if a project-committed one is ever wanted.
 
 ## 15. Superseded (do not use)
 

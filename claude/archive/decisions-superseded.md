@@ -32,3 +32,5 @@ Moved out of `claude/decisions.md` section 15 on 31-Oct-2026 (housekeeping), to 
 | Phase 1 critical path = Stages 2, 3, 4, 5, 7 | New stage plan (`stage-plan.md`) |
 | Each sub-stage approved by Anoop before the next starts (27-Oct) | Stage-level approval (section 14, 31-Oct) |
 | Push after each sub-stage | Push once per stage (section 14, 31-Oct) |
+| TDS (amount column) → tds_amount_stated, with rules. TDS % column → Ignore (30-Oct, "7 headers" table) | TDS % column → Ignore kept only for a header literally named "TDS %"; a plain "TDS" header now maps to the new `tds` field (Badagara/Tree G) or to tds_amount_stated / "TDS Amount" (HMS) (section 5, 31-Oct) |
+| Plain "TDS" next to "TDS AMOUNT" gets no stored decision; value-based auto-Ignore or the decision list handles it (31-Oct, same day) | Resolved per hospital: new `tds` field (Badagara/Tree G) or TDS Amount (HMS, pending a sheet check) (section 5, 31-Oct) |

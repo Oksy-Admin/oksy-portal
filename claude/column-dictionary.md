@@ -43,7 +43,7 @@ Key: **C** = calculated by the portal (never taken from the sheet). **Ignore** =
 | payment_date | Settlement Date | date | Per payment |
 | payment_amount | Settled Amount | amount | Per payment; amount received after TDS |
 | payment_utr | UTR | text | Per payment; never guessed |
-| tds_amount_stated | TDS | amount | TDS amount as written by staff; rules apply. The TDS % column is Ignored |
+| tds_amount_stated | TDS Amount | amount | TDS amount as written by staff; rules apply. HMS's plain "TDS" header maps here (pending a sheet check, see `claude/my-tasks.md`); Badagara/Tree G's plain "TDS" maps to the `tds` field (section 2) instead. A header literally named "TDS %" is Ignored |
 | remarks | Remarks | text | Takes **every** remark column (including follow-up remarks); values joined with " \| " and prefixed by the source column name (prefix to be built in Stage 1b) |
 
 ## 2. Added fields (stored in `extra_fields`)
@@ -52,12 +52,13 @@ Key: **C** = calculated by the portal (never taken from the sheet). **Ignore** =
 |---|---|---|---|
 | balance_status | Balance Status | text | Not decided / Waived off / Grievance. Added 30-Oct. Mapping test waits for a safe source column; never map BALANCE AMOUNT here |
 | uhid | UHID | text | Hospital patient ID (not the IP number). To be added in Stage 1b |
+| tds | TDS % | number | A TDS **rate**, not an amount. Badagara and Tree G's plain "TDS" header maps here (31-Oct); HMS's plain "TDS" maps to `tds_amount_stated` instead |
 
 The live list also has 3 older custom fields (added 27-Oct); they are reviewed in Stage 1b.
 
 ## 3. Auto-Ignored columns (portal calculates its own)
 
-Never shown for approval: **Length of Stay**, **Settlement Delay**, **Balance Amount**, **TDS %**.
+Never shown for approval: **Length of Stay**, **Settlement Delay**, **Balance Amount**, and any header literally named **TDS %**. (A plain "TDS" header is not auto-Ignored — section 1/2 above says where it maps.)
 
 ## 4. Calculated by the portal
 
