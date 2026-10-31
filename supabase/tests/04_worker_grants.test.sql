@@ -18,9 +18,9 @@ select is(
   || 'google_events.INSERT, google_events.SELECT, header_decisions.SELECT, hospital_sheets.SELECT, '
   || 'issues.INSERT, issues.SELECT, issues.UPDATE, jobs.SELECT, payments.INSERT, payments.SELECT, payments.UPDATE, '
   || 'questions.INSERT, questions.SELECT, questions.UPDATE, reconciliations.INSERT, reconciliations.SELECT, '
-  || 'record_keys.INSERT, record_keys.SELECT, rule_versions.SELECT, rules.SELECT, sheet_tabs.INSERT, sheet_tabs.SELECT, sheet_tabs.UPDATE, '
+  || 'record_keys.INSERT, record_keys.SELECT, rule_versions.SELECT, rules.SELECT, scheme_insurers.SELECT, sheet_tabs.INSERT, sheet_tabs.SELECT, sheet_tabs.UPDATE, '
   || 'snapshots.INSERT, snapshots.SELECT',
-  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 1b-i and the 1c reconcile, no others');
+  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 1b-i, the 1c reconcile and 1d, no others');
 
 -- 2. Named checks, so a failure says which right is wrong.
 select ok(has_table_privilege('service_role', 'public.sheet_tabs', 'SELECT'), 'worker can read sheet_tabs');
