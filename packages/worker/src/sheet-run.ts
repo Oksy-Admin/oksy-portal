@@ -8,6 +8,7 @@ import {
   cleanRow,
   detectDateOrder,
   isEmptyRow,
+  openKeyOf,
   parseDate,
   type CleanRow,
   type RuleVersion,
@@ -27,6 +28,7 @@ import {
   type SuggestFn,
 } from "./discovery.ts";
 import { defaultProfile, doctorAliasesFrom, HMS_CODE, HMS_HEADERS, HMS_SHEET, hmsProfile } from "./hms-profile.ts";
+import { checkSameClaims } from "./identity.ts";
 import { emptyReconciliation, reconcile, type Reconciliation } from "./reconcile.ts";
 import { layoutOf, legendFrom, sourceRows, toRawTabs, type TabLayout } from "./sheet-data.ts";
 
@@ -63,6 +65,8 @@ export interface RunSummary {
   layoutProblems?: string[];
   /** Tab discovery of this run (requirements v2 section 5). */
   discovery?: DiscoverySummary;
+  /** Same claim inside this run (decision section 7): exact repeats not stored, conflicts and same-day patients flagged. */
+  identity?: { duplicates: number; conflicting: number; samePatientSameDay: number };
   /** Rows below the header: read, skipped as non-data (serial-only, totals, banners), data. */
   rows?: { read: number; nonData: number; data: number };
   ms: Record<string, number>;
@@ -313,7 +317,7 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     ),
   );
   const cleaned = await step("clean", () => srcRows.map((r) => cleanRow(profile, r, { today, dateOrder, ruleVersions })));
-  markDuplicateKeys(cleaned);
+  const same = checkSameClaims(cleaned, sheet.scheme);
 
   // 8. Reconcile before any write.
   const rec = reconcile(dataTabs, layouts, cleaned);
@@ -327,6 +331,7 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     discovery,
     rows: { read: srcRows.length, nonData: cleaned.filter((r) => r.rowClass === "NON_DATA_ROW").length, data: cleaned.filter((r) => r.rowClass !== "NON_DATA_ROW").length },
     issues: issueCounts(cleaned),
+    identity: { duplicates: same.duplicates.size, conflicting: same.conflicting, samePatientSameDay: same.samePatientSameDay },
     fixes: fixCounts(cleaned),
     ms,
   };
@@ -347,23 +352,8 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   if (job.mode === "DRY_RUN") return base;
 
   // 9. Write by upsert, never plain insert (file 03 section 4.9).
-  const written = await step("write", () => writeRows(db, job, sheet, fileId, cleaned, now()));
+  const written = await step("write", () => writeRows(db, job, sheet, fileId, cleaned.filter((r) => !same.duplicates.has(r)), now()));
   return { ...base, result: "WRITTEN", ...written };
-}
-
-/** Two rows with one record key: both kept and linked by a suffix, R-Y03 (never merged). */
-function markDuplicateKeys(rows: CleanRow[]): void {
-  const seen = new Map<string, number>();
-  for (const r of rows) {
-    if (!r.recordKey) continue;
-    const n = (seen.get(r.recordKey) ?? 0) + 1;
-    seen.set(r.recordKey, n);
-    if (n > 1) {
-      r.issues.push({ ruleId: "R-Y03", severity: "W", tier: "C", shadow: false, field: "record_key", detail: "Same record key on more than one row" });
-      r.recordKey = `${r.recordKey}#${n}`;
-      if (r.rowClass !== "NON_DATA_ROW") r.rowClass = "NEEDS_STAFF_INPUT";
-    }
-  }
 }
 
 function fixCounts(rows: CleanRow[]): Record<string, number> {
@@ -412,6 +402,19 @@ async function writeRows(db: Db, job: Job, sheet: SheetRow, fileId: string, rows
     `claims_staging?hospital_code=eq.${enc(sheet.hospital_code)}&scheme=eq.${enc(sheet.scheme)}&select=record_uid,record_key,content_hash,${CLAIM_COLUMNS.join(",")}`,
   );
   const byKey = new Map(existing.map((e) => [e.record_key, e]));
+
+  // A claim stored while the patient was still in hospital (no discharge date) keeps its record
+  // when the date is filled in: its key moves to the new one, the old key stays in record_keys,
+  // and the filled-in date is logged as a change (decision section 7; never a new claim).
+  for (const r of rows) {
+    if (!r.recordKey || !r.claim || byKey.has(r.recordKey)) continue;
+    const openKey = openKeyOf(r.recordKey);
+    const old = openKey ? byKey.get(openKey) : undefined;
+    if (!old || old.discharge_date != null) continue;
+    await db.update(`claims_staging?record_uid=eq.${enc(old.record_uid)}`, { record_key: r.recordKey });
+    byKey.delete(openKey!);
+    byKey.set(r.recordKey, { ...old, record_key: r.recordKey });
+  }
   const counts = { new: 0, changed: 0, unchanged: 0, missing: 0 };
   const changedRows: Array<Record<string, unknown>> = [];
   const unchangedRows: Array<Record<string, unknown>> = [];
@@ -478,7 +481,7 @@ async function writeRows(db: Db, job: Job, sheet: SheetRow, fileId: string, rows
       }
     }
     for (const c of r.changes) {
-      changeRows.push({ record_uid: uid, field: c.field, old_value: c.oldValue, new_value: c.newValue, rule_id: c.ruleId, tier: c.tier, actor: "ENGINE", job_id: job.id });
+      changeRows.push({ record_uid: uid, field: c.field, old_value: c.oldValue, new_value: c.newValue, rule_id: c.ruleId, tier: c.tier, actor: "AUTO", job_id: job.id });
     }
   }
   for (const b of chunks(changeRows, 500)) await db.insert("change_log", b);

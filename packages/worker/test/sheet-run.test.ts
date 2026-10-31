@@ -126,6 +126,45 @@ describe("one HMS-shaped sheet run (fake data)", () => {
     expect(db.tables.reconciliations?.map((r) => r.snapshot_id)).toEqual([db.tables.snapshots![0]!.id, db.tables.snapshots![0]!.id]);
   });
 
+  it("a claim stored while the patient was in hospital keeps its record when the discharge date comes", async () => {
+    const pending = TABS.PENDING![1]!;
+    const dod = pending[4]!;
+    pending[4] = v("", GREEN); // no discharge date yet
+    try {
+      const db = await confirmedDb();
+      await run(db, []);
+      const before = db.tables.claims_staging!.find((c) => c.preauth_or_claim_no === "FAKECLM003")!;
+      expect(before.record_key).toMatch(/\|C:FAKECLM003\|2026-09-03\|-$/);
+      pending[4] = dod;
+      const s = await run(db, []);
+      expect(s.result).toBe("WRITTEN");
+      expect(db.tables.claims_staging).toHaveLength(3); // the same claim, not a new one
+      const after = db.tables.claims_staging!.find((c) => c.preauth_or_claim_no === "FAKECLM003")!;
+      expect(after.record_uid).toBe(before.record_uid);
+      expect(after.record_key).toMatch(/\|C:FAKECLM003\|2026-09-03\|2026-09-06$/);
+      const keys = db.tables.record_keys!.filter((k) => k.record_uid === before.record_uid).map((k) => String(k.record_key));
+      expect(keys).toHaveLength(2); // the old key still points to the same claim
+      expect(keys.some((k) => k.endsWith("|2026-09-03|-")) && keys.some((k) => k.endsWith("|2026-09-03|2026-09-06"))).toBe(true);
+      expect(db.tables.change_log!.some((c) => c.record_uid === before.record_uid && c.field === "discharge_date" && c.old_value === null && c.new_value === "2026-09-06" && c.actor === "SHEET")).toBe(true);
+    } finally {
+      pending[4] = dod;
+    }
+  });
+
+  it("a row repeated exactly is stored once; the cleaning engine's own changes are tagged AUTO", async () => {
+    const paid = TABS.PAID!;
+    paid.splice(3, 0, paid[1]!); // FAKECLM001 twice, same values
+    try {
+      const db = await confirmedDb();
+      const s = await run(db, []);
+      expect(s.identity).toEqual({ duplicates: 1, conflicting: 0, samePatientSameDay: 0 });
+      expect(db.tables.claims_staging!.filter((c) => c.preauth_or_claim_no === "FAKECLM001")).toHaveLength(1);
+      expect(new Set(db.tables.change_log!.map((c) => c.actor))).toEqual(new Set(["AUTO"]));
+    } finally {
+      paid.splice(3, 1);
+    }
+  });
+
   it("a copy older than 12 months is deleted; a changed sheet gets a new copy", async () => {
     const db = await confirmedDb();
     await run(db, []);
