@@ -53,11 +53,12 @@ select is((select count(*)::int from public.answers), 1, 'HELPER can see answers
 reset role;
 
 
--- The pilot rules exist and none is ACTIVE.
+-- The pilot rules exist, history kept. Stage 2a retired them (old Discount 1/2 settlement
+-- discount parameters; decisions.md section 8 rewrote the money rules): none is ACTIVE.
 select is((select count(*)::int from public.rule_versions where rule_id in ('R-H01', 'R-H02', 'R-H03')), 3,
   'three pilot rules are stored');
-select is((select count(*)::int from public.rule_versions where rule_id in ('R-H01', 'R-H02', 'R-H03') and status <> 'PROPOSED'), 0,
-  'all pilot rules are PROPOSED, none ACTIVE');
+select is((select count(*)::int from public.rule_versions where rule_id in ('R-H01', 'R-H02', 'R-H03') and status = 'ACTIVE'), 0,
+  'none of the pilot rules is ACTIVE');
 select is((select status from public.hospitals where hospital_code = 'HOSP32P000107'), 'ACTIVE',
   'the pilot hospital is in the hospital list');
 
