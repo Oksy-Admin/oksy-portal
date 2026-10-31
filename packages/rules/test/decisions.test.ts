@@ -151,3 +151,28 @@ describe("remarks joined with the column name (decision 30-Oct)", () => {
     expect(joinColumnValues(["a", " b "])).toBe("a | b");
   });
 });
+
+describe("Balance Status is a column of its own (Stage 1c)", () => {
+  const decisions: HeaderDecision[] = [{ scheme: "PRIVATE", header_key: "balancestatus", canonical_field: "balance_status" }];
+  const layout = { map: [{ column: 0, header: "BALANCE STATUS" }, { column: 1, header: "BALANCE AMOUNT" }] };
+  const values = (c: number) => (c === 0 ? ["Pending", "Cleared", "Partly paid"] : ["1200", "0", "350"]);
+
+  it("is never auto-Ignored like Balance Amount", () => {
+    expect(autoIgnoreByHeader("BALANCE STATUS")).toBeNull();
+    expect(autoIgnoreByHeader("Bal Status")).toBeNull();
+    expect(autoIgnoreByHeader("BALANCE AMOUNT")).toBe("Balance Amount");
+  });
+
+  it("takes its decided field (a field added on the Fields page); Balance Amount stays ignored", () => {
+    const r = resolveLayout(layout, { scheme: "PRIVATE", decisions, values });
+    expect(r.needs).toEqual([]);
+    expect(r.map[0]).toMatchObject({ column: 0, custom: "balance_status", method: "MANUAL" });
+    expect(r.map[1]).toMatchObject({ column: 1, ignored: true });
+    expect(r.autoIgnored.map((a) => a.reason)).toEqual(["Balance Amount"]);
+  });
+
+  it("without a decision it waits on the decision list (never guessed from Balance Amount)", () => {
+    const r = resolveLayout(layout, { scheme: "PRIVATE", decisions: [], values });
+    expect(r.needs.map((n) => [n.header, n.reason])).toEqual([["BALANCE STATUS", "NOT_DECIDED"]]);
+  });
+});
