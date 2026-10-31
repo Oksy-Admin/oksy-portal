@@ -46,8 +46,8 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 |---|---|---|---|
 | 1 | 1b-i – mapping model core: approval per hospital + scheme, reuse on exact header, value-shape check, consistency guard, auto-Ignore, the 7 header decisions, Ignore saved as decided – **DONE 31-Oct-2026, 1 prompt** | 3 | mapping approval keyed on hospital + scheme + normalised header; move today's 452 rows to it; UHID extra field; fix the 7 headers |
 | 2 | 1b-ii – suggestions, "Confirm all", bulk confirm (max 50, undo as a group), approve speed, Playwright check, golden fixtures of the 3 pilot sheets (headers + value shapes, no patient data) – **DONE 31-Oct-2026, 1 prompt** | 2 | bulk-confirm batch table (for undo and the one audit entry) |
-| 3 | 1c – open items (bulk upload preview, `/hospitals` tick gate, change-log check, RLS read side, Balance Status test) | 2 | RLS read policies for 3 tables |
-| 4 | 1d – data foundations (scheme on every record, claim identity, claim history, record source, list of unused tables) | 3 | scheme columns; claim identity key; claim history table; record source |
+| 3 | 1c – open items (bulk upload preview, `/hospitals` tick gate, change-log check, RLS read side verify, Balance Status test) + schema drift reconcile + migration chain fix | 2 | reconcile live schema (7 missing tables the code uses; header_decisions read for hospitals_view) |
+| 4 | 1d – data foundations (claim identity, claim history via change_log, record source, Scheme → Insurer → TPA list, unused-table list; scheme parts already done) | 2 | change_log actor/reason/decided_by, record_source, scheme_insurers |
 | 5 | 1e – measurements (run time per sheet, Drive modified-time test) | 1 | none |
 | – | Reserve for fixes | 1 | – |
 
@@ -77,30 +77,39 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - Fix: Ignore choice not saved as decided; approve speed (about 10 seconds per field).
 - Done when: each pilot hospital needs each distinct header decided once; the 7 headers are correct; Ignore survives a refresh; a bulk confirm can be undone; tests pass.
 
-**1c – Open items from Stage 0**
-- Bulk upload preview before save.
-- `/hospitals` page gate on the `hospitals_view` tick (check what migration `20261030074539` already covers).
-- Change log: verify it records access, hospital, field and mapping changes.
-- RLS read side for `hospital_id_history`, `report_downloads`, `rule_upload_batches`.
-- `header_decisions` read policy: also allow the `hospitals_view` tick (today only `hospitals_add_edit`).
-- Fix the migration chain so a fresh database replays it (`scripts/db-test-local.sh`, CI): stray lines in `20261027000023`; `has_tick` (`20261027063143`) is used before it is created (renamed on 30-Oct to the live version numbers); the `OWNER` role value. Live is not changed; only the files and their order.
-- Balance Status mapping test (needs a safe source column; never BALANCE AMOUNT).
-- **Schema drift (found 31-Oct while planning, read-only):** 11 tables created by repo migrations are not on live, although every migration is recorded as applied (missing since at least 27-Oct): `snapshots`, `record_keys`, `change_log` (written by the worker in WRITE runs), `district_heads`, `hospital_aliases`, `open_checks`, `retired_ids`, `staff_contacts` (read by `/hospitals/[code]`), `golden_tests` (a script), `discount`, `import_runs` (unused). Plan needed: one reconcile migration so live matches the repo (create the used ones), and the unused / superseded ones go on the 1d removal list.
-- Already on live (verify + test only, no migration): RLS read policies of `hospital_id_history` (hospitals_view), `report_downloads` (clean_data_view), `rule_upload_batches` (rule_library_view).
-- Done when: each item is built or verified, with evidence in the status table.
+**Detailed plan for 1c, 1d, 1e (31-Oct-2026, drafted after 1b-ii; design review below).** Live facts checked read-only on 31-Oct: every repo migration is recorded as applied, but 11 tables are missing; `claims_staging` already has `scheme`; `rules` / `rule_versions` already have scheme fields; `claims_staging` is empty (0 rows), so key and column changes need no data move.
 
-**1d – Data foundations**
-- Scheme on every record; mapping key = hospital + scheme; scheme scope on rules; Scheme → Insurer → TPA list with valid-from / valid-to (space only; KASP/MEDISEP details later).
-- Claim identity: same claim number + admission date + discharge date; duplicate / flag / two-part handling prepared for Stage 2.
-- Change history for clean claims (never overwrite silently); audit records the lane and, for human decisions, the reason.
-- Record source on every claim (Google Sheet / TMS import).
-- List the old database tables that are no longer used; removing any of them needs Anoop's OK.
-- Done when: migrations are reviewed by Anoop and applied; tests cover claim identity and history.
+**Design review (design-reviewer agent, 31-Oct):** order 1c → 1d → 1e confirmed; no hard-rule problem. Applied: Must 1 (claims still in hospital keep their record), Must 2 (merge same-key rows before saving), Must 3 (reconcile policies written for the current role model), Must 4 (lane tag in `change_log.actor`, no second column); Should 7 (section 7/9 tests), 8 (API calls and quota in 1e), 9 (browser edit in 1e); Could 10 (no `part_no` now). Open for Anoop: Should 5 (snapshot only when the sheet changed + a retention period), Could 11 (one migration for 1c + 1d). Not applied: Should 6 (drift check needs Docker) – Docker runs on this Mac through colima (used on 31-Oct), so the check runs locally and in CI.
 
-**1e – Measurements**
-- Run time per sheet for the 3 pilots (needed for hosting cost).
-- Drive modified-time test: does every cell edit change it?
-- Done when: numbers and test result are written in the status table and shown to Anoop.
+**1c – Open items, schema drift, migration chain** (2 prompts; 1 migration)
+- **Migration chain (files only, live unchanged):** fresh replay must work for `scripts/db-test-local.sh` and CI. Remove the 2 stray lines in `20261027000023`; make `20261027000024` not depend on `has_tick` before `20261027063143` (move its policy statements into a guarded block or a later file, never rename applied versions again); fix the `OWNER` enum order. Update the stale pgTAP tests 00–11 to the current role model (OWNER/ADMIN/USER + ticks). Done when: `bash scripts/db-test-local.sh` passes in full on a fresh database.
+- **Reconcile migration `<live version>_reconcile_live_schema.sql`:** creates on live the tables the code uses: `snapshots`, `record_keys`, `change_log` (worker WRITE runs), `district_heads`, `open_checks`, `retired_ids`, `staff_contacts` (`/hospitals/[code]`). Table and column definitions as in the repo; RLS policies and grants written new for today's OWNER / ADMIN / USER + ticks model (`has_tick`), not copied from the old role-based migrations; `protect_table` on each. Not created: `hospital_aliases` (superseded by `other_names`), `golden_tests`, `discount`, `import_runs` (unused) → removal list in 1d; the code that still names them is changed (`/hospitals/[code]` stops reading `hospital_aliases`; `pilot-answers-store.ts` script retired or pointed elsewhere). Idempotent (`IF NOT EXISTS`). Backup first; Anoop's OK before live.
+- **Drift check script `scripts/schema-drift.sh`:** replays the repo on a throwaway database and compares table / column / policy / function names with live (read-only, names only). Run before every migration from now on. Done when: zero differences after the reconcile migration.
+- **RLS read side:** policies of `hospital_id_history`, `report_downloads`, `rule_upload_batches` already live → pgTAP tests only. `header_decisions` and `header_decision_batches` read policy also allows `hospitals_view` (small change inside the reconcile migration).
+- **`/hospitals` gate:** page already checks `canViewHospitals`; add a test that a user without the tick gets "No access" and that RLS returns no rows.
+- **Change log check:** audit_log already records `users_roles`, `user_access_ticks`, `hospitals`, `hospital_sheets`, `mapping_fields`, `column_mappings`, `header_decisions`, `sheet_tabs`, `jobs` (counts read 31-Oct). Add a pgTAP test per area (access, hospital, field, mapping) and list the gap, if any, in the status table.
+- **Bulk upload preview:** `uploadHospitalListAction` writes at once today. Split into parse/validate (no write) → preview table with errors per row → "Save N rows" (decision section 4, 27-Oct). Tests: preview never writes; a file with errors cannot be saved until fixed.
+- **Balance Status test:** mapping test for a "Balance Status" text column (never BALANCE AMOUNT, which is auto-Ignored).
+- Done when: all items built or verified with evidence; full DB tests pass on a fresh database; drift check shows zero differences on live.
+
+**1d – Data foundations** (2 prompts; 1 migration)
+- **Already done (verify only):** scheme on claims (`claims_staging.scheme`), mapping key hospital + scheme (1b), scheme / insurer filters on rules (`rules.scheme`, `rule_versions.scheme_filter`).
+- **Claim identity (decision section 7):** record key = hospital + scheme + claim number + admission date + discharge date (today: claim number only, or patient + DOA). Without a claim number the fallback stays patient + DOA, marked FALLBACK. Code: `recordKeyFor` in `packages/rules/src/clean.ts`.
+  - **Still in hospital (no discharge date yet):** when claim number + admission date match a stored claim whose discharge date is blank, the same claim (`record_uid`) is kept and the new key is added to `record_keys` (several keys per claim already allowed); the filled-in date is logged as a value change, never a new claim.
+  - **Same key twice in one run:** rows are merged before saving (the save uses ON CONFLICT record_key, which fails on a key twice in one batch). Same values = duplicate (one kept, count shown); different values = flag (decision section 7).
+  - Two-part approvals: nothing built now (combining method is set in Stage 2; a column can be added then).
+  - Tests: discharge date filled in later; two identical rows and two conflicting rows in one sheet; same IP number with another claim number is not an error; same patient + same admission date twice gives a warning; KASP Dialysis repeat sessions are not duplicates (decisions sections 7 and 9).
+- **Claim history:** reuse `change_log` (created in 1c) instead of a new table: every change of a stored claim value is a row (old, new, field, run). Its `actor` column is the lane tag (decision section 9): AUTO (deterministic cleaning), SHEET (the hospital changed the value), AI_ACCEPTED (an AI suggestion a person accepted), HUMAN; today's 'ENGINE' becomes AUTO. Add `reason` (required for HUMAN and AI_ACCEPTED) and `decided_by` (who, for those two). The worker never updates a claim without writing its history (test).
+- **Record source:** `claims_staging.record_source` text NOT NULL DEFAULT 'GOOGLE_SHEET' CHECK in ('GOOGLE_SHEET', 'TMS_IMPORT').
+- **Scheme → Insurer → TPA list:** table `scheme_insurers` (scheme, insurer, tpa, valid_from, valid_to), read by everyone with a login, changed by Owner / Admin; seeded only with MEDISEP → Oriental Insurance → Vidal, FHPL (decision section 9); no page yet.
+- **Unused tables:** list with row counts and code references (from the 1c drift check): `hospital_aliases`, `golden_tests`, `discount`, `import_runs`, plus any live table with 0 rows and no code reference. Removal only after Anoop's OK (separate migration).
+- Migration `<live version>_claim_identity_history_source.sql`: `change_log` actor check + `reason` + `decided_by`, `claims_staging.record_source`, `scheme_insurers`. Backup first; Anoop's OK.
+- Done when: migration applied after OK; tests cover claim identity (duplicate / flag / fallback) and history (no silent overwrite); unused-table list shown to Anoop.
+
+**1e – Measurements** (1 prompt; no migration)
+- **Run time per sheet:** one DRY_RUN per pilot (read-only: no claim write), 3 times each, from the Mac; record read / discover / clean / total ms from the existing step timing, plus Sheets API calls and cells read per sheet. Result: a table in the status section, and 130 sheets worked out against the Sheets per-minute quota and run minutes per day (hosting size).
+- **Drive modified-time test:** on a test sheet the robot creates in the Question Sheets shared drive (never a hospital sheet): read `modifiedTime`, change one cell value, one formatting-only change, one formula recalculation; wait about 1 minute and read again after each. Plus one edit by Anoop in the browser on the same test sheet (exact steps given; API and browser edits may behave differently). Result: which edits change it. Decides whether Stage 3 may skip unchanged sheets.
+- Done when: both results are in the status table and shown to Anoop.
 
 ## Stage 2 – Rule Library, cleaning engine, rule trial
 
