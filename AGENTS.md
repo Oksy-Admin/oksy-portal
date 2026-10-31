@@ -2,7 +2,7 @@
 
 This file has the same rules as `CLAUDE.md`. Keep the two in step.
 
-**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a done 31-Oct-2026 (rule engine as data, money rules rewritten per decisions section 8; migration `20261031060500_rule_engine_data.sql` tested locally, waiting for Anoop's OK before live). Next: `/build-substage 2b`.**
+**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a and 2b done 31-Oct-2026 (2a: rule engine as data, money rules rewritten; 2b: dictionary_entries replaces hard-coded status words/colours/names, hms-profile.ts retired). Migrations `20261031060500_rule_engine_data.sql` and `20261031070000_dictionary_entries.sql` tested locally, waiting for Anoop's OK before live. Next: `/build-substage 2c`.**
 
 ## Read first, in this order
 1. `handoff.md` – where we are now and the next step
