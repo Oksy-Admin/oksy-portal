@@ -1,6 +1,6 @@
 # CLAUDE.md – Oksy Data Cleanse portal
 
-**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i, 1b-ii, 1c, 1d and 1e done 31-Oct-2026 (migrations on live, zero drift). Next: Stage 1 close (code-reviewer run, open decision on `district_heads` / `open_checks`, Anoop's push).**
+**Current stage: Stage 1 finished 31-Oct-2026 (all sub-stages done, migrations on live with zero drift, code-reviewer run with one Must fixed), waiting for Anoop's push. Next: Stage 2 plan, not started.**
 
 ## Read first, in this order
 1. `handoff.md` – where we are now and the next step

@@ -3,8 +3,8 @@
 Short "where are we now" note. Last updated: 31-Oct-2026.
 
 ## Current stage
-**Current stage: Stage 1 in progress – plan approved by Anoop 31-Oct-2026. 1a done 30-Oct; 1b-i, 1b-ii, 1c, 1d and 1e done 31-Oct-2026 (migrations on live, zero drift). Next: Stage 1 close (code-reviewer run, open decision on `district_heads` / `open_checks`, Anoop's push).**
-Next: the Stage 1 close – code-reviewer run on the Stage 1 diff, the open unused-table decision on `district_heads` and `open_checks`, then Anoop pushes; one push at the end of Stage 1.
+**Current stage: Stage 1 finished 31-Oct-2026 (all sub-stages done, migrations on live with zero drift, code-reviewer run with one Must fixed), waiting for Anoop's push. Next: Stage 2 plan, not started.**
+Next: Anoop pushes (one push for the whole of Stage 1); then `/plan-stage 2`.
 
 ## What the portal is (one line)
 Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, asks hospital staff through Question Sheets, and gives correct combined reports. Details: `claude/requirements.md`.

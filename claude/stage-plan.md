@@ -19,7 +19,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 | Stage | Content | Status |
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
-| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **In progress – 1a DONE 30-Oct-2026; plan approved 31-Oct-2026; 1b-i DONE 31-Oct-2026 (migration on live); 1b-ii DONE 31-Oct-2026 (migration on live); 1c DONE 31-Oct-2026 (migration on live, zero drift); 1d DONE 31-Oct-2026 (migration on live, zero drift); 1e DONE 31-Oct-2026; next: Stage 1 close** |
+| 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **DONE 31-Oct-2026 (all sub-stages 1a–1e done, migrations on live, zero drift; code-reviewer run, one Must fixed; waiting for Anoop's push). Next: Stage 2 plan, not started.** |
 | 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | Not started |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
@@ -140,6 +140,13 @@ Known gaps carried into Stage 1: Run now only queues a job (nothing runs until s
 - **Run time per sheet:** one DRY_RUN per pilot (read-only: no claim write), 3 times each, from the Mac; record read / discover / clean / total ms from the existing step timing, plus Sheets API calls and cells read per sheet. Result: a table in the status section, and 130 sheets worked out against the Sheets per-minute quota and run minutes per day (hosting size).
 - **Drive modified-time test:** on a test sheet the robot creates in the Question Sheets shared drive (never a hospital sheet): read `modifiedTime`, change one cell value, one formatting-only change, one formula recalculation; wait about 1 minute and read again after each. Plus one edit by Anoop in the browser on the same test sheet (exact steps given; API and browser edits may behave differently). Result: which edits change it. Decides whether Stage 3 may skip unchanged sheets.
 - Done when: both results are in the status table and shown to Anoop.
+
+**Stage 1 close – DONE 31-Oct-2026.** Evidence:
+- Decision: unused old tables `district_heads` and `open_checks` are kept for now, not removed (`decisions.md`, section 14).
+- `code-reviewer` run on the whole Stage 1 diff (`origin/main..HEAD`, 54 commits, 88 files). One Must finding, fixed: in `packages/worker/src/sheet-run.ts`, a claim whose key moved (discharge date filled in) kept its old key in the in-memory lookup, so the run also counted it as missing and overwrote its correct `CHANGED` status with `MISSING`. Fixed by updating the key in place (commit `8ef737d`); test assertion on `sync_status`/`missing_since` added to the existing "keeps its record" test.
+- Should/Could findings (not fixed, no hard-rule or data-safety risk): a stale code comment above the `record_keys` insert in `sheet-run.ts` no longer matches the code (only one key row is ever written per row now, not "the key plus the fallback key") — cosmetic, worth tidying in Stage 2.
+- Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test` (264 tests: rules 148, google 40, worker 44, web 31), `pnpm build` all pass.
+- Not pushed; Anoop pushes once at the end of the stage.
 
 ## Stage 2 – Rule Library, cleaning engine, rule trial
 
