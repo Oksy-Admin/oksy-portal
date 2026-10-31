@@ -1,40 +1,15 @@
-# Last report – 31-Oct-2026: 1c live (zero drift), 1d done
+# Last report – 31-Oct-2026: 1d migration not applied yet (confirmation expired)
 
-**Status: 1c is on live and live matches the migration files. 1d is built and tested. One decision needed: OK to apply the 1d migration.**
+**Status: blocked on one click. Live is unchanged.**
 
-## 1c on live
-- Backup first (`supabase/.temp/backup_before_1c_20261031.sql`), then applied as `20261031051558`.
-- Drift check after: zero differences. Live and a fresh rebuild of the files have the same 767 schema names (fingerprint `43ee5f68…`), and no TRUNCATE / REFERENCES / TRIGGER rights are left.
+- **Backup is taken:** `supabase/.temp/backup_before_1d_20261031.sql`.
+- **The apply did not happen:** the Supabase connector asked for a confirmation in Claude Code, and it expired after 2 minutes without an answer. Checked read-only after: live is unchanged (last migration still `20261031051558`, no `scheme_insurers` table).
+- **1e not started:** it waits for this migration and the drift check, as you asked.
+- **Unused-table decision** (`district_heads`, `open_checks`): left open until the Stage 1 close, as you asked.
 
-## 1d done
-- **Claim identity:** same claim = claim number + admission date + discharge date (per hospital + scheme).
-- **Patient still in hospital:** when the discharge date is filled in later, it stays the same claim. The date change goes into the history; no new claim is made.
-- **Same claim twice in one sheet:** an exact repeat is stored once and counted; different values are flagged and both rows kept.
-- **Same patient, same admission date, two claim numbers:** a warning, except KASP Dialysis.
-- **Same IP number with another claim number:** not an error.
-- **Claim history:** every change carries its lane (AUTO, SHEET, AI_ACCEPTED, HUMAN); person changes must say why and who.
-- **Record source** on every claim (Google Sheet / TMS import).
-- **Scheme → Insurer → TPA list,** seeded with MEDISEP → Oriental Insurance → Vidal and FHPL. The dates are left empty because the decisions don't give them.
-- **Checks:** typecheck, lint, build pass; 263 tests; 230 database checks.
+## What you do
+1. Sit at this Claude Code window and type `go`.
+2. When the confirmation for "apply_migration" appears, click **Allow / Confirm** within 2 minutes.
+3. I then rename the file to the live version, run the drift check (expect zero differences) and start 1e.
 
-## Unused tables (nothing removed; removal needs your OK)
-- `report_downloads`, `rule_upload_batches`: empty, unused today, planned for Stage 5 and Stage 2. Keep.
-- `district_heads`, `open_checks`: empty; only the hospital page reads them, and nothing writes them since the register import was retired. These are the candidates to remove, or to keep for a future register import.
-
-## Found
-- Live has **0 rules** in the Rule Library tables, while a migration file seeds 53. This is data, not structure. Stage 2 (Rule Library) will settle it.
-
-## Commits
-- `70c4e4e` 1c applied to live, zero drift
-- `776c6cc` claim identity (rules code)
-- `7f280d2` worker: same-claim checks, discharge date filled in later, AUTO lane
-- `9f38cb5` 1d migration + database test 15 (not applied)
-- `docs: close Stage 1d` (this close)
-
-## Decision needed
-**Apply `20261031130000_claim_identity_history_source.sql` to live? Recommended: yes.** I take a backup first, then run the drift check again.
-- What changes on live: `change_log` gets the lane check plus reason and who; `claims_staging` gets `record_source`; a new table `scheme_insurers` with the 2 MEDISEP rows. No existing row changes (both tables are empty on live).
-- Why before the end-of-stage push: the worker now writes the AUTO lane, which needs this migration.
-
-## Next
-1e (run time and API use per sheet; Drive modified-time test, with one browser edit by you on a test sheet).
+If skipped: the 1d changes are not on live. The worker writes the new AUTO lane tag, and live does not check it until the migration is applied.
