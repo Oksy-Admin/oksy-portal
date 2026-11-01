@@ -10,7 +10,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 3. **Build (`/build-substage Nx`, one prompt per sub-stage):** small commits, one purpose each. Claude makes the commits and tells Anoop what each contains; Anoop runs `git push` once at the end of the stage.
 4. **Schema changes:** backup → migration file in `supabase/migrations/` → SQL shown to Anoop → apply to live only after his OK.
 5. **Check:** `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, plus the done-criteria below.
-6. **Close (same session):** update the status table below (DONE + date + evidence), the "Current stage" lines in `handoff.md`, `CLAUDE.md` and `AGENTS.md`, and add any new decision to `decisions.md`. No separate stage report file; the evidence goes in the status table and in the commit messages.
+6. **Close (same session):** update the status table below (DONE + date + evidence) and the "Current stage" line in `CLAUDE.md` (the one copy; `handoff.md` keeps its own short version, `AGENTS.md` just points to `CLAUDE.md`, 1-Nov-2026), and add any new decision to `decisions.md`. No separate stage report file; the evidence goes in the status table and in the commit messages.
 7. **Gate:** after each sub-stage a short report (`/close-substage Nx`); the next sub-stage of an approved stage may start at once. The next **stage** starts only after Anoop approves.
 8. **Prompt budget:** about 55 prompts from Stage 1b to the pilot finish line — setup 2, Stage 1: 12, Stage 2: 14, Stage 3: 8, Stage 4: 7, Stage 5: 6, Stage 6: 6.
 
@@ -20,7 +20,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
 | 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **DONE and pushed 31-Oct-2026 (all sub-stages 1a–1e done, migrations on live, zero drift; code-reviewer run, one Must fixed). Next: Stage 2 plan, not started.** |
-| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | **Approved 31-Oct-2026, building on branch `stage-2-rule-library`. 2a, 2b done 31-Oct-2026; 2c, 2d, 2e done 1-Nov-2026.** |
+| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | **Merged into `main` 1-Nov-2026 (commit `f5aed44`). 2a, 2b done 31-Oct-2026; 2c, 2d, 2e done 1-Nov-2026. 2f: claims live for all 3 pilots, waiting on Anoop's trial approval + dictionary confirm.** |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
 | 5 | Data & Reports: claims, payments, report download, reconciliation | Not started |
@@ -53,7 +53,7 @@ Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_v
 | 3 | 2c – claim checks: cross-row rules, two-part approval, "value is correct" | 2 | `issue_confirmations` + two-part link on claims |
 | 4 | 2d – Rule Library page: form, upload, conflict check, test before save, plain-words box | 2 | `save_rule_version` function (conflict check, history, audit) |
 | 5 | 2e – rule trial and check sets | 2 | `rule_trials`, `check_set_claims` |
-| 6 | 2f – pilot trial on live, Anoop approves the 3 summaries, Stage 2 close (code-reviewer) – **IN PROGRESS 1-Nov-2026, prompt 1 of 2: pilot header decisions recorded, branch checks green; waiting on Anoop's live run + approvals** | 2 | none expected |
+| 6 | 2f – pilot trial on live, Anoop approves the 3 summaries, Stage 2 close (code-reviewer) – **IN PROGRESS 1-Nov-2026: merged to `main`, TDS header + column-mappings fixes live, "Run now" succeeded for all 3 pilots; waiting on Anoop's Trial-page approvals + check sets + Dictionary confirmations** | 2 | none expected |
 | – | Reserve for fixes (2a first: it is the tightest) | 2 | – |
 
 **2a – Rule engine: rules as data** (2 prompts; 1 migration)
@@ -135,8 +135,10 @@ Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_v
 **2e – DONE 1-Nov-2026, 2 commits; migration `20261101140000_rule_trials_check_sets.sql` written and tested locally (`bash scripts/db-test-local.sh`: all migrations replay on a fresh database, all pgTAP tests pass, including new test 18), waiting for Anoop's OK before live.** Full evidence: `claude/reports/2026-11-01-close-2e.md`.
 
 **2f – Pilot trial on live and Stage 2 close** (2 prompts; no migration expected)
-- Before: Anoop / Ali decide the headers still open (HMS MAIL SENT DATE, MAIL SUBJECT; TDS in Badagara and Tree G; the value-shape items from the 1b-ii fixtures) and confirm the pilot words and names (2b). Claude gives the exact list and screens.
-- Full run on the 3 pilots (claims written to Supabase for the first time); trial summary per pilot; Anoop picks the check sets and approves each summary (or asks for rule changes → fixed in the same prompt or the reserve).
+- Before: Anoop / Ali decide the headers still open (HMS MAIL SENT DATE, MAIL SUBJECT; TDS in Badagara and Tree G; the value-shape items from the 1b-ii fixtures) and confirm the pilot words and names (2b). **Done — decisions.md section 5.**
+- Full run on the 3 pilots (claims written to Supabase for the first time). **Done 1-Nov-2026 — claims_staging: Badagara 495, Tree G 12, HMS 361 rows.**
+- Trial summary per pilot; Anoop picks the check sets and approves each summary (or asks for rule changes → fixed in the same prompt or the reserve). **Open — `rule_trials` and `check_set_claims` are still 0 rows live, checked 1-Nov-2026.**
+- Dictionary confirmations (2b/2c). **Open — 250 SUGGESTED, 36 CONFIRMED, checked 1-Nov-2026.**
 - Stage close: `code-reviewer` on the whole Stage 2 diff, Must findings fixed, all checks, status table, push by Anoop.
 - Done when: the stage done-criteria above are met.
 
