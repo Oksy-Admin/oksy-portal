@@ -34,10 +34,6 @@ Do these in order — each one unblocks the next.
    - Also add the line `ANTHROPIC_API_KEY=` to `.env.example` yourself — this session's permission settings blocked editing that file directly.
    - Why: without it, the plain-words box shows "needs ANTHROPIC_API_KEY added to the web app's environment" and nothing else on the page is affected.
    - If skipped: everything else on the Rule Library page still works; only the plain-words box is unavailable.
-5. **`/clear`, then `/build-substage 2e`** — 2d (Rule Library page) done 1-Nov-2026.
-   - What: in the Claude Code terminal, type `/clear`, then type `/build-substage 2e`.
-   - Why: this is the next piece of Stage 2 (rule trial and check sets).
-
 ## Before each stage/sub-stage starts (prerequisites)
 
 (none currently open)
