@@ -43,7 +43,7 @@ Key: **C** = calculated by the portal (never taken from the sheet). **Ignore** =
 | payment_date | Settlement Date | date | Per payment |
 | payment_amount | Settled Amount | amount | Per payment; amount received after TDS |
 | payment_utr | UTR | text | Per payment; never guessed |
-| tds_amount_stated | TDS Amount | amount | TDS amount as written by staff; rules apply. HMS's plain "TDS" header maps here (a rupee amount, confirmed 1-Nov); also reached by any header literally named "TDS AMOUNT". Badagara and Tree G's plain "TDS" header maps to `tds` instead (section 2) |
+| tds_amount_stated | TDS Amount | amount | TDS amount as written by staff; rules apply. Reached by a header literally named "TDS AMOUNT" — never by a plain "TDS" header, in any hospital (confirmed 1-Nov; see `tds`, section 2) |
 | remarks | Remarks | text | Takes **every** remark column (including follow-up remarks); values joined with " \| " and prefixed by the source column name (prefix to be built in Stage 1b) |
 
 ## 2. Added fields (stored in `extra_fields`)
@@ -52,7 +52,7 @@ Key: **C** = calculated by the portal (never taken from the sheet). **Ignore** =
 |---|---|---|---|
 | balance_status | Balance Status | text | Not decided / Waived off / Grievance. Added 30-Oct. Mapping test waits for a safe source column; never map BALANCE AMOUNT here |
 | uhid | UHID | text | Hospital patient ID (not the IP number). To be added in Stage 1b |
-| tds | TDS % | number | A TDS **rate**, not an amount. Badagara and Tree G's plain "TDS" header map here. HMS's plain "TDS" header maps to `tds_amount_stated` instead — it holds a rupee amount, confirmed 1-Nov |
+| tds | TDS % | number | A TDS **rate**, not an amount. A plain "TDS" header always maps here, in every hospital (including HMS) — confirmed 1-Nov |
 
 The live list also has 3 older custom fields (added 27-Oct); they are reviewed in Stage 1b.
 
