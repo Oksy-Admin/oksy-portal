@@ -20,7 +20,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
 | 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **DONE and pushed 31-Oct-2026 (all sub-stages 1a–1e done, migrations on live, zero drift; code-reviewer run, one Must fixed). Next: Stage 2 plan, not started.** |
-| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | **Approved 31-Oct-2026, building on branch `stage-2-rule-library`. 2a, 2b done 31-Oct-2026; 2c done 1-Nov-2026.** |
+| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | **Approved 31-Oct-2026, building on branch `stage-2-rule-library`. 2a, 2b done 31-Oct-2026; 2c, 2d done 1-Nov-2026.** |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
 | 5 | Data & Reports: claims, payments, report download, reconciliation | Not started |
@@ -123,6 +123,8 @@ Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_v
 - Function `save_rule_version` (one call: version + conflict result + audit).
 - Playwright check of form, test, upload preview.
 - Done when: a rule can be added, tested, edited, made Inactive and uploaded from the page; conflict shown; tests and Playwright pass; migration applied after OK.
+
+**2d – DONE 1-Nov-2026, 1 prompt; migration `20261101130000_rule_library_page.sql` written and tested locally (`bash scripts/db-test-local.sh`: all migrations replay on a fresh database, all pgTAP tests pass, including new test 17), waiting for Anoop's OK before live.** Full evidence: `claude/reports/2026-11-01-close-2d.md`.
 
 **2e – Rule trial and check sets** (2 prompts; 1 migration)
 - **Rule trial:** Run now with "trial" for one hospital runs every rule on its full data without creating questions, and stores a summary in `rule_trials`: per rule Errors and Warnings, claims hit, 5 example rows; total claims, clean claims. Trial page per hospital; Owner approves once ("Trial approved", who / when). Stage 4 sends a hospital's first questions only when its trial is approved (flag checked there).

@@ -28,9 +28,15 @@ Do these in order — each one unblocks the next.
    - Why: the engine is built scheme-agnostic, but it has only ever been tested against Private Health Insurance data; KASP/MEDISEP need their own sample before that work starts safely. Doing it now (rather than waiting) means 2c and the KASP/MEDISEP build-out never block each other later.
    - If skipped: 2c still runs on the 3 Private Health Insurance pilots; this only blocks the KASP/MEDISEP build-out.
 
-4. **`/clear`, then `/build-substage 2d`** — all three Stage 2 migrations are applied to live (1-Nov-2026).
-   - What: in the Claude Code terminal, type `/clear`, then type `/build-substage 2d`.
-   - Why: this is the next piece of Stage 2 (the Rule Library page).
+4. **Add `ANTHROPIC_API_KEY` to the web app's own environment** (2d, 1-Nov-2026).
+   - What: the Rule Library page's plain-words box needs the same Anthropic key the worker already uses, but in `apps/web`'s own environment, not only the worker's.
+   - App: Mac Terminal (`apps/web/.env.local`, same value as the worker's `ANTHROPIC_API_KEY` line) and vercel.com (`oksy-portal` project → **Settings** → **Environment Variables** → add `ANTHROPIC_API_KEY` with the same value).
+   - Also add the line `ANTHROPIC_API_KEY=` to `.env.example` yourself — this session's permission settings blocked editing that file directly.
+   - Why: without it, the plain-words box shows "needs ANTHROPIC_API_KEY added to the web app's environment" and nothing else on the page is affected.
+   - If skipped: everything else on the Rule Library page still works; only the plain-words box is unavailable.
+5. **`/clear`, then `/build-substage 2e`** — 2d (Rule Library page) done 1-Nov-2026.
+   - What: in the Claude Code terminal, type `/clear`, then type `/build-substage 2e`.
+   - Why: this is the next piece of Stage 2 (rule trial and check sets).
 
 ## Before each stage/sub-stage starts (prerequisites)
 

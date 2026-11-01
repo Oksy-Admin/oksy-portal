@@ -3,15 +3,16 @@
 Short "where are we now" note, max one page. Last updated: 1-Nov-2026 (three Stage 2 migrations applied to live).
 
 ## Current stage
-**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a and 2b done 31-Oct-2026, 2c done 1-Nov-2026 (2a: rule engine as data, money rules rewritten; 2b: dictionary_entries replaces hard-coded status words/colours/names, hms-profile.ts retired; 2c: cross-row rules, two-part approval combining, value-is-correct confirmations). All three migrations (`20261031060500_rule_engine_data.sql`, `20261031070000_dictionary_entries.sql`, `20261101120000_claim_checks_two_part.sql`) applied to live by Anoop, 1-Nov-2026 (backup taken first; `20261101120000` fixed for live drift — no R-Y03 row in `public.rules` — before applying). Next: `/build-substage 2d`.**
+**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a and 2b done 31-Oct-2026, 2c and 2d done 1-Nov-2026 (2a: rule engine as data, money rules rewritten; 2b: dictionary_entries replaces hard-coded status words/colours/names, hms-profile.ts retired; 2c: cross-row rules, two-part approval combining, value-is-correct confirmations; 2d: Rule Library page rewritten — 3-part form, plain-words box, save-time conflict check, test before save, CSV/Excel upload). The three earlier migrations (`20261031060500_rule_engine_data.sql`, `20261031070000_dictionary_entries.sql`, `20261101120000_claim_checks_two_part.sql`) are applied to live by Anoop, 1-Nov-2026 (backup taken first; `20261101120000` fixed for live drift — no R-Y03 row in `public.rules` — before applying); the 2d migration (`20261101130000_rule_library_page.sql`) is tested locally, waiting for his OK before live. Next: `/build-substage 2e`.**
 
 ## Next step
-`/build-substage 2d` (Rule Library page).
+`/build-substage 2e` (rule trial and check sets).
 
 ## Waiting on Anoop
 Full detail and exact steps for all of these: `claude/my-tasks.md`.
 - Add GitHub secret `VERCEL_DEPLOY_HOOK_URL`.
-- KASP/MEDISEP sample sheet links + robot read access + the staff rule discussion (needed before the KASP/MEDISEP scheme-fit check, not before 2d–2f).
+- Add `ANTHROPIC_API_KEY` to `apps/web`'s own environment (`.env.local` and Vercel) so the Rule Library's plain-words box works; also add the line to `.env.example` (this session's permission settings blocked that file).
+- KASP/MEDISEP sample sheet links + robot read access + the staff rule discussion (needed before the KASP/MEDISEP scheme-fit check, not before 2e–2f).
 - Recurring: after every report, tell the Claude chat "report ready" (it reads `claude/reports/last-report.md` through the computer link; paste only if that chat is not linked).
 
 ## What the portal is (one line)
