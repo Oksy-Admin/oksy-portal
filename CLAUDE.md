@@ -1,6 +1,6 @@
 # CLAUDE.md – Oksy Data Cleanse portal
 
-**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a and 2b done 31-Oct-2026, 2c done 1-Nov-2026 (2a: rule engine as data, money rules rewritten; 2b: dictionary_entries replaces hard-coded status words/colours/names, hms-profile.ts retired; 2c: cross-row rules, two-part approval combining, value-is-correct confirmations). Migrations `20261031060500_rule_engine_data.sql`, `20261031070000_dictionary_entries.sql` and `20261101120000_claim_checks_two_part.sql` tested locally, waiting for Anoop's OK before live. Next: `/build-substage 2d`.**
+**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a and 2b done 31-Oct-2026, 2c done 1-Nov-2026 (2a: rule engine as data, money rules rewritten; 2b: dictionary_entries replaces hard-coded status words/colours/names, hms-profile.ts retired; 2c: cross-row rules, two-part approval combining, value-is-correct confirmations). All three migrations (`20261031060500_rule_engine_data.sql`, `20261031070000_dictionary_entries.sql`, `20261101120000_claim_checks_two_part.sql`) applied to live by Anoop, 1-Nov-2026 (backup taken first; `20261101120000` fixed for live drift — no R-Y03 row in `public.rules` — before applying). Next: `/build-substage 2d`.**
 
 ## Read first, in this order
 1. `handoff.md` – where we are now and the next step

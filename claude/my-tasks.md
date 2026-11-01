@@ -21,21 +21,14 @@ Do these in order — each one unblocks the next.
    - Why: nothing after this point in the project reaches the live site until `main` is pushed; it also gives you the first real proof the deploy-hook fix works.
    - If skipped: everything below still works locally, but the live site stays on its last pushed commit.
 
-3. **OK the three Stage 2 migrations**
-   - What: three SQL files are ready and already tested on a throwaway copy of the database: `supabase/migrations/20261031060500_rule_engine_data.sql` (the Rule Library), `supabase/migrations/20261031070000_dictionary_entries.sql` (the Words & Names dictionary), and `supabase/migrations/20261101120000_claim_checks_two_part.sql` (claim checks and two-part approvals, Stage 2c).
-   - Where: ask Claude Code in the terminal to show you the files, or open them yourself in Finder → `~/Projects/oksy-portal/supabase/migrations/` with any text editor.
-   - What to do: once you've looked them over (or you're happy to trust the local test pass), tell Claude "OK to apply 20261031060500", "OK to apply 20261031070000" and "OK to apply 20261101120000" — each is applied separately, with a backup taken first.
-   - Why: nothing in the Rule Library, the Words & Names page, or the new claim checks works on the real (live) database until these are applied. Everything so far has only run on a local test copy.
-   - If skipped: Stage 2 stays stuck on your Mac and the Vercel preview; it never reaches the real site.
-
-4. **KASP and MEDISEP sample sheet links, robot read access, and the staff rule discussion**
+3. **KASP and MEDISEP sample sheet links, robot read access, and the staff rule discussion**
    - What to send: a Google Sheets link to one real (or sample) KASP claims sheet and one MEDISEP claims sheet.
    - What to do: share each sheet with the robot's service account email (Claude can give you the exact address) with **Viewer** access only — never Editor, the robot must never be able to write to a hospital sheet.
    - The staff rule list: a short conversation with you (and Ali, if useful) about which of today's Private Health Insurance money/status rules change for KASP and MEDISEP, before Claude builds the scheme-specific rule rows.
    - Why: the engine is built scheme-agnostic, but it has only ever been tested against Private Health Insurance data; KASP/MEDISEP need their own sample before that work starts safely. Doing it now (rather than waiting) means 2c and the KASP/MEDISEP build-out never block each other later.
    - If skipped: 2c still runs on the 3 Private Health Insurance pilots; this only blocks the KASP/MEDISEP build-out.
 
-5. **`/clear`, then `/build-substage 2d`** — 2c is done (1-Nov-2026).
+4. **`/clear`, then `/build-substage 2d`** — all three Stage 2 migrations are applied to live (1-Nov-2026).
    - What: in the Claude Code terminal, type `/clear`, then type `/build-substage 2d`.
    - Why: this is the next piece of Stage 2 (the Rule Library page).
 
