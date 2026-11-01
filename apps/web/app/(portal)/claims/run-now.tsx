@@ -1,32 +1,84 @@
 "use client";
 
-import { useActionState } from "react";
-import { Pill } from "../ui";
-import { runNow, type RunResult } from "./actions";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { latestJobAction, runNow, type JobStatus, type RunResult } from "./actions";
 
-type JobRow = {
-  id: string;
-  status: string;
-  mode: string;
-  requested_at: string;
-  finished_at: string | null;
-  error: string | null;
-  result: string | null;
-  counts: { sourceRows?: number; byClass?: Record<string, number> } | null;
-  sync: { new: number; changed: number; unchanged: number; missing: number } | null;
-};
+const POLL_MS = 3000;
 
-const when = (v: string | null) => (v ? new Date(v).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—");
+/** One plain status line (section 10: no manual refresh). */
+function statusLine(job: JobStatus | null): string | null {
+  if (!job) return null;
+  if (job.status === "QUEUED") return "Queued — waiting for the runner.";
+  if (job.status === "RUNNING") return "Running…";
+  if (job.status === "SUCCEEDED") return "Finished.";
+  if (job.status === "FAILED") return `Failed: ${job.error ?? "unknown error"}.`;
+  if (job.status === "STOPPED") {
+    if (job.result === "STOPPED_LAYOUT") {
+      const n = job.layoutProblems?.length ?? 0;
+      return `Stopped: ${n} header${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} a decision — open Column Mappings.`;
+    }
+    if (job.result === "STOPPED_RECONCILIATION") return "Stopped: the run's totals did not reconcile — check the run detail.";
+    return `Stopped: ${job.error ?? job.result ?? "unknown reason"}.`;
+  }
+  return null;
+}
 
-// The HMS pilot sheet's run panel: Run now (queues a job) and the last runs with counts only.
-export function RunNow({ sheetKey, jobs, canRun }: { sheetKey: string; jobs: JobRow[]; canRun: boolean }) {
+// Run now / Check only for one hospital's sheet (claims page). Polls every ~3s while a run
+// for this sheet is queued or running, so the button and status line update on their own —
+// no manual refresh, and the button is never left stuck disabled after a run ends.
+export function RunNow({
+  hospitalName,
+  sheetKey,
+  initialJob,
+  canRun,
+}: {
+  hospitalName: string;
+  sheetKey: string;
+  initialJob: JobStatus | null;
+  canRun: boolean;
+}) {
   const [state, action, pending] = useActionState<RunResult | null, FormData>(runNow, null);
-  const busy = jobs.some((j) => j.status === "QUEUED" || j.status === "RUNNING");
+  const [job, setJob] = useState<JobStatus | null>(initialJob);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const busy = job?.status === "QUEUED" || job?.status === "RUNNING";
+
+  // Optimistic: the instant "Run now"/"Check only" is submitted, mark busy so polling starts
+  // right away, without waiting for the first 3s tick. (Caller remounts with key={sheetKey}
+  // on hospital change, so initialJob never needs re-syncing via an effect.)
+  const onSubmit = () =>
+    setJob((j) => ({
+      ...(j ?? { id: "", mode: "WRITE", error: null, result: null, layoutProblems: null, requestedAt: new Date().toISOString(), finishedAt: null }),
+      status: "QUEUED",
+    }));
+
+  useEffect(() => {
+    if (!busy) {
+      if (timer.current) {
+        clearInterval(timer.current);
+        timer.current = null;
+      }
+      return;
+    }
+    if (timer.current) return;
+    timer.current = setInterval(() => {
+      latestJobAction(sheetKey).then(setJob);
+    }, POLL_MS);
+    return () => {
+      if (timer.current) {
+        clearInterval(timer.current);
+        timer.current = null;
+      }
+    };
+  }, [busy, sheetKey]);
+
+  const line = statusLine(job);
+
   return (
     <div className="card">
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <strong>HMS Kottakkal, PRIVATE sheet</strong>
-        <form action={action} style={{ display: "flex", gap: 8 }}>
+        <strong>{hospitalName}</strong>
+        <form action={action} onSubmit={onSubmit} style={{ display: "flex", gap: 8 }}>
           <input type="hidden" name="sheet_key" value={sheetKey} />
           <button className="btn" type="submit" name="mode" value="WRITE" disabled={!canRun || pending || busy}>
             Run now
@@ -35,43 +87,9 @@ export function RunNow({ sheetKey, jobs, canRun }: { sheetKey: string; jobs: Job
             Check only
           </button>
         </form>
-        {state && <span className={state.ok ? "muted" : ""} role="status">{state.message}</span>}
-        {busy && <span className="muted">A run is waiting or running. Refresh to see the result.</span>}
+        {line && <span className={job?.status === "SUCCEEDED" ? "muted" : ""} role="status">{line}</span>}
+        {!line && state && <span className={state.ok ? "muted" : ""} role="status">{state.message}</span>}
       </div>
-      {jobs.length > 0 && (
-        <table className="data" style={{ marginTop: 12 }}>
-          <thead>
-            <tr>
-              <th>Requested</th>
-              <th>Mode</th>
-              <th>Status</th>
-              <th>Result</th>
-              <th>Rows</th>
-              <th>New / changed / unchanged / missing</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((j) => (
-              <tr key={j.id}>
-                <td>{when(j.requested_at)}</td>
-                <td>{j.mode === "DRY_RUN" ? "Check only" : "Read and write"}</td>
-                <td>
-                  <Pill value={j.status} />
-                </td>
-                <td className="muted">{j.result ?? j.error ?? "—"}</td>
-                <td className="muted">
-                  {j.counts?.sourceRows != null
-                    ? `${j.counts.sourceRows} (${Object.entries(j.counts.byClass ?? {})
-                        .map(([k, v]) => `${k} ${v}`)
-                        .join(", ")})`
-                    : "—"}
-                </td>
-                <td className="muted">{j.sync ? `${j.sync.new} / ${j.sync.changed} / ${j.sync.unchanged} / ${j.sync.missing}` : "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
     </div>
   );
 }

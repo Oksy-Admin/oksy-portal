@@ -4,12 +4,12 @@ import { can } from "@/lib/roles";
 import { createClient, getMe } from "@/lib/supabase/server";
 import { timed, withTiming } from "@/lib/timing";
 import { NoAccess, PageHead, Pill } from "../ui";
+import { latestJobAction } from "./actions";
 import { RunNow } from "./run-now";
 
 // Cleaned data view and export (module H, D-051). ADMIN and APPROVER only; read-only;
 // every export is logged in export_runs. Claims and payments are separate tables (D-047).
 // Server-side paging (50 rows) and database filters (file 04 section 6).
-const HMS_SHEET_KEY = "HOSP32P000107|PRIVATE";
 
 type Row = Record<(typeof TABLE_COLUMNS)[number], string | number | string[] | null>;
 // The part of the query builder used here (the full Supabase type is too deep for a column list).
@@ -29,24 +29,43 @@ async function ClaimsPage({ searchParams }: { searchParams: Promise<ClaimFilters
   const supabase = await createClient();
 
   const from = (f.page - 1) * PAGE_SIZE;
-  const [list, jobs, tabs] = await timed("claims queries", () =>
+  const [list, hospitals, sheets] = await timed("claims queries", () =>
     Promise.all([
       applyFilters(supabase.from("claims_staging").select(SELECT, { count: "exact" }) as unknown as Query, f)
         .order("source_tab")
         .order("source_row")
         .range(from, from + PAGE_SIZE - 1),
-      supabase
-        .from("jobs")
-        .select("id, status, mode, requested_at, started_at, finished_at, error, summary->result, summary->reconciliation->counts, summary->sync")
-        .eq("sheet_key", HMS_SHEET_KEY)
-        .order("requested_at", { ascending: false })
-        .limit(3),
-      supabase.from("sheet_tabs").select("tab_name, kind").eq("policy", "ALLOW").eq("kind", "DATA").order("tab_name"),
+      supabase.from("hospitals").select("hospital_code, hospital_name").is("missing_from_register_since", null).order("hospital_name"),
+      supabase.from("hospital_sheets").select("sheet_key, hospital_code, spreadsheet_id").is("missing_from_register_since", null),
     ]),
   );
   const rows = list.data ?? [];
   const total = list.count ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Hospital dropdown (All / each hospital) replaces the old hard-coded HMS sheet key; Run
+  // now, Check only, the Tab dropdown and the claims list all follow the selection (f.hospital).
+  const hospitalRows = hospitals.data ?? [];
+  const sheetRows = sheets.data ?? [];
+  const hospitalNameByCode = new Map(hospitalRows.map((h) => [h.hospital_code, h.hospital_name]));
+  // One sheet per hospital for the pilots (all PRIVATE scheme); the first linked sheet is used
+  // if a hospital ever has more than one.
+  const sheetByHospital = new Map<string, { sheet_key: string; spreadsheet_id: string | null }>();
+  for (const s of sheetRows) if (!sheetByHospital.has(s.hospital_code)) sheetByHospital.set(s.hospital_code, s);
+  const selectedSheet = f.hospital ? sheetByHospital.get(f.hospital) : undefined;
+
+  // Tab dropdown: only the ALLOW/DATA tabs of the spreadsheet(s) in scope (the selected
+  // hospital's sheet, or every linked sheet for "All"), deduplicated by tab name - this is
+  // the fix for the duplicate-key console error (two hospitals both having a "CANCELLED" tab).
+  const spreadsheetIds = [
+    ...new Set((f.hospital ? sheetRows.filter((s) => s.hospital_code === f.hospital) : sheetRows).map((s) => s.spreadsheet_id).filter((id): id is string => !!id)),
+  ];
+  const tabsRes = spreadsheetIds.length
+    ? await supabase.from("sheet_tabs").select("tab_name").eq("policy", "ALLOW").eq("kind", "DATA").in("spreadsheet_id", spreadsheetIds).order("tab_name")
+    : { data: [] as Array<{ tab_name: string }> };
+  const tabNames = [...new Set((tabsRes.data ?? []).map((t) => t.tab_name))].sort();
+
+  const initialJob = selectedSheet ? await latestJobAction(selectedSheet.sheet_key) : null;
 
   // Stage 2c, decisions.md section 9: "every issue shows the rule's message with the values
   // involved (amounts and dates only, never names)" - detail is built that way already
@@ -90,7 +109,21 @@ async function ClaimsPage({ searchParams }: { searchParams: Promise<ClaimFilters
         }
       />
 
-      <RunNow sheetKey={HMS_SHEET_KEY} jobs={(jobs.data ?? []) as unknown as Parameters<typeof RunNow>[0]["jobs"]} canRun={can(me?.role, "approve_rules")} />
+      {selectedSheet ? (
+        <RunNow
+          key={selectedSheet.sheet_key}
+          hospitalName={hospitalNameByCode.get(f.hospital) ?? f.hospital}
+          sheetKey={selectedSheet.sheet_key}
+          initialJob={initialJob}
+          canRun={can(me?.role, "approve_rules")}
+        />
+      ) : (
+        <div className="card muted">
+          {f.hospital
+            ? "No sheet is linked for this hospital (see the Hospitals page)."
+            : "Select a hospital above to Run now or Check only its sheet."}
+        </div>
+      )}
 
       {list.error && (
         <div className="notice warn" role="alert">
@@ -102,12 +135,23 @@ async function ClaimsPage({ searchParams }: { searchParams: Promise<ClaimFilters
       <div className="card">
         <form className="filters" method="get">
           <label>
+            Hospital
+            <select name="hospital" defaultValue={f.hospital}>
+              <option value="">All hospitals</option>
+              {hospitalRows.map((h) => (
+                <option key={h.hospital_code} value={h.hospital_code}>
+                  {h.hospital_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
             Tab
             <select name="tab" defaultValue={f.tab}>
               <option value="">All tabs</option>
-              {(tabs.data ?? []).map((t) => (
-                <option key={t.tab_name} value={t.tab_name}>
-                  {t.tab_name}
+              {tabNames.map((t) => (
+                <option key={t} value={t}>
+                  {t}
                 </option>
               ))}
             </select>
