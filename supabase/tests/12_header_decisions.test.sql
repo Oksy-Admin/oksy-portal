@@ -1,7 +1,7 @@
 -- Stage 1b-i: one mapping decision per hospital + scheme + header (decide_header).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 insert into public.users_roles (email, role) values
   ('t-1b-admin@example.test', 'ADMIN'),
@@ -46,6 +46,20 @@ reset role;
 select is((select canonical_field || '|' || method || '|' || decided_by::text from public.header_decisions where hospital_code = 'HOSP32P999992'),
           'IGNORE|MANUAL|00000000-0000-0000-0000-0000000001b1', 'one row per hospital + scheme + header, with who decided');
 select is((select count(*)::int from public.column_mappings where hospital_code = 'HOSP32P999992' and review_reason is not null), 0, 'review reason cleared');
+
+-- Sync (1-Nov-2026): the header_decisions row always wins, even over an older APPROVED
+-- proposal (for example a stale per-tab Ignore stored before the header was decided).
+insert into public.column_mappings (hospital_code, spreadsheet_id, tab_name, header_fp, source_header, source_column, canonical_field, confidence, method, status, scheme, header_key, review_reason)
+values
+  ('HOSP32P999992', 'FAKEsheetDECISIONS000000000001', 'AUG PENDING', 'slno|remarks', 'REMARKS', 4, 'IGNORE', 1, 'MANUAL', 'APPROVED', 'PRIVATE', 'remarks', null);
+
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001b1');
+set local role authenticated;
+select is((select public.decide_header('HOSP32P999992', 'PRIVATE', 'remarks', 'remarks')), 1, 'remarks header decided');
+reset role;
+
+select is((select canonical_field from public.column_mappings where hospital_code = 'HOSP32P999992' and header_key = 'remarks'),
+          'remarks', 'an old APPROVED Ignore row is corrected to match the new decision');
 
 -- Moving the per-tab approvals: a plain "TDS" beside "TDS AMOUNT" (old approvals disagree,
 -- as on live HOSPPVTP0001/0002) gets no decision; a "TDS" alone still takes tds_amount_stated.
