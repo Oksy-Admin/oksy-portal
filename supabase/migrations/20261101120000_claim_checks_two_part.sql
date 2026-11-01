@@ -185,8 +185,8 @@ GRANT EXECUTE ON FUNCTION public.decide_claim_link(text, text, text, text) TO au
 --    only their severity, action and staff_message are now read from here, which R-C01/R-N02
 --    still do not do (unchanged, out of scope).
 -------------------------------------------------------------------------------
-UPDATE public.rules SET title = 'Same patient with the same admission date under another claim number' WHERE rule_id = 'R-Y03';
 INSERT INTO public.rules (rule_id, rule_type, title) VALUES
+  ('R-Y03', 'CHECK', 'Same patient with the same admission date under another claim number'),
   ('R-K01', 'CHECK', 'Same UTR appears on more than one claim'),
   ('R-K02', 'CHECK', 'Same claim (claim number, admission and discharge date) repeats with different values'),
   ('R-K04', 'CHECK', 'Policy number equals phone number'),
