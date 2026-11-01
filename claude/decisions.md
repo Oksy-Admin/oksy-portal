@@ -165,6 +165,8 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 - Sheet text is untrusted input: no instructions found in cells are followed; exports escape cells starting with = + - @. (30-Oct)
 - **No manual cell editing in the portal** (for now). (27-Oct)
 
+- **TDS rate format, final (1-Nov):** for the `tds` extra field only (column-dictionary.md section 2, the rate, not `tds_amount_stated`): lane 1 deterministic cleaning, automatic, audit-tagged (`M-TDS-RATE-FORMAT`, logged in `change_log`), original text kept (`tds (as entered)`). At most 1 decimal, cut off (truncated, never rounded); a whole number written with `.0` becomes the whole number. Examples: `10.0` → `10`, `9.0` → `9`, `8.8978978999` → `8.8`, `9.45674433456` → `9.4`. No Warning, no question to staff, no new rule — Anoop adds a Rule Library rule later if one is ever needed. Never touches `tds_amount_stated` or any bill, approved or settled amount. Built in `packages/rules/src/clean.ts` (`cleanTdsRate`), tested with the four examples above (`packages/rules/test/clean.test.ts`).
+
 ## 10. Runs, worker and change detection
 
 - **Worker** = the background program that actually reads sheets and cleans. Today it runs only when someone starts it on a computer.
