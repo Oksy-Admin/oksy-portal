@@ -142,6 +142,13 @@ function chooseChecks(rules: RuleVersion[], errors: ConfigError[]): RuleVersion[
   return chosen;
 }
 
+/** Whether one rule version's scope and valid dates match a claim (Stage 2d "test before
+ * save" job: reuses the exact scope logic the real engine selection uses, so a test result
+ * can never disagree with what a real run would do). */
+export function ruleInScope(r: RuleVersion, c: RuleContext): boolean {
+  return filtersMatch(r, c) && inWindow(r, c) === "IN";
+}
+
 export function selectRules(all: RuleVersion[], c: RuleContext): Selection {
   const configErrors: ConfigError[] = [];
   const skippedNoDate: RuleVersion[] = [];
