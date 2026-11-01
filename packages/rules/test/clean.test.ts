@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanRow, findHeaderRow, headerFingerprint, INITIAL_RULES, mapHeaders, type HospitalProfile, type RuleVersion, type SourceRow } from "../src/index.ts";
+import { cleanRow, cleanTdsRate, findHeaderRow, headerFingerprint, INITIAL_RULES, mapHeaders, type HospitalProfile, type RuleVersion, type SourceRow } from "../src/index.ts";
 
 // Fake hospital, fake rows. The worked example of file 01 section 7 runs through the whole
 // row cleaner, not only the money helper.
@@ -285,6 +285,44 @@ describe("Stage 2c: fields clean.ts did not read before", () => {
 
     const beforeStart = cleanRow({ ...withPodStart, podStartDate: "2026-10-01" }, withCasesheet(), opts);
     expect(beforeStart.issues.map((i) => i.ruleId)).not.toContain("R-K06"); // hardcopy sent before POD Start Date
+  });
+});
+
+describe("TDS rate format (extra field `tds`, decisions.md section 9, 1-Nov)", () => {
+  it.each([
+    ["10.0", "10"],
+    ["9.0", "9"],
+    ["8.8978978999", "8.8"],
+    ["9.45674433456", "9.4"],
+  ])("%s -> %s", (raw, cleaned) => {
+    expect(cleanTdsRate(raw)).toBe(cleaned);
+  });
+
+  it("a value already at one decimal, or a plain whole number, is left as it is (no change)", () => {
+    expect(cleanTdsRate("8.8")).toBeNull();
+    expect(cleanTdsRate("10")).toBeNull();
+  });
+
+  it("not a plain number is left as it is", () => {
+    expect(cleanTdsRate("ten percent")).toBeNull();
+  });
+
+  it("cleanRow truncates the tds extra field, tags the change, and keeps the original", () => {
+    const r = cleanRow(profile, row({ extra: { tds: "8.8978978999" } }), opts);
+    expect(r.extra.tds).toBe("8.8");
+    expect(r.extra["tds (as entered)"]).toBe("8.8978978999");
+    expect(r.changes).toContainEqual({ field: "tds", oldValue: "8.8978978999", newValue: "8.8", ruleId: "M-TDS-RATE-FORMAT", tier: "B" });
+    // Never touches tds_amount_stated or any bill/approved/settled amount.
+    expect(r.claim?.bill_amount).toBe("120000");
+    expect(r.claim?.approved_amount).toBe("100000");
+    expect(r.claim?.settled_amount).toBe("90000.00");
+  });
+
+  it("cleanRow leaves an already-clean tds value untouched, with no change logged", () => {
+    const r = cleanRow(profile, row({ extra: { tds: "10" } }), opts);
+    expect(r.extra.tds).toBe("10");
+    expect(r.extra["tds (as entered)"]).toBeUndefined();
+    expect(r.changes.some((c) => c.field === "tds")).toBe(false);
   });
 });
 

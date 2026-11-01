@@ -189,6 +189,22 @@ function issue(ruleId: string, severity: Issue["severity"], tier: Issue["tier"],
   return { ruleId, severity, tier, shadow, field, detail };
 }
 
+/**
+ * TDS rate (extra field `tds`, a percent; decisions.md section 9, 1-Nov): at most 1 decimal,
+ * cut off, never rounded; a whole number written with .0 becomes the whole number. Anything
+ * that is not a plain number is left as it is (null = no change).
+ */
+export function cleanTdsRate(raw: string): string | null {
+  const m = /^-?\d+(?:\.\d+)?$/.exec(raw.trim());
+  if (!m) return null;
+  const dot = m[0].indexOf(".");
+  if (dot === -1) return null;
+  const intPart = m[0].slice(0, dot);
+  const firstDecimal = m[0][dot + 1]!;
+  const cleaned = firstDecimal === "0" ? intPart : `${intPart}.${firstDecimal}`;
+  return cleaned === m[0] ? null : cleaned;
+}
+
 /** A row with no patient, claim no or admission date is a separator, total or banner (R-C01). */
 export function isNonDataRow(r: SourceRow): boolean {
   if (r.isHeaderRepeat) return true;
@@ -287,6 +303,18 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
 
   if (isNonDataRow(r)) {
     return { ...base, rowClass: "NON_DATA_ROW", recordKey: null, keyType: null, claim: null, nullReasons, flags, issues: [issue("R-C01", "I", "A", false, "", "Separator, total, banner or repeated header row")], changes, sourceAmounts };
+  }
+
+  // TDS rate (extra field `tds`): lane 1, automatic, audit-tagged; the original text is kept.
+  // `tds_amount_stated` and every bill/approved/settled amount are untouched (decisions.md
+  // section 9, 1-Nov).
+  if (extra.tds !== undefined) {
+    const cleaned = cleanTdsRate(extra.tds);
+    if (cleaned !== null) {
+      changes.push({ field: "tds", oldValue: extra.tds, newValue: cleaned, ruleId: "M-TDS-RATE-FORMAT", tier: "B" });
+      extra["tds (as entered)"] = extra.tds;
+      extra.tds = cleaned;
+    }
   }
 
   let sel: Selection | null = null;
