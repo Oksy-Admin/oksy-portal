@@ -37,6 +37,14 @@ Do these in order — each one unblocks the next.
    - If skipped: 2c still runs on the 3 Private Health Insurance pilots; this only blocks the KASP/MEDISEP build-out.
    - **Timing (confirmed 1-Nov-2026): Anoop will share these on Monday 2-Nov-2026 — already discussed; do not chase before then.**
 
+## Later, not blocking Stage 2
+
+- Fill Hardcopy Required (Yes/No) per insurer in the reference file.
+- Decide: merge "Physical Medicine and Rehabilitation" + "Rehabilitation Medicine" and "Neonatology" + "Neonatal Intensive Care" (Claude recommends merge).
+- Check TPA validity dates and exact names of Raheja QBE (being renamed QBE), ProTec, Kiwi, Prudential HCL on the IRDAI list.
+- Approve the old-name aliases in the reference file.
+- Share KASP and MEDISEP sample sheets (planned Mon 2-Nov-2026).
+
 ## Before each stage/sub-stage starts (prerequisites)
 
 (none currently open)

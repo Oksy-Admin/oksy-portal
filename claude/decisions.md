@@ -1,7 +1,7 @@
 # Oksy Data Cleanse – Confirmed Decisions
 
 Owner and decision-maker: Anoop Das (anoop@oksy.in).
-Last updated: 31-Oct-2026 (prompting and token-saving rules).
+Last updated: 1-Nov-2026 (later-stage decisions: reference lists, doctors, Excel import, AI scope).
 
 **How to use this file**
 - Check here before asking Anoop anything. A decision listed here is never asked again.
@@ -28,6 +28,7 @@ Last updated: 31-Oct-2026 (prompting and token-saving rules).
 | 13 | Portal layout and UI | 200-206 |
 | 14 | How we work | 207-244 |
 | 15 | Superseded | moved to `claude/archive/decisions-superseded.md` |
+| 16 | Later-stage decisions (1-Nov) | 270-299 |
 
 Line numbers are approximate (shift a little as the file is edited) — if in doubt, re-run the grep above.
 
@@ -266,6 +267,36 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 - **Health monitoring moves off a nightly Claude check (31-Oct):** the earlier idea of a nightly Claude-run health check is dropped in favour of a plain (non-Claude) GitHub Action that emails Anoop **only on failure** — covering the Vercel deploy status and, once it exists, the 6 AM worker run. This is built after the hosted worker exists (Stage 3), not now. "explain-usage" (a usage/cost summary) is explicitly **not** added to the `/close-substage` checkpoint — `scripts/check-setup.sh` plus the advisors check cover what that checkpoint needs.
 - **AGENTS.md no longer repeats the "Current stage" line (1-Nov-2026):** `CLAUDE.md` is the one copy; `AGENTS.md` just points to it; `handoff.md` keeps its own short version for Anoop. Found during a read-only git/Vercel/Supabase alignment check that `AGENTS.md` had drifted a sub-stage behind `CLAUDE.md` and `handoff.md` — one less copy to keep in step, fewer tokens.
 - **Model routing is agent-only, not skill-only (31-Oct, checked against the current Claude Code docs via Context7):** a subagent definition (`.claude/agents/*.md`) supports a `model` field (`opus`/`sonnet`/`haiku`/`inherit`) — `design-reviewer` and `code-reviewer` are now both set to `opus`. A `SKILL.md` (`/plan-stage`, `/build-substage`, `/close-substage`) has no `model` field in its frontmatter — a skill runs inline in whatever model the session is already using, so model routing for those three stays a human choice (pick Opus or Sonnet for the session before typing the command), not something the skill file can set. Project-level MCP servers in `.mcp.json` can include OAuth-based remote servers (not only plain token-free ones like Supabase/Context7) — but no Vercel MCP entry was added here: Vercel MCP already works in this session through the account's own connection, not through `.mcp.json`, and guessing its exact server URL/OAuth settings risks a broken or stuck entry. Anoop can add one properly later with `claude mcp add` from the terminal if a project-committed one is ever wanted.
+
+## 16. Later-stage decisions (1-Nov-2026)
+
+**A. Reference lists**
+- `claude/reference/India_Healthcare_Directory_updated.xlsx` is the global reference for Insurer (35), TPA (17), Department (71). Only the IRDAI official name is shown in portal and reports; other spellings are aliases. It replaces the 27 insurer names seeded in 2b.
+- Owner/Admin: add, edit, hide; delete only if unused.
+- Exact match after normalising case, "Ltd/Limited" and punctuation is applied automatically (lane 1). Any other spelling is an AI suggestion, never applied by itself.
+- Unmatched names go to the hospital's Question Sheet as one grouped question (dropdown: same as X / new: type name). A new entry is added only after Owner/Admin confirms the reply with one click.
+- Department list is clinical specialties only; local names are asked once per hospital.
+
+**B. Doctors**
+- Per hospital. Run collects distinct names; one grouped question with the suggested format "Dr. Firstname Lastname" (format only: spaces, case, prefix; never change a spelling staff confirmed) plus department dropdown; staff say yes, or type a new name only where it differs; Owner/Admin confirms. Stored in a new hospital-profile tab "Departments & Doctors".
+- Many-to-many doctor/department. A claim whose department is not one of its doctor's departments gets a Warning (suggestion only).
+
+**C. Pages**
+- No separate names or status-words page. Reference lists: one Settings page. Doctors: hospital profile tab. Status words stay as data, confirmed by one "Confirm all" in the hospital profile. The 2b `/dictionary` page stays for the pilot trial and is reworked later.
+
+**D. Excel import (later stage; includes the planned TMS import)**
+- Fixed template per scheme, no column mapping; user picks hospital + scheme. File is not kept, only the rows; batch record (who, when, counts); whole batch can be undone; large files run as a worker job.
+- Match: (1) claim no + admission + discharge = same claim; (2) same claim no, different dates = conflict Error; (3) no claim-no match but exact patient name (trim/case only) + admission + discharge = same claim, claim number corrected only in Overwrite mode, old number kept in history. No fuzzy matching. Preview shows a non-blocking Warning for similar name + same dates + different claim no.
+- Matched cases: choose Fill blanks only, or Overwrite. Overwrite = Owner/Admin only, one reason per upload, field-wise history in `change_log` (old, new, who, when, batch), not in reports.
+- A blank cell never erases, unless that column is ticked "blank erases" in the preview (default off, shows the count, Overwrite mode, Owner/Admin only). After an erase the next run raises a missing-value Warning and the hospital is asked.
+- All rules of that hospital/scheme run in the preview; names shown canonised. Any Error disables Upload for the whole file (no partial upload); error rows shown with reasons and downloadable as Excel. Warnings are counted and allowed.
+- Rows carry record source "Excel import"; the 6 AM sheet run never deletes or overwrites them. Excel-only claims are corrected by uploading a corrected Excel. The next 6 AM run re-cleans database claims (new job type).
+
+**E. AI scope: 27 capabilities, all suggestion/draft only**
+- Planned (1-12): column mapping, tab types and non-data rows, standard names, status words, cancel/reject reasons, duplicates/wrong-column/unusual cases, question grouping and wording, understanding staff answers, plain words to rule, rule suggestions from error patterns, monthly report summary, reminder drafts.
+- Added 1-Nov (13-27): procedure-to-department match; settlement PDF/Excel reading (UTR, amount, claim no matched with evidence, person confirms); natural-language data questions (read only); payment follow-up priority and letter drafts; appeal letter drafts; Owner business insights per hospital/insurer/TPA (rejections, discounts, deductions, TDS, co-pay, delays, balances, trends); daily Malayalam brief via Telegram bot; staff "do not make these mistakes" guide; rule-conflict explanations; unusual-amount detection; short-settlement finder; insurer/TPA behaviour profiles with draft rules; sheet layout change watcher; learning loop from confirm/reject; claim-wise next-action queue.
+- Not now: reading approval/rejection letters, reject/delay prediction, audit/tamper watch.
+- Limits unchanged: AI never guesses UTR/date/amount/claim number, never changes bill/approved/settled amounts, never saves a rule, never messages a hospital. Telegram goes to the Owner only, counts and amounts only (no patient names, phones or policy numbers), bot token kept as a secret. AI cost stays within the monthly cap.
 
 ## 15. Superseded (do not use)
 
