@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canConfirmMappings, canEditHospitals, canViewHospitals, DEFAULT_ACCESS_TICKS, type AccessTicks, type Role } from "./roles";
+import { canConfirmMappings, canEditHospitals, canEditRuleLibrary, canViewHospitals, canViewRuleLibrary, DEFAULT_ACCESS_TICKS, type AccessTicks, type Role } from "./roles";
 
 const user = (role: Role | null, ticks: Partial<AccessTicks> = {}) => ({ role, ticks: { ...DEFAULT_ACCESS_TICKS, ...ticks } });
 
@@ -34,5 +34,24 @@ describe("confirm column mappings: Owner, Admin or Hospitals edit tick (Item 5)"
     expect(canConfirmMappings(user("USER", { hospitals_add_edit: true }))).toBe(true);
     expect(canConfirmMappings(user("USER", { hospitals_view: true }))).toBe(false);
     expect(canConfirmMappings(user(null, { hospitals_add_edit: true }))).toBe(false);
+  });
+});
+
+describe("/rules gate: rule_library_view / rule_library_add_edit ticks (Stage 2d)", () => {
+  it("a user with rule_library_view sees the page; without it, not", () => {
+    expect(canViewRuleLibrary(user("USER", { rule_library_view: true }))).toBe(true);
+    expect(canViewRuleLibrary(user("USER"))).toBe(false);
+  });
+  it("Owner and Admin always see it", () => {
+    expect(canViewRuleLibrary(user("OWNER"))).toBe(true);
+    expect(canViewRuleLibrary(user("ADMIN"))).toBe(true);
+  });
+  it("view only cannot add/edit/test/upload; the add_edit tick can", () => {
+    expect(canEditRuleLibrary(user("USER", { rule_library_view: true }))).toBe(false);
+    expect(canEditRuleLibrary(user("USER", { rule_library_view: true, rule_library_add_edit: true }))).toBe(true);
+  });
+  it("an unapproved sign-in or nobody does not", () => {
+    expect(canViewRuleLibrary(user(null, { rule_library_view: true }))).toBe(false);
+    expect(canEditRuleLibrary(null)).toBe(false);
   });
 });

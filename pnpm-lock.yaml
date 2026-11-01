@@ -172,6 +172,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: 1.3.0
+        version: 1.3.0(zod@4.6.7)
       '@oksy/rules':
         specifier: workspace:*
         version: link:../../packages/rules
