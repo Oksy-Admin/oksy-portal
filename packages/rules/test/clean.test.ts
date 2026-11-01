@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanRow, cleanTdsRate, findHeaderRow, headerFingerprint, INITIAL_RULES, mapHeaders, type HospitalProfile, type RuleVersion, type SourceRow } from "../src/index.ts";
+import { cleanRow, cleanTdsAmountStated, cleanTdsRate, findHeaderRow, headerFingerprint, INITIAL_RULES, mapHeaders, type HospitalProfile, type RuleVersion, type SourceRow } from "../src/index.ts";
 
 // Fake hospital, fake rows. The worked example of file 01 section 7 runs through the whole
 // row cleaner, not only the money helper.
@@ -292,6 +292,7 @@ describe("TDS rate format (extra field `tds`, decisions.md section 9, 1-Nov)", (
   it.each([
     ["10.0", "10"],
     ["9.0", "9"],
+    ["10.0%", "10"],
     ["8.8978978999", "8.8"],
     ["9.45674433456", "9.4"],
   ])("%s -> %s", (raw, cleaned) => {
@@ -323,6 +324,43 @@ describe("TDS rate format (extra field `tds`, decisions.md section 9, 1-Nov)", (
     expect(r.extra.tds).toBe("10");
     expect(r.extra["tds (as entered)"]).toBeUndefined();
     expect(r.changes.some((c) => c.field === "tds")).toBe(false);
+  });
+});
+
+describe("tds_amount_stated rounding (decisions.md section 9, 1-Nov)", () => {
+  it.each([
+    ["1234.4", "1234"],
+    ["1234.5", "1235"],
+  ])("%s -> %s", (raw, cleaned) => {
+    expect(cleanTdsAmountStated(raw)).toBe(cleaned);
+  });
+
+  it("an already-whole value is left as it is (no change)", () => {
+    expect(cleanTdsAmountStated("1234")).toBeNull();
+  });
+
+  it("not a plain number is left as it is", () => {
+    expect(cleanTdsAmountStated("pending")).toBeNull();
+  });
+
+  it("cleanRow rounds tds_amount_stated, tags the change, and keeps the original", () => {
+    const r = cleanRow(profile, row({}, { tds_amount_stated: c("1234.5") }), opts);
+    expect(r.claim?.tds_amount).toBe("1235.00"); // Total TDS: sum of the (now-rounded) stated TDS
+    expect(r.extra["tds_amount_stated (as entered)"]).toBe("1234.5");
+    expect(r.changes).toContainEqual({ field: "tds_amount_stated", oldValue: "1234.5", newValue: "1235", ruleId: "M-TDS-AMOUNT-ROUND", tier: "B" });
+    // Never touches bill, approved, settled, co-pay or discount.
+    expect(r.claim?.bill_amount).toBe("120000");
+    expect(r.claim?.approved_amount).toBe("100000");
+    expect(r.claim?.copay_amount).toBe("5000");
+    expect(r.claim?.settled_amount).toBe("90000.00");
+    expect(r.claim?.discount_amount).toBeNull();
+  });
+
+  it("cleanRow leaves an already-whole tds_amount_stated untouched, with no change logged", () => {
+    const r = cleanRow(profile, row({}, { tds_amount_stated: c("10000") }), opts);
+    expect(r.claim?.tds_amount).toBe("10000.00");
+    expect(r.extra["tds_amount_stated (as entered)"]).toBeUndefined();
+    expect(r.changes.some((ch) => ch.field === "tds_amount_stated")).toBe(false);
   });
 });
 

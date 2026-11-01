@@ -22,4 +22,15 @@ export function aliasUpdateLine(f: FieldDef): string {
   return `UPDATE public.mapping_fields SET aliases = ARRAY[${f.aliases.map(q).join(", ")}], updated_at = now() WHERE key = ${q(f.key)};`;
 }
 
+/**
+ * Core fields whose label/aliases migration 20261101150000 changes (decisions.md section 5,
+ * 1-Nov: TDS rate vs amount headers). Written but NOT applied to live; shown to Anoop for OK.
+ */
+export const FIELDS_CHANGED_1_NOV = ["tds_amount_stated"];
+
+/** The label + alias update of migration 20261101150000 for one field. */
+export function labelAliasUpdateLine(f: FieldDef): string {
+  return `UPDATE public.mapping_fields SET label = ${q(f.label)}, aliases = ARRAY[${f.aliases.map(q).join(", ")}], updated_at = now() WHERE key = ${q(f.key)};`;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) console.log(seedLines().join(",\n"));

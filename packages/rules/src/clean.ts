@@ -191,18 +191,38 @@ function issue(ruleId: string, severity: Issue["severity"], tier: Issue["tier"],
 
 /**
  * TDS rate (extra field `tds`, a percent; decisions.md section 9, 1-Nov): at most 1 decimal,
- * cut off, never rounded; a whole number written with .0 becomes the whole number. Anything
- * that is not a plain number is left as it is (null = no change).
+ * cut off, never rounded; a whole number written with .0 becomes the whole number. A
+ * trailing "%" is accepted and stripped. Anything that is not a plain number (with an
+ * optional trailing %) is left as it is (null = no change).
  */
 export function cleanTdsRate(raw: string): string | null {
-  const m = /^-?\d+(?:\.\d+)?$/.exec(raw.trim());
+  const trimmed = raw.trim();
+  const stripped = trimmed.endsWith("%") ? trimmed.slice(0, -1).trim() : trimmed;
+  const m = /^-?\d+(?:\.\d+)?$/.exec(stripped);
   if (!m) return null;
   const dot = m[0].indexOf(".");
-  if (dot === -1) return null;
-  const intPart = m[0].slice(0, dot);
-  const firstDecimal = m[0][dot + 1]!;
-  const cleaned = firstDecimal === "0" ? intPart : `${intPart}.${firstDecimal}`;
-  return cleaned === m[0] ? null : cleaned;
+  let cleaned = m[0];
+  if (dot !== -1) {
+    const intPart = m[0].slice(0, dot);
+    const firstDecimal = m[0][dot + 1]!;
+    cleaned = firstDecimal === "0" ? intPart : `${intPart}.${firstDecimal}`;
+  }
+  return cleaned === trimmed ? null : cleaned;
+}
+
+/**
+ * `tds_amount_stated` only (decisions.md section 9, 1-Nov): rounded to the nearest whole
+ * rupee, no decimals (never truncated). Never applied to bill, approved, settled, co-pay,
+ * discount or any other amount. Anything that is not a plain number is left as it is (null =
+ * no change).
+ */
+export function cleanTdsAmountStated(raw: string): string | null {
+  const trimmed = raw.trim();
+  const m = /^-?\d+(?:\.\d+)?$/.exec(trimmed);
+  if (!m) return null;
+  const n = Number(m[0]);
+  const cleaned = String(Math.sign(n) * Math.round(Math.abs(n)));
+  return cleaned === trimmed ? null : cleaned;
 }
 
 /** A row with no patient, claim no or admission date is a separator, total or banner (R-C01). */
@@ -483,7 +503,18 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
   const copay = amount("copay_amount", amounts.copay);
   const settledCell = amount("payment_amount", amounts.settled);
   const discountStated = amount("discount_amount", parseAmountCell(r.cells.discount_amount));
-  const tdsStated = amount("tds_amount_stated", parseAmountCell(r.cells.tds_amount_stated));
+  let tdsStated = amount("tds_amount_stated", parseAmountCell(r.cells.tds_amount_stated));
+  // tds_amount_stated only: rounded to the nearest whole rupee (decisions.md section 9,
+  // 1-Nov). Lane 1, automatic, audit-tagged; the original is kept. Every other amount field
+  // (bill, approved, settled, co-pay, discount) is untouched.
+  if (tdsStated !== null) {
+    const rounded = cleanTdsAmountStated(tdsStated);
+    if (rounded !== null) {
+      changes.push({ field: "tds_amount_stated", oldValue: tdsStated, newValue: rounded, ruleId: "M-TDS-AMOUNT-ROUND", tier: "B" });
+      extra["tds_amount_stated (as entered)"] = tdsStated;
+      tdsStated = rounded;
+    }
+  }
 
   // Payments (D-047; HMS 25-Oct: one row holds a part payment with both UTRs; a pair is one payment)
   const utrGroups = splitUtrs(r.cells.payment_utr?.text ?? null);

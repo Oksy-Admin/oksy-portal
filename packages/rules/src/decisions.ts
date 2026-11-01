@@ -49,7 +49,12 @@ export interface ResolvedColumn {
 // shown for approval. Discount is NOT on this list.
 // ---------------------------------------------------------------------------------------
 
-/** Header-only auto-Ignore: Length of Stay, Settlement Delay, Balance Amount, TDS %. */
+/**
+ * Header-only auto-Ignore: Length of Stay, Settlement Delay, Balance Amount. TDS % is no
+ * longer auto-Ignored (decisions.md section 5, 1-Nov): every TDS-rate header ("TDS", "TDS %",
+ * "TDS Percent", "TDS Percentage", "TDS Rate") now maps to the `tds` field instead, so Anoop
+ * can see whether an insurer deducts a wrong rate.
+ */
 export function autoIgnoreByHeader(rawHeader: string | null | undefined): string | null {
   const raw = (rawHeader ?? "").trim();
   const k = headerKey(raw);
@@ -57,7 +62,6 @@ export function autoIgnoreByHeader(rawHeader: string | null | undefined): string
   if (k === "los" || k.startsWith("lengthofstay") || k.startsWith("loslengthofstay")) return "Length of Stay";
   if (k.startsWith("settlementdelay")) return "Settlement Delay";
   if (["balanceamount", "balanceamt", "balamount", "balamt"].some((p) => k.startsWith(p))) return "Balance Amount";
-  if (k.startsWith("tds") && (raw.includes("%") || /^tds(percent|percentage|rate|per)$/.test(k))) return "TDS %";
   return null;
 }
 
@@ -70,17 +74,6 @@ export function filledValues(values: Array<string | null | undefined>): string[]
 
 const PERCENT_RE = /^\d{1,2}(\.\d+)?\s*%$/;
 const SMALL_NUMBER_RE = /^\d{1,2}(\.\d+)?$/;
-
-/**
- * A plain "TDS" column that holds the rate, not the amount: values like "10%", or, when the
- * same tab also has a TDS AMOUNT column, small numbers (30 or less). TDS % is auto-Ignored.
- */
-export function looksLikeTdsPercent(values: Array<string | null | undefined>, tabHasTdsAmount: boolean): boolean {
-  const v = filledValues(values);
-  if (v.length === 0) return false;
-  const fit = v.filter((x) => PERCENT_RE.test(x) || (tabHasTdsAmount && SMALL_NUMBER_RE.test(x) && Number(x) <= 30)).length;
-  return fit >= Math.ceil(v.length * 0.8);
-}
 
 // ---------------------------------------------------------------------------------------
 // Value-shape check (decision 30-Oct night): an amount field must hold amounts, a date
@@ -100,7 +93,8 @@ const DATE_RES = [
 export function valueFits(type: FieldType, value: string): boolean {
   const v = value.trim();
   if (type === "amount") return AMOUNT_RE.test(v);
-  if (type === "number") return NUMBER_RE.test(v);
+  // A number field also takes a trailing "%" (the `tds` field: decisions.md section 9, 1-Nov).
+  if (type === "number") return NUMBER_RE.test(v) || PERCENT_RE.test(v);
   if (type === "date") return DATE_RES.some((re) => re.test(v));
   return true;
 }
@@ -116,8 +110,8 @@ export function shapeFits(type: FieldType, values: Array<string | null | undefin
   return v.filter((x) => valueFits(type, x)).length >= Math.ceil(v.length * 0.8);
 }
 
-/** The shape of one cell, for the golden fixtures (no value is kept, only this word). */
-/** small_number: 30 or less, what a TDS rate column holds (looksLikeTdsPercent). */
+/** The shape of one cell, for the golden fixtures (no value is kept, only this word).
+ *  small_number: 30 or less. */
 export type ValueShape = "blank" | "percent" | "date" | "small_number" | "number" | "amount" | "text";
 export const VALUE_SHAPES: ValueShape[] = ["blank", "percent", "date", "small_number", "number", "amount", "text"];
 
@@ -186,8 +180,6 @@ export interface Resolved {
 export function resolveLayout(layout: { map: Array<Pick<ResolvedColumn, "column" | "header">> }, input: ResolveInput): Resolved {
   const mine = new Map(input.decisions.filter((d) => d.scheme === input.scheme).map((d) => [d.header_key, d]));
   const conflicts = conflictingHeaders(input.decisions);
-  const keys = layout.map.map((m) => headerKey(m.header));
-  const hasTdsAmount = keys.includes("tdsamount");
   const map: ResolvedColumn[] = [];
   const needs: ColumnNeed[] = [];
   const autoIgnored: Resolved["autoIgnored"] = [];
@@ -208,7 +200,7 @@ export function resolveLayout(layout: { map: Array<Pick<ResolvedColumn, "column"
       continue;
     }
     const values = input.values?.(m.column);
-    const auto = autoIgnoreByHeader(header) ?? (key === "tds" && values && looksLikeTdsPercent(values, hasTdsAmount) ? "TDS %" : null);
+    const auto = autoIgnoreByHeader(header);
     if (auto) {
       const r: ResolvedColumn = { ...base, field: null, ignored: true, confidence: 1, method: "MANUAL" };
       map.push(r);

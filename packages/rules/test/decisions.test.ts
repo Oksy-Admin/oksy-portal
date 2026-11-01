@@ -4,9 +4,9 @@ import {
   conflictingHeaders,
   headerKey,
   joinColumnValues,
-  looksLikeTdsPercent,
   resolveLayout,
   shapeFits,
+  type FieldDef,
   type HeaderDecision,
 } from "../src/index.ts";
 
@@ -21,26 +21,18 @@ const d = (header: string, canonical_field: string | null, over: Partial<HeaderD
   ...over,
 });
 
-describe("auto-Ignore (decision 30-Oct)", () => {
-  it("Length of Stay, Settlement Delay, Balance Amount and TDS % are ignored on the header", () => {
+describe("auto-Ignore (decision 30-Oct; TDS % removed 1-Nov)", () => {
+  it("Length of Stay, Settlement Delay and Balance Amount are ignored on the header", () => {
     expect(autoIgnoreByHeader("LOS\n[ LENGTH OF STAY ]")).toBe("Length of Stay");
     expect(autoIgnoreByHeader("LOS")).toBe("Length of Stay");
     expect(autoIgnoreByHeader("SETTLEMENT DELAY\n[ IN DAYS ]")).toBe("Settlement Delay");
     expect(autoIgnoreByHeader("BALANCE AMOUNT")).toBe("Balance Amount");
-    expect(autoIgnoreByHeader("TDS %")).toBe("TDS %");
-    expect(autoIgnoreByHeader("TDS Percentage")).toBe("TDS %");
   });
 
-  it("Discount, Balance Status, TDS and TDS AMOUNT are not ignored on the header", () => {
-    for (const h of ["DISCOUNT", "Balance Status", "TDS", "TDS AMOUNT", "", "Loss"]) expect(autoIgnoreByHeader(h)).toBeNull();
-  });
-
-  it("a plain TDS column holding rates is TDS %", () => {
-    expect(looksLikeTdsPercent(["10%", "10 %", "", "-"], false)).toBe(true);
-    expect(looksLikeTdsPercent(["10", "10", "2"], true)).toBe(true); // next to TDS AMOUNT
-    expect(looksLikeTdsPercent(["10", "10"], false)).toBe(false); // alone: could be small amounts, never guess
-    expect(looksLikeTdsPercent(["4500", "3000"], true)).toBe(false);
-    expect(looksLikeTdsPercent([], true)).toBe(false);
+  it("Discount, Balance Status and every TDS header are not ignored (1-Nov: TDS % maps to `tds` instead)", () => {
+    for (const h of ["DISCOUNT", "Balance Status", "TDS", "TDS %", "TDS Percent", "TDS Percentage", "TDS Rate", "TDS AMOUNT", "TDS Amt", "", "Loss"]) {
+      expect(autoIgnoreByHeader(h)).toBeNull();
+    }
   });
 });
 
@@ -120,14 +112,20 @@ describe("resolveLayout", () => {
     expect(r.needs.map((n) => [n.header_key, n.reason])).toEqual([["billamount", "TWO_FIELDS_IN_HOSPITAL"]]);
   });
 
-  it("TDS next to TDS AMOUNT holding rates is ignored; holding amounts it is a decision to make", () => {
+  it("TDS (rate, to `tds`) and TDS AMOUNT (amount, to tds_amount_stated), each decided to its own field, are both reused (1-Nov: no more auto-Ignore guess from values)", () => {
+    const TDS_FIELD: FieldDef = { key: "tds", label: "TDS %", data_type: "number", aliases: ["TDS"], status: "ACTIVE", is_core: false, sort_order: 350 };
+    const tds = [d("TDS", "tds"), d("TDS AMOUNT", "tds_amount_stated")];
+    const r = resolveLayout(layout(["TDS", "TDS AMOUNT"]), { scheme: "PRIVATE", decisions: tds, fields: [TDS_FIELD], values: (c) => (c === 0 ? ["10%", "10%"] : ["4500", "300"]) });
+    expect(r.needs).toEqual([]);
+    expect(r.autoIgnored).toEqual([]);
+    expect(r.map[0]).toMatchObject({ field: null, custom: "tds", method: "MANUAL" }); // "10%" fits a number field (decisions.md section 9, 1-Nov)
+    expect(r.map[1]).toMatchObject({ field: "tds_amount_stated", method: "MANUAL" });
+  });
+
+  it("TDS decided to tds_amount_stated by mistake: amount-shaped values still fit (never guessed from the header alone)", () => {
     const tds = [d("TDS", "tds_amount_stated"), d("TDS AMOUNT", "tds_amount_stated")];
-    const rates = resolveLayout(layout(["TDS", "TDS AMOUNT"]), { scheme: "PRIVATE", decisions: tds, values: (c) => (c === 0 ? ["10", "10"] : ["4500", "300"]) });
-    expect(rates.needs).toEqual([]);
-    expect(rates.autoIgnored).toEqual([{ column: 0, header: "TDS", reason: "TDS %" }]);
-    expect(rates.map[1]).toMatchObject({ field: "tds_amount_stated" });
-    const amounts = resolveLayout(layout(["TDS", "TDS AMOUNT"]), { scheme: "PRIVATE", decisions: tds, values: () => ["4500", "300"] });
-    expect(amounts.needs.map((n) => [n.column, n.reason])).toEqual([
+    const r = resolveLayout(layout(["TDS", "TDS AMOUNT"]), { scheme: "PRIVATE", decisions: tds, values: () => ["4500", "300"] });
+    expect(r.needs.map((n) => [n.column, n.reason])).toEqual([
       [0, "FIELD_TWICE_IN_TAB"],
       [1, "FIELD_TWICE_IN_TAB"],
     ]);

@@ -83,12 +83,12 @@ describe("golden fixtures of the pilot sheets", () => {
     expect(needsOf(pilot("HOSPPVTP0002"))).toEqual({ "TDS|NOT_DECIDED": ["OCT 2026", "SEP 2026"] });
   });
 
-  it("HMS: TDS holding rates is ignored by its values; date columns with plain numbers are stopped", () => {
+  it("HMS: TDS waits for a decision on every tab (1-Nov: no more auto-Ignore guessed from values); date columns with plain numbers are stopped", () => {
     expect(needsOf(pilot("HOSPPVTP0003"))).toEqual({
       "DOD|SHAPE": ["CANCELLED"],
       "HARDCOPY SENT Date|SHAPE": ["CANCELLED"],
       "PAYMENT FOLLOW UP DATE|SHAPE": ["CANCELLED", "PAID", "TILL AUG 2023"],
-      "TDS|NOT_DECIDED": ["PENDING"],
+      "TDS|NOT_DECIDED": ["PAID", "PENDING"],
       "MAIL SUBJECT|NOT_DECIDED": ["TILL AUG 2023"],
       "MAIL SENT DATE|NOT_DECIDED": ["TILL AUG 2023"],
     });
