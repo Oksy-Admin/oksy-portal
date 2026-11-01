@@ -12,9 +12,8 @@ Short "where are we now" note, max one page. Last updated: 1-Nov-2026 (2e done; 
 Full detail and exact steps for all of these: `claude/my-tasks.md`.
 - Fix HMS's live "TDS" header decision (Column Mappings page: change it from `tds` to `tds_amount_stated`) — it holds a rupee amount, not a percentage, confirmed 1-Nov.
 - Run the pilot trial on live (2f): "Run now" (write) for the 3 pilot sheets on the Claims page, then per hospital on its Trial page pick the check set and click "Trial approved", then confirm the Insurer/TPA/Doctor/Department entries the run creates on the Dictionary page.
-- Add GitHub secret `VERCEL_DEPLOY_HOOK_URL`.
 - Add `ANTHROPIC_API_KEY` to `apps/web`'s own environment (`.env.local` and Vercel) so the Rule Library's plain-words box works; also add the line to `.env.example` (this session's permission settings blocked that file).
-- KASP/MEDISEP sample sheet links + robot read access + the staff rule discussion (needed before the KASP/MEDISEP scheme-fit check, not before 2f).
+- KASP/MEDISEP sample sheet links + robot read access + the staff rule discussion — Anoop will share these Monday 2-Nov-2026 (already discussed; not chased before then).
 - Recurring: after every report, tell the Claude chat "report ready" (it reads `claude/reports/last-report.md` through the computer link; paste only if that chat is not linked).
 
 ## What the portal is (one line)

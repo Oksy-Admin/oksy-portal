@@ -19,14 +19,7 @@ Do these in order — each one unblocks the next.
    - Why: this is Stage 2's own done-criteria — "the trial summary is approved by Anoop for all 3 pilots; the check sets pass" — and it needs your eyes on real data, so Claude cannot do it for you.
    - If skipped: Stage 2 cannot close; 2f stays open.
 
-3. **Add the GitHub secret `VERCEL_DEPLOY_HOOK_URL`**
-   - App: vercel.com, then your web browser signed in to GitHub.
-   - Vercel first: `oksy-portal` project → **Settings** → **Git** → **Deploy Hooks** → create a **new** hook named "main", branch `main`, copy the URL it gives you. If an old hook is listed there from before, **delete ("revoke") it** so only the new one can be used — an old hook left lying around is a URL that still triggers a deploy for anyone who has it.
-   - GitHub: go to `https://github.com/Oksy-Admin/oksy-portal` → **Settings** tab → **Secrets and variables** (left sidebar) → **Actions** → green **New repository secret** button. Name = `VERCEL_DEPLOY_HOOK_URL`. Value = the URL you just copied.
-   - Why: a backup step (`.github/workflows/vercel-deploy-hook.yml`) calls this URL after every push to `main`, so a deploy still happens even if Vercel's own auto-deploy is ever skipped. Vercel never sees the URL printed anywhere; GitHub keeps it secret.
-   - If skipped: the backup step prints a notice and does nothing — your normal push-triggers-Vercel flow still works by itself, this is just an extra safety net.
-
-4. **`git push origin main`, then check the deployment**
+3. **`git push origin main`, then check the deployment**
    - App: Mac Terminal, in the `~/Projects/oksy-portal` folder.
    - Exact text: `git push origin main`.
    - What it sends: the Stage 2 planning commits already on `main`, plus this housekeeping pass's two `main` commits (the deploy-hook Action file, and the `apps/web/vercel.json` fix that was silently blocking auto-deploy).
@@ -34,14 +27,15 @@ Do these in order — each one unblocks the next.
    - Why: nothing after this point in the project reaches the live site until `main` is pushed; it also gives you the first real proof the deploy-hook fix works.
    - If skipped: everything below still works locally, but the live site stays on its last pushed commit.
 
-5. **KASP and MEDISEP sample sheet links, robot read access, and the staff rule discussion**
+4. **KASP and MEDISEP sample sheet links, robot read access, and the staff rule discussion**
    - What to send: a Google Sheets link to one real (or sample) KASP claims sheet and one MEDISEP claims sheet.
    - What to do: share each sheet with the robot's service account email (Claude can give you the exact address) with **Viewer** access only — never Editor, the robot must never be able to write to a hospital sheet.
    - The staff rule list: a short conversation with you (and Ali, if useful) about which of today's Private Health Insurance money/status rules change for KASP and MEDISEP, before Claude builds the scheme-specific rule rows.
    - Why: the engine is built scheme-agnostic, but it has only ever been tested against Private Health Insurance data; KASP/MEDISEP need their own sample before that work starts safely. Doing it now (rather than waiting) means 2c and the KASP/MEDISEP build-out never block each other later.
    - If skipped: 2c still runs on the 3 Private Health Insurance pilots; this only blocks the KASP/MEDISEP build-out.
+   - **Timing (confirmed 1-Nov-2026): Anoop will share these on Monday 2-Nov-2026 — already discussed; do not chase before then.**
 
-6. **Add `ANTHROPIC_API_KEY` to the web app's own environment** (2d, 1-Nov-2026).
+5. **Add `ANTHROPIC_API_KEY` to the web app's own environment** (2d, 1-Nov-2026).
    - What: the Rule Library page's plain-words box needs the same Anthropic key the worker already uses, but in `apps/web`'s own environment, not only the worker's.
    - App: Mac Terminal (`apps/web/.env.local`, same value as the worker's `ANTHROPIC_API_KEY` line) and vercel.com (`oksy-portal` project → **Settings** → **Environment Variables** → add `ANTHROPIC_API_KEY` with the same value).
    - Also add the line `ANTHROPIC_API_KEY=` to `.env.example` yourself — this session's permission settings blocked editing that file directly.
