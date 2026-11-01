@@ -107,7 +107,7 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 | Header | Decision |
 |---|---|
 | DOD | discharge_date |
-| MEMBER NUMBER | Ignore |
+| MEMBER NUMBER | policy_or_card_no (final, 1-Nov-2026 — matches live `header_decisions` and migration `20261101160000`) |
 | POLICY HOLDER NAME | policy_holder_name |
 | MEMBER NAME | suggest policy_holder_name (needs confirmation — may differ from the policy holder; not auto-approved) |
 | HARDCOPY SENT Date | casesheet_sent_date |
