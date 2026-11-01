@@ -20,7 +20,7 @@ Last updated: 31-Oct-2026. Decisions behind it: `claude/decisions.md`.
 |---|---|---|
 | 0 | Everything built up to 30-Oct-2026 (old Stages 0–3b) | DONE, closed 30-Oct-2026 |
 | 1 | Foundations: file clean-up, new mapping model, open bugs, scheme-aware data and claim identity, measurements | **DONE and pushed 31-Oct-2026 (all sub-stages 1a–1e done, migrations on live, zero drift; code-reviewer run, one Must fixed). Next: Stage 2 plan, not started.** |
-| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | **Approved 31-Oct-2026, building on branch `stage-2-rule-library`. 2a, 2b done 31-Oct-2026; 2c, 2d done 1-Nov-2026.** |
+| 2 | Rule Library, cleaning engine, rule trial on the 3 pilots | **Approved 31-Oct-2026, building on branch `stage-2-rule-library`. 2a, 2b done 31-Oct-2026; 2c, 2d, 2e done 1-Nov-2026.** |
 | 3 | Hosted worker: 6 AM run, retry, run status, change detection | Not started |
 | 4 | Question Sheets | Not started |
 | 5 | Data & Reports: claims, payments, report download, reconciliation | Not started |
@@ -132,6 +132,8 @@ Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_v
 - Tests: trial writes no questions; summary counts; check set pass / fail.
 - Done when: trial and check sets work on the fixtures; migration applied after OK.
 
+**2e – DONE 1-Nov-2026, 2 commits; migration `20261101140000_rule_trials_check_sets.sql` written and tested locally (`bash scripts/db-test-local.sh`: all migrations replay on a fresh database, all pgTAP tests pass, including new test 18), waiting for Anoop's OK before live.** Full evidence: `claude/reports/2026-11-01-close-2e.md`.
+
 **2f – Pilot trial on live and Stage 2 close** (2 prompts; no migration expected)
 - Before: Anoop / Ali decide the headers still open (HMS MAIL SENT DATE, MAIL SUBJECT; TDS in Badagara and Tree G; the value-shape items from the 1b-ii fixtures) and confirm the pilot words and names (2b). Claude gives the exact list and screens.
 - Full run on the 3 pilots (claims written to Supabase for the first time); trial summary per pilot; Anoop picks the check sets and approves each summary (or asks for rule changes → fixed in the same prompt or the reserve).
@@ -140,7 +142,7 @@ Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_v
 
 **Design review (design-reviewer agent, 31-Oct):** "Change before build" – all applied above. Must: status words pre-filled across hospitals; default for names with no similar spelling (needs question 4); most specific rule wins; dictionary unique key with `nulls not distinct`. Should: dictionary entries retired not overwritten; two-part issues on the combined claim; fingerprint of cleaned values; rule test as a worker job; seed approver + batch; check set from Settled claims + accept new values; one words-and-names list across hospitals. Could: write only changed issues; hide old developer columns. Budget holds at 14; reserve goes to 2a first.
 
-**Questions for Anoop (31-Oct):** 1 rule conditions = simple conditions + fixed calculated-check kinds — answered yes, built in 2a; 2 two-part approval combining method — answered 1-Nov, `decisions.md` section 7; 3 fresh initial rule list instead of the old 53 seed — answered yes, built in 2a; 4 default for names with no similar spelling — answered yes, built in 2b; 5 check-set pass rule — still open, needed for 2e.
+**Questions for Anoop (31-Oct):** 1 rule conditions = simple conditions + fixed calculated-check kinds — answered yes, built in 2a; 2 two-part approval combining method — answered 1-Nov, `decisions.md` section 7; 3 fresh initial rule list instead of the old 53 seed — answered yes, built in 2a; 4 default for names with no similar spelling — answered yes, built in 2b; 5 check-set pass rule — built in 2e exactly as spelled out above (zero Errors/Warnings and every key value unchanged); flag to Anoop if he wants it different.
 
 ## Stage 3 – Hosted worker
 

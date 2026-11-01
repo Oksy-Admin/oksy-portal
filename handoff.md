@@ -1,18 +1,19 @@
 # handoff.md – Oksy Data Cleanse portal
 
-Short "where are we now" note, max one page. Last updated: 1-Nov-2026 (all four Stage 2 migrations so far applied to live).
+Short "where are we now" note, max one page. Last updated: 1-Nov-2026 (2e done; its migration waits for Anoop's OK).
 
 ## Current stage
-**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a and 2b done 31-Oct-2026, 2c and 2d done 1-Nov-2026 (2a: rule engine as data, money rules rewritten; 2b: dictionary_entries replaces hard-coded status words/colours/names, hms-profile.ts retired; 2c: cross-row rules, two-part approval combining, value-is-correct confirmations; 2d: Rule Library page rewritten — 3-part form, plain-words box, save-time conflict check, test before save, CSV/Excel upload). All four Stage 2 migrations so far (`20261031060500_rule_engine_data.sql`, `20261031070000_dictionary_entries.sql`, `20261101120000_claim_checks_two_part.sql`, `20261101130000_rule_library_page.sql`) are applied to live by Anoop, 1-Nov-2026 (backup taken first each time; `20261101120000` fixed for live drift — no R-Y03 row in `public.rules` — before applying; `20261101130000` backed up as schema-2d and data-2d files). Next: `/build-substage 2e`.**
+**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a and 2b done 31-Oct-2026, 2c, 2d and 2e done 1-Nov-2026 (2a: rule engine as data, money rules rewritten; 2b: dictionary_entries replaces hard-coded status words/colours/names, hms-profile.ts retired; 2c: cross-row rules, two-part approval combining, value-is-correct confirmations; 2d: Rule Library page rewritten — 3-part form, plain-words box, save-time conflict check, test before save, CSV/Excel upload; 2e: rule trial (Run Trial job, per-rule summary, Owner/Admin approval) and check sets (pick up to 5 claims per hospital, live pass/fail, Accept new values)). The four earlier migrations (`20261031060500_rule_engine_data.sql`, `20261031070000_dictionary_entries.sql`, `20261101120000_claim_checks_two_part.sql`, `20261101130000_rule_library_page.sql`) are applied to live by Anoop, 1-Nov-2026; the 2e migration (`20261101140000_rule_trials_check_sets.sql`) is tested locally, waiting for his OK before live. Next: `/build-substage 2f`.**
 
 ## Next step
-`/build-substage 2e` (rule trial and check sets).
+`/build-substage 2f` (pilot trial on live and Stage 2 close) once Anoop has OK'd the 2e migration.
 
 ## Waiting on Anoop
 Full detail and exact steps for all of these: `claude/my-tasks.md`.
+- OK the 2e migration SQL (`supabase/migrations/20261101140000_rule_trials_check_sets.sql`; backup first, same as the earlier four) so it can go live before 2f starts.
 - Add GitHub secret `VERCEL_DEPLOY_HOOK_URL`.
 - Add `ANTHROPIC_API_KEY` to `apps/web`'s own environment (`.env.local` and Vercel) so the Rule Library's plain-words box works; also add the line to `.env.example` (this session's permission settings blocked that file).
-- KASP/MEDISEP sample sheet links + robot read access + the staff rule discussion (needed before the KASP/MEDISEP scheme-fit check, not before 2e–2f).
+- KASP/MEDISEP sample sheet links + robot read access + the staff rule discussion (needed before the KASP/MEDISEP scheme-fit check, not before 2f).
 - Recurring: after every report, tell the Claude chat "report ready" (it reads `claude/reports/last-report.md` through the computer link; paste only if that chat is not linked).
 
 ## What the portal is (one line)
