@@ -102,6 +102,16 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 
 - **HMS "MAIL SENT DATE" and "MAIL SUBJECT" (1-Nov, pilot-header decisions):** both **Ignore**. These were the last 2 undecided headers from the Stage 1b-ii live preview (`claude/archive/stage-history.md`).
 
+- **Five more pilot headers, final (1-Nov-2026):**
+
+| Header | Decision |
+|---|---|
+| DOD | discharge_date |
+| MEMBER NUMBER | Ignore |
+| POLICY HOLDER NAME | policy_holder_name |
+| MEMBER NAME | suggest policy_holder_name (needs confirmation — may differ from the policy holder; not auto-approved) |
+| HARDCOPY SENT Date | casesheet_sent_date |
+
 - **RATE vs AMOUNT TDS headers, general rule, final (1-Nov, replaces every earlier same-day TDS-header note above, including the auto-Ignore of "TDS %" at 30-Oct — the earlier claim that HMS's plain "TDS" holds a rupee amount was wrong and is undone):**
   - **RATE headers** — "TDS", "TDS %", "TDS Percent", "TDS Percentage", "TDS Rate" — in **every** hospital, including HMS, always hold the TDS **rate** and map to the extra field `tds` (label "TDS %", type number). Purpose: so Anoop can see whether an insurer deducts a wrong rate. This is why "TDS %" is no longer auto-Ignored.
   - **AMOUNT headers** — "TDS Amount", "TDS Amt" — always hold a **rupee amount** and map to `tds_amount_stated` ("TDS Amount"). Purpose: settlement comparison and the balance calculation.
@@ -162,6 +172,7 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 - **Rules are never hard-coded.** All rules are entered in the Rule Library. Add one by one or upload; edit; Delete = Inactive. Plain-words box: AI fills the rule form, a user checks and saves. Conflict check on save. (26-27-Oct)
 - **Rule trial before questions go out (30-Oct night):** before a hospital's first questions are sent, the rules run on that hospital's data and Anoop sees a summary (Errors and Warnings per rule) once. Each pilot hospital also gets a **check set of 5 claims** that Anoop knows are correct; the portal checks them after any mapping or rule change.
 - **Clean = zero Errors and zero Warnings.** Warnings are never ignored. A Warning clears when staff correct the value or confirm "value is correct" (recorded with who and when; never asked again). (26-Oct)
+- **Wrong-shape values, final (1-Nov-2026):** a value that does not match its column's field type or name (for example text in an amount column, or a formula result that does not look like the expected shape) is flagged as an Error or a Warning like any other issue. "Value is correct" clears it the same way as other Warnings — desk staff sometimes use formulas or otherwise write a value that looks wrong but is deliberate.
 - **"Clean once"** = one full run shows zero Errors and zero Warnings across all the hospital's tabs. (27-Oct)
 - **Day–month swap** is the only automatic date fix, and only when length of stay is over 15 days. (26-Oct)
 - **AI never** guesses a missing UTR, date, amount or claim number; never changes bill, approved or settled amounts; never approves, changes values, skips tabs, saves rules or sends messages. (26-30-Oct)
