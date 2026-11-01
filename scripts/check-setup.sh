@@ -73,17 +73,8 @@ else
   fail "claude/my-tasks.md is missing"
 fi
 
-# 9. Vercel deploy-hook Action exists on main (it only runs from there; a feature
-#    branch legitimately doesn't carry it yet, so check main's git history, not
-#    the current working tree).
-if check_file ".github/workflows/vercel-deploy-hook.yml" \
-  || git show main:.github/workflows/vercel-deploy-hook.yml >/dev/null 2>&1; then
-  pass ".github/workflows/vercel-deploy-hook.yml exists (working tree or main)"
-else
-  fail ".github/workflows/vercel-deploy-hook.yml is missing from both the working tree and main"
-fi
-
-# 10. apps/web/vercel.json does not have deploymentEnabled: false
+# 9. apps/web/vercel.json does not have git.deploymentEnabled: false
+#    (git auto-deploy is the only deploy path now — no backup deploy-hook Action)
 vj="apps/web/vercel.json"
 if check_file "$vj" && grep -Eq '"deploymentEnabled"[[:space:]]*:[[:space:]]*false' "$vj"; then
   fail "apps/web/vercel.json has deploymentEnabled: false (blocks Vercel auto-deploy)"
@@ -93,7 +84,7 @@ else
   fail "apps/web/vercel.json is missing"
 fi
 
-# 11. Session-start files (handoff.md, claude/my-tasks.md, CLAUDE.md) stay small together
+# 10. Session-start files (handoff.md, claude/my-tasks.md, CLAUDE.md) stay small together
 total_bytes=0
 missing=0
 for f in handoff.md claude/my-tasks.md CLAUDE.md; do

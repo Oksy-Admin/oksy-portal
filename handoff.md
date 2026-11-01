@@ -28,7 +28,7 @@ Reads hospital Google Sheets (read-only), cleans the claim data into Supabase, a
 
 ## Live systems
 - Local folder (Mac): `~/Projects/oksy-portal`, branch `main`, matches `origin/main` exactly (checked 1-Nov-2026). GitHub: `Oksy-Admin/oksy-portal` (private, HTTPS remote).
-- Vercel project `admin-oksy/oksy-portal`: deploys automatically from `main`; latest production deployment matches `origin/main`'s HEAD commit, deploy-hook Action green (checked 1-Nov-2026). Commits must use the git identity `admin@oksy.in` (a Vercel team member).
+- Vercel project `admin-oksy/oksy-portal`: deploys automatically from `main` (git auto-deploy only — the backup deploy-hook Action was removed 1-Nov-2026, it was building every push twice); latest production deployment matches `origin/main`'s HEAD commit (checked 1-Nov-2026). Commits must use the git identity `admin@oksy.in` (a Vercel team member).
 - Supabase project `oksy-data-cleanse` (Mumbai, ref `ciorqudslbprfzxedcfy`). All migrations through `20261101160000_column_mappings_sync_decision.sql` are applied to live (checked 1-Nov-2026).
 - Google: hospital sheets in Drive folder `Oksy Hospital Sheets`; Question Sheets in Shared Drive `Oksy Question Sheets Drive`. Robot = Google service account with read access to the 3 pilot sheets.
 - Pilots: HOSPPVTP0001 Badagara, HOSPPVTP0002 Tree G Eye Care, HOSPPVTP0003 HMS (links in `claude/requirements.md` section 5).

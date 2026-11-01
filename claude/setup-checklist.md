@@ -17,7 +17,7 @@ One row per setup used to run this project with Claude Code. "Active" means `scr
 | 11 | Stage branch + Vercel preview | `git` (`stage-2-rule-library` etc.); `apps/web/vercel.json` | `decisions.md` §14 "Stage work on its own branch" | Must keep | Low | Once per stage |
 | 12 | Model routing (agents opus, build/close sonnet) | `.claude/agents/{design,code}-reviewer.md` (`model: opus`) | `decisions.md` §14, 31-Oct; confirmed via Context7 that skills have no `model` field | Worthful | — (model choice, not a call) | Every review / every session |
 | 13 | Prompting rules (ask-once, no recap, short replies) | `claude/decisions.md` §14 | Followed in every report in `claude/reports/` | Must keep | Low | Every prompt |
-| 14 | Lean context: session-start files under 25 KB | `handoff.md`, `claude/my-tasks.md`, `CLAUDE.md` | `scripts/check-setup.sh` row 11 | Must keep | Low | Every session start |
+| 14 | Lean context: session-start files under 25 KB | `handoff.md`, `claude/my-tasks.md`, `CLAUDE.md` | `scripts/check-setup.sh` row 10 | Must keep | Low | Every session start |
 | 15 | `design-reviewer` agent | `.claude/agents/design-reviewer.md` | `scripts/check-setup.sh` row 3; mandatory step in `/plan-stage` | Must keep | Medium (full subagent run) | Once per stage plan |
 | 16 | `code-reviewer` agent | `.claude/agents/code-reviewer.md` | `scripts/check-setup.sh` row 3; mandatory step in `/close-substage` (last sub-stage) | Must keep | Medium (full subagent run) | Once per stage close |
 | 17 | Scope-lock + file-scope guard + minimal-diff | `.claude/skills/build-substage/SKILL.md` steps 2–3 | `scripts/check-setup.sh` row 4 | Must keep | Low | Every sub-stage |
@@ -26,9 +26,8 @@ One row per setup used to run this project with Claude Code. "Active" means `scr
 | 20 | Supabase advisors check in `/close-substage` | `.claude/skills/close-substage/SKILL.md` step 8 (`get_advisors`) | `scripts/check-setup.sh` row 5 (text match) | Worthful | Low (one read-only call) | Once per sub-stage close |
 | 21 | "Anoop must do now" block in every report | `.claude/skills/close-substage/SKILL.md` step 8–9 | `scripts/check-setup.sh` row 5 | Must keep | Low | Every close-substage report |
 | 22 | `my-tasks.md` guard in `/plan-stage` and `/build-substage` | `.claude/skills/{plan-stage,build-substage}/SKILL.md` step 1 | `scripts/check-setup.sh` row 8 (file exists) + manual read of the skill text | Must keep | Low | Every stage plan / sub-stage start |
-| 23 | Vercel deploy-hook Action | `.github/workflows/vercel-deploy-hook.yml` (on `main`) | `scripts/check-setup.sh` row 9 | Worthful | Low (one curl on push) | Every push to `main` |
-| 24 | `apps/web/vercel.json` `deploymentEnabled` not `false` | `apps/web/vercel.json` | `scripts/check-setup.sh` row 10 | Must keep | — | Checked every `/close-substage` |
-| 25 | `scripts/check-setup.sh` | `scripts/check-setup.sh` | Run once this session (output in `claude/reports/last-report.md`) | Must keep | Low (pure grep, no network) | Every `/close-substage` |
+| 23 | `apps/web/vercel.json` `deploymentEnabled` not `false` (git auto-deploy is the only deploy path — no backup deploy-hook Action, removed 1-Nov-2026) | `apps/web/vercel.json` | `scripts/check-setup.sh` row 9 | Must keep | — | Checked every `/close-substage` |
+| 24 | `scripts/check-setup.sh` | `scripts/check-setup.sh` | Run once this session (output in `claude/reports/last-report.md`) | Must keep | Low (pure grep, no network) | Every `/close-substage` |
 | — | Nightly Claude health-check | Not built | — | **Can skip / not wired** | — | — |
 | — | `explain-usage` at stage close | Not built | — | **Can skip / not wired** | — | — |
 
