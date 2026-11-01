@@ -231,7 +231,7 @@ async function ClaimsPage({ searchParams }: { searchParams: Promise<ClaimFilters
                   </td>
                   <td className="muted">
                     {(issuesByRecord.get(String(r.record_uid)) ?? []).map((i, idx) => (
-                      <span key={i.rule_id} title={i.detail ?? i.rule_id}>
+                      <span key={`${i.rule_id}-${idx}`} title={i.detail ?? i.rule_id}>
                         {idx > 0 ? ", " : ""}
                         {i.rule_id}
                         {i.status === "CONFIRMED" ? " (confirmed)" : ""}
