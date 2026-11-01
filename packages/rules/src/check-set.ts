@@ -33,9 +33,7 @@ export type KeyValues = { [K in KeyValueField]: StoredClaimRow[K] };
 
 /** The snapshot stored in `check_set_claims.key_values` when a claim is picked. */
 export function keyValuesOf(row: StoredClaimRow): KeyValues {
-  const out = {} as KeyValues;
-  for (const f of KEY_VALUE_FIELDS) out[f] = row[f];
-  return out;
+  return Object.fromEntries(KEY_VALUE_FIELDS.map((f) => [f, row[f]])) as KeyValues;
 }
 
 function sameValue(a: unknown, b: unknown): boolean {

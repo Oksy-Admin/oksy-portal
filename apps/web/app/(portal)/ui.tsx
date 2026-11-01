@@ -91,6 +91,8 @@ const TONES: Record<string, string> = {
   RUNNING: "tone-blue",
   SUCCEEDED: "tone-green",
   FAILED: "tone-red",
+  Pass: "tone-green",
+  Fail: "tone-red",
 };
 
 export function Pill({ value }: { value: string }) {
