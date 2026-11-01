@@ -271,7 +271,7 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 ## 16. Later-stage decisions (1-Nov-2026)
 
 **A. Reference lists**
-- `claude/reference/India_Healthcare_Directory_updated.xlsx` is the global reference for Insurer (35), TPA (17), Department (71). Only the IRDAI official name is shown in portal and reports; other spellings are aliases. It replaces the 27 insurer names seeded in 2b.
+- `claude/reference/India_Healthcare_Directory.xlsx` is the global reference for Insurer (35), TPA (17), Department (71). Only the IRDAI official name is shown in portal and reports; other spellings are aliases. It replaces the 27 insurer names seeded in 2b.
 - Owner/Admin: add, edit, hide; delete only if unused.
 - Exact match after normalising case, "Ltd/Limited" and punctuation is applied automatically (lane 1). Any other spelling is an AI suggestion, never applied by itself.
 - Unmatched names go to the hospital's Question Sheet as one grouped question (dropdown: same as X / new: type name). A new entry is added only after Owner/Admin confirms the reply with one click.
