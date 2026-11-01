@@ -20,3 +20,4 @@ export * from "./claim-context.ts";
 export * from "./conflict.ts";
 export * from "./rule-csv.ts";
 export * from "./plain-words.ts";
+export * from "./check-set.ts";

@@ -1,9 +1,11 @@
 -- Worker (service_role) table rights: exactly the ones in migrations 0004, 0005, 0007, 0008 and the
 -- Stage 1c reconcile (which also removed TRUNCATE / REFERENCES / TRIGGER everywhere), plus
 -- Stage 2b (hospital_profile_facts, dictionary_entries), Stage 2c (claim_links,
--- issue_confirmations: no UPDATE - it is append-only) and Stage 2d (rule_test_runs: the
--- worker claims a queued test with SELECT then writes its result with UPDATE), no others.
--- The test database grants nothing by default (scripts/db-test-local.sh), as live.
+-- issue_confirmations: no UPDATE - it is append-only), Stage 2d (rule_test_runs: the
+-- worker claims a queued test with SELECT then writes its result with UPDATE) and Stage 2e
+-- (rule_trials: same claim/write shape as rule_test_runs; check_set_claims is never touched
+-- by the worker at all -- pass/fail is computed live from claims_staging/issues it already
+-- reads), no others. The test database grants nothing by default (scripts/db-test-local.sh), as live.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(14);
@@ -22,9 +24,9 @@ select is(
   || 'google_events.INSERT, google_events.SELECT, header_decisions.SELECT, hospital_profile_facts.SELECT, hospital_sheets.SELECT, '
   || 'issue_confirmations.INSERT, issue_confirmations.SELECT, issues.INSERT, issues.SELECT, issues.UPDATE, jobs.SELECT, mapping_fields.SELECT, payments.INSERT, payments.SELECT, payments.UPDATE, '
   || 'questions.INSERT, questions.SELECT, questions.UPDATE, reconciliations.INSERT, reconciliations.SELECT, '
-  || 'record_keys.INSERT, record_keys.SELECT, rule_test_runs.SELECT, rule_test_runs.UPDATE, rule_versions.SELECT, rules.SELECT, scheme_insurers.SELECT, sheet_tabs.INSERT, sheet_tabs.SELECT, sheet_tabs.UPDATE, '
+  || 'record_keys.INSERT, record_keys.SELECT, rule_test_runs.SELECT, rule_test_runs.UPDATE, rule_trials.SELECT, rule_trials.UPDATE, rule_versions.SELECT, rules.SELECT, scheme_insurers.SELECT, sheet_tabs.INSERT, sheet_tabs.SELECT, sheet_tabs.UPDATE, '
   || 'snapshots.INSERT, snapshots.SELECT, version_groups.INSERT, version_groups.SELECT',
-  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 1b-i, the 1c reconcile, 1d, 1e, 2b, 2c and 2d, no others');
+  'service_role has exactly the rights of migrations 0004, 0005, 0007, 0008, 1b-i, the 1c reconcile, 1d, 1e, 2b, 2c, 2d and 2e, no others');
 
 -- 2. Named checks, so a failure says which right is wrong.
 select ok(has_table_privilege('service_role', 'public.mapping_fields', 'SELECT')
