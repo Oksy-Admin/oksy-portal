@@ -36,7 +36,7 @@ export const TOTAL_COLUMNS = ["bill_amount", "approved_amount", "copay_amount", 
 export function cleanFilters(sp: ClaimFilters): Required<Omit<ClaimFilters, "page">> & { page: number } {
   const pick = (v: string | undefined, allowed: readonly string[]) => (v && allowed.includes(v) ? v : "");
   return {
-    hospital: /^HOSP32P\d{6}$/.test(sp.hospital ?? "") ? sp.hospital! : "",
+    hospital: /^HOSP[A-Z0-9]{4,20}$/.test(sp.hospital ?? "") ? sp.hospital! : "",
     stage: pick(sp.stage, STAGES),
     cls: pick(sp.cls, CLASSES),
     tab: (sp.tab ?? "").slice(0, 60),
