@@ -1,6 +1,6 @@
 # CLAUDE.md – Oksy Data Cleanse portal
 
-**Current stage: Stage 1 closed and pushed 31-Oct-2026 (all sub-stages done, migrations on live with zero drift, code-reviewer run with one Must fixed). Next: Stage 2 plan, not started.**
+**Current stage: Stage 2 approved 31-Oct-2026, built on branch `stage-2-rule-library` (not merged to `main`). 2a and 2b done 31-Oct-2026, 2c, 2d and 2e done 1-Nov-2026 (2a: rule engine as data, money rules rewritten; 2b: dictionary_entries replaces hard-coded status words/colours/names, hms-profile.ts retired; 2c: cross-row rules, two-part approval combining, value-is-correct confirmations; 2d: Rule Library page rewritten — 3-part form, plain-words box, save-time conflict check, test before save, CSV/Excel upload; 2e: rule trial (Run Trial job, per-rule summary, Owner/Admin approval) and check sets (pick up to 5 claims per hospital, live pass/fail, Accept new values)). All five Stage 2 migrations (`20261031060500_rule_engine_data.sql`, `20261031070000_dictionary_entries.sql`, `20261101120000_claim_checks_two_part.sql`, `20261101130000_rule_library_page.sql`, `20261101140000_rule_trials_check_sets.sql`) are applied to live, confirmed 1-Nov-2026. 2f in progress (prompt 1 of 2, 1-Nov-2026): pilot header decisions recorded (`claude/decisions.md` section 5), branch checks all green; waiting on Anoop to fix HMS's "TDS" header in Column Mappings and run the pilot trial on live. Next: Anoop's live steps, then prompt 2 of `/build-substage 2f` (Stage 2 close).**
 
 ## Read first, in this order
 1. `handoff.md` – where we are now and the next step
@@ -20,34 +20,12 @@ Never ask Anoop a decision that is already in `claude/decisions.md`.
 - **Stage-level approval.** Anoop approves a whole stage plan once; sub-stages are then built one after another and reported together. The next stage starts only after Anoop approves. Every migration SQL still needs his OK before live.
 - **Discuss first:** for new requirements or redesigns, propose; build nothing until Anoop agrees.
 
-## Git
-- Claude makes the commits: small, one purpose each, clear English message. Tell Anoop what each commit contains.
-- **Anoop runs `git push` himself** from the Mac Terminal, once at the end of each stage. Claude does not push.
-- Remote: HTTPS only (`https://github.com/Oksy-Admin/oksy-portal.git`). The SSH remote (`git@github-oksy`) is broken.
-- Vercel deploys automatically from GitHub `main` after a push. Database changes are not deployed by a push; they are applied separately (see Schema changes).
-- One tool (Claude Code, Codex or Antigravity) works on one file at a time; commit, then switch tools.
+## How we work
+Git workflow, talking to Anoop, closing a sub-stage, saving prompts and the full token-saving rules all live in **`claude/decisions.md` section 14 ("How we work")** — that is the one copy; nothing here repeats it. Read it before any git action, any report to Anoop, or any sub-stage close.
 
-## Talking to Anoop
-- Reply in **English**, plain words, short: done / blocked / decision needed. Code, file names and commit messages in English.
-- Write every final report also to `claude/reports/last-report.md` (overwrite it each time), so Anoop can read it without copying from the terminal.
-- Anoop is not a programmer. For any step he must do: which app, which screen, exact text to type or click, what to check, what it is for, what happens if skipped.
-- Every question gives the reason and Claude's recommendation, answerable yes/no. At most 3–5 questions at a stage gate.
-- Do not paste long code or long outputs in chat.
+Session-start reading order: `handoff.md` → `claude/my-tasks.md` → only the `decisions.md` sections the task needs (use its section index + `grep`).
 
-## Closing a sub-stage (same session)
-1. Run `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`; check the done-criteria in `claude/stage-plan.md`.
-2. Update the status table in `claude/stage-plan.md` (DONE + date + evidence).
-3. Update the "Current stage" line here, in `AGENTS.md` and in `handoff.md`.
-4. Add any new decision to `claude/decisions.md` (move replaced ones to its "Superseded" table).
-5. Report to Anoop and wait for approval.
-
-## Saving prompts (target ~55 prompts to the pilot finish line)
-- One prompt = one full sub-stage: build → tests until green → commits → close. Do not stop to ask what is already decided.
-- Skills in `.claude/skills/`: `/plan-stage N`, `/build-substage Nx`, `/close-substage Nx`.
-- Stop hook (`scripts/claude-stop-check.sh`) runs typecheck, lint and test on uncommitted code changes; fix failures in the same prompt.
-- `.claude/settings.json` allows routine commands and blocks `git push`, live `supabase db push` and reading `.env` files.
-- Agents in `.claude/agents/`: `design-reviewer` (mandatory in `/plan-stage`), `code-reviewer` (end of each stage). MCP (`.mcp.json`): Supabase read-only, Context7 docs.
-- Read only what the task needs; keep outputs short; `/clear` after each closed sub-stage.
+**Prerequisite guard (`/plan-stage`, `/build-substage`):** read `claude/my-tasks.md` first; if an item under "Before each stage/sub-stage starts" is open for this sub-stage, stop and tell Anoop instead of starting.
 
 ## Commands
 See `README.md` (`pnpm dev`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm worker`).

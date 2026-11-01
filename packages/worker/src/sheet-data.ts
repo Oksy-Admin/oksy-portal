@@ -11,7 +11,6 @@ import {
   mapHeaders,
   nameKey,
   type CanonicalField,
-  type ColourMeaning,
   type ColumnMap,
   type FieldDef,
   type SourceCell,
@@ -121,41 +120,27 @@ export function sourceRows(tab: RawTab, layout: TabLayout): SourceRow[] {
   return out;
 }
 
-/** Legend words (staff confirmed the meanings on 25-Oct; the COLOURS tab gives the exact fill). */
-const LEGEND_WORDS: Array<[RegExp, ColourMeaning]> = [
-  [/pre\s*-?auth.*initiat/i, "PREAUTH_INITIATED"],
-  [/pre\s*-?auth.*approv/i, "PREAUTH_APPROVED"],
-  [/reject|denied|cancel/i, "REJECTED_OR_CANCELLED"],
-  [/discharg/i, "DISCHARGED"],
-  [/claim\s*submit|hard\s*copy/i, "CLAIM_SUBMITTED"],
-  [/\bpaid\b|settled/i, "PAID"],
-];
-
 /**
- * The colour legend from a LEGEND tab: a label cell with its fill, or a filled cell next to
- * its label. Only labels that match a confirmed meaning are used; two fills for one meaning,
- * or one fill for two meanings, leaves that colour out (ask, never guess).
+ * Raw label text per fill colour from a LEGEND tab: a label cell with its fill, or a filled
+ * cell next to its label. Stage 2b: the meaning of a label is no longer guessed here and
+ * applied at once (decisions.md section 7, "colours are never used without the hospital's
+ * confirmation") — dictionary.ts's guessColourMeaning only suggests one, for the decision
+ * list; clean.ts only ever sees a hospital's CONFIRMED colourLegend. Two labels for one fill
+ * is left out (ask, never guess which one is right).
  */
-export function legendFrom(tab: RawTab | undefined): Record<string, ColourMeaning> {
+export function legendLabelsFrom(tab: RawTab | undefined): Record<string, string> {
   if (!tab) return {};
-  const found = new Map<string, Set<ColourMeaning>>();
+  const found = new Map<string, Set<string>>();
   for (const row of tab.rows) {
     for (let j = 0; j < row.length; j++) {
       const [text] = row[j] ?? [null];
       if (!text || isBlank({ text })) continue;
-      const meaning = LEGEND_WORDS.find(([re]) => re.test(text))?.[1];
-      if (!meaning) continue;
       const fill = row[j]?.[2] ?? row[j - 1]?.[2] ?? row[j + 1]?.[2] ?? null;
       if (!fill) continue;
-      (found.get(fill) ?? found.set(fill, new Set()).get(fill)!).add(meaning);
+      (found.get(fill) ?? found.set(fill, new Set()).get(fill)!).add(text.trim());
     }
   }
-  const legend: Record<string, ColourMeaning> = {};
-  const used = new Map<ColourMeaning, number>();
-  for (const [, ms] of found) for (const m of ms) used.set(m, (used.get(m) ?? 0) + 1);
-  for (const [fill, ms] of found) {
-    const m = [...ms][0];
-    if (ms.size === 1 && m && used.get(m) === 1) legend[fill] = m;
-  }
-  return legend;
+  const labels: Record<string, string> = {};
+  for (const [fill, texts] of found) if (texts.size === 1) labels[fill] = [...texts][0]!;
+  return labels;
 }

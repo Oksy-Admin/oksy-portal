@@ -84,9 +84,28 @@ describe("selectRules: status (D-043 shadow mode, never deleted)", () => {
     expect([...s.checks, ...s.shadowChecks].some((r) => r.ruleId === "R-A04")).toBe(false);
   });
 
-  it("two ACTIVE versions of one rule are a configuration error", () => {
+  it("two ACTIVE versions of one rule, same scope, are a configuration error (equal specificity)", () => {
     const e = selectRules([rule({ ruleId: "R-D01" }), rule({ ruleId: "R-D01", version: 2 })], ctx());
-    expect(e.configErrors.map((c) => c.kind)).toContain("TWO_ACTIVE_VERSIONS");
+    expect(e.configErrors).toEqual([{ kind: "EQUAL_SPECIFICITY_CONFLICT", ruleIds: ["R-D01"] }]);
+    expect(ids(e.checks)).toEqual([]); // neither version runs: never picked silently (D-015)
+  });
+
+  it("a more specific ACTIVE version of a rule replaces the general one (design review Must, 31-Oct)", () => {
+    const e = selectRules(
+      [rule({ ruleId: "R-D01", version: 1 }), rule({ ruleId: "R-D01", version: 2, insurerFilter: "Star Health" })],
+      ctx(),
+    );
+    expect(e.configErrors).toEqual([]);
+    expect(e.checks).toEqual([expect.objectContaining({ ruleId: "R-D01", version: 2 })]);
+  });
+
+  it("a more specific rule that does not match this row leaves the general one running", () => {
+    const e = selectRules(
+      [rule({ ruleId: "R-D01", version: 1 }), rule({ ruleId: "R-D01", version: 2, insurerFilter: "New India Assurance" })],
+      ctx(), // row's insurer is Star Health
+    );
+    expect(e.configErrors).toEqual([]);
+    expect(e.checks).toEqual([expect.objectContaining({ ruleId: "R-D01", version: 1 })]);
   });
 });
 

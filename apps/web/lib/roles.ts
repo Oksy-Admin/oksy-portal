@@ -137,3 +137,18 @@ export function canEditHospitals(p: Person): boolean {
 export function canConfirmMappings(p: Person): boolean {
   return canEditHospitals(p);
 }
+
+/** Decide a dictionary entry (status word, colour, insurer/TPA/department, doctor name): same tick as mappings (Stage 2b). */
+export function canConfirmDictionary(p: Person): boolean {
+  return canEditHospitals(p);
+}
+
+/** /rules page: the rule_library_view tick; Owner and Admin always (decisions.md section 3). */
+export function canViewRuleLibrary(p: Person): boolean {
+  return ownerOrAdmin(p) || (p?.role === "USER" && hasTick(p.ticks, "rule_library_view", p.role));
+}
+
+/** Add / edit / upload / test a rule, Delete = Inactive: the rule_library_add_edit tick (Stage 2d). */
+export function canEditRuleLibrary(p: Person): boolean {
+  return ownerOrAdmin(p) || (p?.role === "USER" && hasTick(p.ticks, "rule_library_add_edit", p.role));
+}

@@ -6,11 +6,19 @@ import { createHash } from "node:crypto";
 import { SheetNotReadableError, toEventRows, type createReadPath, type GoogleEvent, type TabPolicy } from "@oksy/google";
 import {
   cleanRow,
+  combineTwoPart,
+  computeFingerprint,
   detectDateOrder,
+  fieldsForConfirmation,
+  fieldsReadBy,
+  findTwoPartCandidates,
   isEmptyRow,
+  markPending,
   openKeyOf,
   parseDate,
+  type CheckDefinition,
   type CleanRow,
+  type RuleAction,
   type RuleVersion,
 } from "@oksy/rules";
 import { chunks, type Db } from "./db.ts";
@@ -27,10 +35,12 @@ import {
   type MappingRow,
   type SuggestFn,
 } from "./discovery.ts";
-import { defaultProfile, doctorAliasesFrom, HMS_CODE, HMS_HEADERS, HMS_SHEET, hmsProfile } from "./hms-profile.ts";
-import { checkSameClaims } from "./identity.ts";
+import { syncDictionarySuggestions } from "./dictionary-sync.ts";
+import { HMS_HEADERS, HMS_SHEET } from "./hospital-headers.ts";
+import { checkSameClaims, checkSameUtr, dedupeExactRows, type CrossRowRules } from "./identity.ts";
+import { buildHospitalProfile, type DictionaryRow, type HospitalFacts } from "./profile.ts";
 import { emptyReconciliation, reconcile, type Reconciliation } from "./reconcile.ts";
-import { layoutOf, legendFrom, sourceRows, toRawTabs, type TabLayout } from "./sheet-data.ts";
+import { layoutOf, legendLabelsFrom, sourceRows, toRawTabs, type TabLayout } from "./sheet-data.ts";
 
 export interface Job {
   id: string;
@@ -66,7 +76,9 @@ export interface RunSummary {
   /** Tab discovery of this run (requirements v2 section 5). */
   discovery?: DiscoverySummary;
   /** Same claim inside this run (decision section 7): exact repeats not stored, conflicts and same-day patients flagged. */
-  identity?: { duplicates: number; conflicting: number; samePatientSameDay: number };
+  identity?: { duplicates: number; conflicting: number; samePatientSameDay: number; sameUtr: number };
+  /** Two-part approval (decision section 7, 1-Nov): candidates found this run and how each was handled. */
+  twoPart?: { confirmed: number; pending: number; newSuggestions: number };
   /** Rows below the header: read, skipped as non-data (serial-only, totals, banners), data. */
   rows?: { read: number; nonData: number; data: number };
   ms: Record<string, number>;
@@ -254,24 +266,27 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     layouts.push(l);
   }
 
-  // 6. Hospital facts confirmed by staff (25-Oct answers) and the confirmed colour legend.
+  // 6. Hospital facts (hospitals table) and dictionaries (Stage 2b): only CONFIRMED rows are
+  //    ever applied without asking (decisions.md section 9, lane 1). A SUGGESTED row waits for
+  //    a person on the "Words and names to confirm" list.
   const legendTab = rawTabs.find((t) => kind[t.name] === "LEGEND");
-  const doctorQs = await db.select<{ id: string; question_text: string; status: string }>(
-    `questions?hospital_code=eq.${enc(sheet.hospital_code)}&question_type=eq.M&scope=eq.HOSPITAL&select=id,question_text,status`,
+  const legendLabels = legendLabelsFrom(legendTab);
+  const [factsRow] = await db.select<HospitalFacts>(
+    `hospital_profile_facts?hospital_code=eq.${enc(sheet.hospital_code)}&select=tab_stage_facts,tpa_cell_may_hold_insurer,paid_meaning_open_tabs,pod_start_date`,
   );
-  const confirmedIds = new Set(
-    (
-      await db.select<{ question_id: string }>(
-        `answers?outcome=eq.CONFIRMED&question_id=in.(${doctorQs.map((q) => q.id).join(",") || "00000000-0000-0000-0000-000000000000"})&select=question_id`,
-      )
-    ).map((a) => a.question_id),
-  );
-  const doctorAliases = doctorAliasesFrom(doctorQs.map((q) => ({ ...q, confirmed: confirmedIds.has(q.id) })));
-  const legend = legendFrom(legendTab);
-
-  const profile = sheet.hospital_code === HMS_CODE
-    ? hmsProfile(legend, doctorAliases)
-    : defaultProfile(sheet.hospital_code, sheet.scheme, legend, doctorAliases);
+  const facts: HospitalFacts = factsRow ?? { tab_stage_facts: {}, tpa_cell_may_hold_insurer: false, paid_meaning_open_tabs: [], pod_start_date: null };
+  // Two reads, not an "or" filter: hospital-scoped kinds (status words, colours, doctors) and
+  // scheme-wide kinds (insurer, TPA, department names, hospital_code IS NULL).
+  const [hospitalDict, schemeDict] = await Promise.all([
+    db.select<DictionaryRow>(
+      `dictionary_entries?status=eq.CONFIRMED&scheme=eq.${enc(sheet.scheme)}&hospital_code=eq.${enc(sheet.hospital_code)}&select=kind,scheme,hospital_code,spelling_key,standard_value,status`,
+    ),
+    db.select<DictionaryRow>(
+      `dictionary_entries?status=eq.CONFIRMED&scheme=eq.${enc(sheet.scheme)}&hospital_code=is.null&select=kind,scheme,hospital_code,spelling_key,standard_value,status`,
+    ),
+  ]);
+  const dictRows = [...hospitalDict, ...schemeDict];
+  const profile = buildHospitalProfile(sheet.hospital_code, sheet.scheme, facts, dictRows);
 
   // 7. Clean every non-empty row; one date order for the sheet (file 02 section 3).
   const [rawRules, rawVersions] = await Promise.all([
@@ -287,7 +302,13 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
       valid_to: string | null;
       parameter_name: string | null;
       parameter_value: number | string | null;
-    }>("rule_versions?select=rule_id,version,status,hospital_filter,scheme_filter,insurer_filter,valid_from,valid_to,parameter_name,parameter_value"),
+      severity: "E" | "W" | null;
+      check_definition: CheckDefinition | null;
+      action: RuleAction | null;
+      staff_message: string | null;
+    }>(
+      "rule_versions?select=rule_id,version,status,hospital_filter,scheme_filter,insurer_filter,valid_from,valid_to,parameter_name,parameter_value,severity,check_definition,action,staff_message",
+    ),
   ]);
 
   const ruleTypes = new Map(rawRules.map((r) => [r.rule_id, r.rule_type]));
@@ -303,6 +324,10 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     validTo: v.valid_to,
     parameterName: v.parameter_name,
     parameterValue: v.parameter_value != null ? String(v.parameter_value) : null,
+    severity: v.severity,
+    checkDefinition: v.check_definition,
+    action: v.action,
+    staffMessage: v.staff_message,
   }));
 
   const srcRows = await step("map", () =>
@@ -317,7 +342,92 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     ),
   );
   const cleaned = await step("clean", () => srcRows.map((r) => cleanRow(profile, r, { today, dateOrder, ruleVersions })));
-  const same = checkSameClaims(cleaned, sheet.scheme);
+
+  // 6b. Two-part approval (decisions.md section 7, 1-Nov): combine only after a person
+  // confirms (claim_links). Candidates are found on rows not already an exact duplicate, and
+  // before the normal "same claim, different values" conflict check, which would otherwise
+  // flag every pending or confirmed pair as a data conflict.
+  // An ACTIVE CHECK rule with no check_definition is, by construction, a structural rule whose
+  // comparison stays in code (the allowed exception, same as R-C01/R-N02) - no rule ID is
+  // named here, so a rule like this can be added, edited or made Inactive from the Rule
+  // Library alone, same as every other rule (2a done-criteria).
+  const crossRowRules: CrossRowRules = {};
+  for (const v of ruleVersions) {
+    if (v.type === "CHECK" && v.status === "ACTIVE" && !v.checkDefinition && v.severity) {
+      crossRowRules[v.ruleId] = { severity: v.severity, staffMessage: v.staffMessage ?? null };
+    }
+  }
+  const twoPart = await step("two-part", async () => {
+    const { kept } = dedupeExactRows(cleaned);
+    const candidates = findTwoPartCandidates(kept);
+    if (candidates.length === 0) return { confirmed: 0, pending: 0, newSuggestions: 0, combined: [] as Array<{ primaryKey: string; secondaryKey: string }> };
+    const links = await db.select<{ primary_record_key: string; secondary_record_key: string; status: string }>(
+      `claim_links?hospital_code=eq.${enc(sheet.hospital_code)}&scheme=eq.${enc(sheet.scheme)}&select=primary_record_key,secondary_record_key,status`,
+    );
+    const linkStatus = new Map(links.map((l) => [`${l.primary_record_key}|${l.secondary_record_key}`, l.status]));
+    const newSuggestions: Array<Record<string, unknown>> = [];
+    const combined: Array<{ primaryKey: string; secondaryKey: string }> = [];
+    let confirmed = 0;
+    let pending = 0;
+    for (const c of candidates) {
+      const secondaryKey = `${c.key}#2`;
+      const status = linkStatus.get(`${c.key}|${secondaryKey}`);
+      if (status === "CONFIRMED") {
+        const primarySource = srcRows.find((s) => s.tab === c.primary.tab && s.row === c.primary.row);
+        if (primarySource) {
+          const result = combineTwoPart(c, primarySource, profile, { today, dateOrder, ruleVersions });
+          const idx = cleaned.indexOf(c.primary);
+          if (idx >= 0) cleaned[idx] = result.primary;
+          combined.push({ primaryKey: c.key, secondaryKey });
+          confirmed++;
+        }
+      } else if (status === "REJECTED") {
+        // Falls through to checkSameClaims below: a real data conflict, flagged as usual.
+      } else {
+        markPending(c);
+        pending++;
+        if (status === undefined) {
+          newSuggestions.push({
+            hospital_code: sheet.hospital_code,
+            scheme: sheet.scheme,
+            status: "SUGGESTED",
+            primary_record_key: c.key,
+            secondary_record_key: secondaryKey,
+            evidence: { approved_amount: c.primary.claim!.approved_amount, utrs: [c.primary.claim!.utr_no, c.secondary.claim!.utr_no] },
+          });
+        }
+      }
+    }
+    if (newSuggestions.length) await db.insert("claim_links", newSuggestions, { onConflict: "primary_record_key,secondary_record_key", ignoreDuplicates: true });
+    return { confirmed, pending, newSuggestions: newSuggestions.length, combined };
+  });
+
+  const same = checkSameClaims(cleaned, sheet.scheme, crossRowRules);
+  const sameUtr = checkSameUtr(cleaned, crossRowRules);
+
+  // 7b. New spellings this run go to the decision list once (Stage 2b); never blocks the run.
+  await step("dictionary-sync", async () => {
+    try {
+      const textOf = (f: "status_text" | "doctor_name" | "insurer_name" | "tpa_name" | "department") =>
+        srcRows.map((r) => r.cells[f]?.text?.trim()).filter((t): t is string => !!t);
+      await syncDictionarySuggestions(
+        db,
+        sheet.hospital_code,
+        sheet.scheme,
+        {
+          statusWords: textOf("status_text"),
+          doctors: textOf("doctor_name"),
+          insurers: textOf("insurer_name"),
+          tpas: textOf("tpa_name"),
+          departments: textOf("department"),
+          colours: legendLabels,
+        },
+        dataTabs.map((t) => t.name),
+      );
+    } catch {
+      // Non-critical sidecar (decisions.md section 9): the spelling is listed again next run.
+    }
+  });
 
   // 8. Reconcile before any write.
   const rec = reconcile(dataTabs, layouts, cleaned);
@@ -331,7 +441,8 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
     discovery,
     rows: { read: srcRows.length, nonData: cleaned.filter((r) => r.rowClass === "NON_DATA_ROW").length, data: cleaned.filter((r) => r.rowClass !== "NON_DATA_ROW").length },
     issues: issueCounts(cleaned),
-    identity: { duplicates: same.duplicates.size, conflicting: same.conflicting, samePatientSameDay: same.samePatientSameDay },
+    identity: { duplicates: same.duplicates.size, conflicting: same.conflicting, samePatientSameDay: same.samePatientSameDay, sameUtr: sameUtr.flagged },
+    twoPart: { confirmed: twoPart.confirmed, pending: twoPart.pending, newSuggestions: twoPart.newSuggestions },
     fixes: fixCounts(cleaned),
     ms,
   };
@@ -352,7 +463,9 @@ export async function runSheetJob(job: Job, deps: RunDeps): Promise<RunSummary> 
   if (job.mode === "DRY_RUN") return base;
 
   // 9. Write by upsert, never plain insert (file 03 section 4.9).
-  const written = await step("write", () => writeRows(db, job, sheet, fileId, cleaned.filter((r) => !same.duplicates.has(r)), now()));
+  const written = await step("write", () =>
+    writeRows(db, job, sheet, fileId, cleaned.filter((r) => !same.duplicates.has(r)), now(), ruleVersions, twoPart.combined),
+  );
   return { ...base, result: "WRITTEN", ...written };
 }
 
@@ -379,13 +492,13 @@ function issueCounts(rows: CleanRow[]) {
 type ExistingClaim = Record<string, unknown> & { record_uid: string; record_key: string; content_hash: string };
 
 const CLAIM_COLUMNS = [
-  "insurer_name", "tpa_name", "patient_name", "patient_ip_no", "policy_or_card_no", "preauth_or_claim_no", "admission_date",
-  "discharge_date", "treatment_or_surgery", "department", "doctor_name", "room_no", "bill_amount", "claimed_amount",
-  "approved_amount", "copay_amount", "deduction_amount", "casesheet_sent_date", "followup_log", "claim_status", "status_source",
-  "rejection_reason", "cancellation_reason", "settled_amount", "settlement_date", "utr_no", "remarks", "los_days",
-  "tds_rate_used", "tds_rate_source", "tds_rule_id", "gross_amount", "tds_amount", "discount_1_amount", "discount_1_pct",
-  "discount_2_amount", "discount_2_pct", "discount_2_confirmed", "tds_path", "discount_2_resolution", "overdue_flag",
-  "pending_days", "aging_bucket",
+  "insurer_name", "tpa_name", "patient_name", "patient_ip_no", "policy_or_card_no", "phone_number", "policy_holder_name",
+  "preauth_or_claim_no", "admission_date", "discharge_date", "treatment_or_surgery", "department", "doctor_name", "room_no",
+  "bill_amount", "claimed_amount", "approved_amount", "copay_amount", "deduction_amount", "discount_amount",
+  "casesheet_sent_date", "courier_no", "followup_log", "claim_status", "status_source", "rejection_reason",
+  "cancellation_reason", "settled_amount", "settlement_date", "utr_no", "remarks", "los_days", "date_swap_applied",
+  "tds_rate_used", "tds_rate_source", "tds_rule_id", "tds_amount", "expected_tds_amount", "expected_settlement_amount",
+  "balance_amount", "overdue_flag", "pending_days", "aging_bucket",
 ] as const;
 
 function norm(v: unknown): string | null {
@@ -395,8 +508,18 @@ function norm(v: unknown): string | null {
   return /^-?\d+(\.\d+)?$/.test(s) ? String(Number(s) === 0 ? "0" : s.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "")) : s;
 }
 
-async function writeRows(db: Db, job: Job, sheet: SheetRow, fileId: string, rows: CleanRow[], at: Date) {
+async function writeRows(
+  db: Db,
+  job: Job,
+  sheet: SheetRow,
+  fileId: string,
+  rows: CleanRow[],
+  at: Date,
+  ruleVersions: RuleVersion[],
+  twoPartCombined: Array<{ primaryKey: string; secondaryKey: string }>,
+) {
   const nowIso = at.toISOString();
+  const checkDefById = new Map(ruleVersions.map((v) => [v.ruleId, v.checkDefinition ?? null]));
   const data = rows.filter((r) => r.claim && r.recordKey);
   const existing = await db.select<ExistingClaim>(
     `claims_staging?hospital_code=eq.${enc(sheet.hospital_code)}&scheme=eq.${enc(sheet.scheme)}&select=record_uid,record_key,content_hash,${CLAIM_COLUMNS.join(",")}`,
@@ -459,6 +582,14 @@ async function writeRows(db: Db, job: Job, sheet: SheetRow, fileId: string, rows
     for (const o of out) uidByKey.set(o.record_key, o.record_uid);
   }
 
+  // Two-part approval (decisions.md section 7, 1-Nov): the secondary part points at the
+  // combined (primary) claim; never deleted, just excluded from the claims list/reports.
+  for (const { primaryKey, secondaryKey } of twoPartCombined) {
+    const primaryUid = uidByKey.get(primaryKey);
+    const secondaryUid = uidByKey.get(secondaryKey);
+    if (primaryUid && secondaryUid) await db.update(`claims_staging?record_uid=eq.${enc(secondaryUid)}`, { combined_into_record_uid: primaryUid });
+  }
+
   // Record keys: the key used plus the fallback key when both exist (file 03 section 5).
   const keyRows = data.flatMap((r) => {
     const uid = uidByKey.get(r.recordKey!)!;
@@ -509,26 +640,49 @@ async function writeRows(db: Db, job: Job, sheet: SheetRow, fileId: string, rows
   );
   for (const b of chunks(payRows, 500)) await db.insert("payments", b, { onConflict: "record_uid,payment_no" });
 
+  // "Value is correct" (decisions.md section 9, 1-Nov): a Warning stays confirmed while its
+  // fingerprinted fields are unchanged; a confirmation of a value that has since changed is
+  // simply not matched (the Warning re-opens, never silently kept against a different value).
+  const confirmableUids = [...new Set(data.map((r) => uidByKey.get(r.recordKey!)).filter((u): u is string => !!u))];
+  const latestConfirmation = new Map<string, string>();
+  for (const b of chunks(confirmableUids, 100)) {
+    const rows = await db.select<{ record_uid: string; rule_id: string; field: string; fingerprint: string }>(
+      `issue_confirmations?record_uid=in.(${b.join(",")})&select=record_uid,rule_id,field,fingerprint&order=confirmed_at.desc`,
+    );
+    for (const c of rows) {
+      const k = `${c.record_uid}|${c.rule_id}|${c.field}`;
+      if (!latestConfirmation.has(k)) latestConfirmation.set(k, c.fingerprint); // first seen per key = latest (desc order)
+    }
+  }
+
   // Issues (ON CONFLICT record_uid, rule_id, field); issues no longer raised are resolved.
-  const issueRows = data.flatMap((r) =>
-    dedupeIssues(r).map((i) => ({
-      record_uid: uidByKey.get(r.recordKey!),
-      hospital_code: sheet.hospital_code,
-      rule_id: i.ruleId,
-      severity: i.severity,
-      tier: i.tier,
-      shadow: i.shadow,
-      field: i.field,
-      detail: i.detail,
-      status: "OPEN",
-      last_job_id: job.id,
-      last_seen_at: nowIso,
-      resolved_at: null,
-    })),
-  );
+  const issueRows = data.flatMap((r) => {
+    const uid = uidByKey.get(r.recordKey!)!;
+    return dedupeIssues(r).map((i) => {
+      let status: "OPEN" | "CONFIRMED" = "OPEN";
+      if (i.severity === "W" && !i.shadow && r.claim) {
+        const fields = fieldsForConfirmation(i.ruleId, checkDefById.get(i.ruleId) ?? null, fieldsReadBy);
+        if (fields.length > 0 && latestConfirmation.get(`${uid}|${i.ruleId}|${i.field}`) === computeFingerprint(fields, r.claim)) status = "CONFIRMED";
+      }
+      return {
+        record_uid: uid,
+        hospital_code: sheet.hospital_code,
+        rule_id: i.ruleId,
+        severity: i.severity,
+        tier: i.tier,
+        shadow: i.shadow,
+        field: i.field,
+        detail: i.detail,
+        status,
+        last_job_id: job.id,
+        last_seen_at: nowIso,
+        resolved_at: null,
+      };
+    });
+  });
   for (const b of chunks(issueRows, 500)) await db.insert("issues", b, { onConflict: "record_uid,rule_id,field" });
   for (const b of chunks([...uidByKey.values()], 100)) {
-    await db.update(`issues?record_uid=in.(${b.join(",")})&status=eq.OPEN&last_job_id=neq.${job.id}`, { status: "RESOLVED", resolved_at: nowIso });
+    await db.update(`issues?record_uid=in.(${b.join(",")})&status=in.(OPEN,CONFIRMED)&last_job_id=neq.${job.id}`, { status: "RESOLVED", resolved_at: nowIso });
   }
 
   // Records no longer in the sheet: MISSING, never deleted (file 03 section 4.3).

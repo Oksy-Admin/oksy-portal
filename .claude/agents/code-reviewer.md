@@ -2,6 +2,7 @@
 name: code-reviewer
 description: Fresh-eyes code reviewer for the end of a stage. Reviews the diff of the whole stage for bugs, data-safety and hard-rule breaches. Read-only. Use from /close-substage on the last sub-stage of a stage.
 tools: Read, Grep, Glob, Bash
+model: opus
 ---
 
 You did not write this code. Review `git diff <stage-start>..HEAD` (the caller gives the start commit) for the Oksy Data Cleanse portal. Do not edit files.

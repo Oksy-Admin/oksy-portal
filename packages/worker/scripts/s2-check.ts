@@ -4,7 +4,7 @@
 // and reconciliation integrity.
 import { Money } from "@oksy/rules";
 import { dbFromEnv } from "../src/db.ts";
-import { HMS_CODE } from "../src/hms-profile.ts";
+import { HMS_CODE } from "../src/hospital-headers.ts";
 
 process.loadEnvFile(new URL("../../../apps/web/.env.local", import.meta.url).pathname);
 const db = dbFromEnv();

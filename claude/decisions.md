@@ -1,13 +1,35 @@
 # Oksy Data Cleanse – Confirmed Decisions
 
 Owner and decision-maker: Anoop Das (anoop@oksy.in).
-Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
+Last updated: 31-Oct-2026 (prompting and token-saving rules).
 
 **How to use this file**
 - Check here before asking Anoop anything. A decision listed here is never asked again.
 - This file lists only what is valid now. Old decisions that were replaced are in section 15 ("Superseded").
 - When Anoop gives a new decision, add it here in the same session, with the date. If it replaces an older one, move the older one to section 15.
 - This file replaces: `oksy_confirmed_decisions_full.md`, `oksy_confirmed_decisions.md`, `oksy_stage_playbook.md` (decision parts), the two `Claude outputs/` addenda, `handoff.md` section 9, and the 30-Oct handover report.
+
+**Section index** (use this + `grep -n '^## ' claude/decisions.md` to jump straight to a section instead of reading the whole file)
+
+| # | Title | Lines |
+|---|---|---|
+| 1 | Purpose and direction | 36-46 |
+| 2 | Scope and users | 47-54 |
+| 3 | Access and roles | 55-64 |
+| 4 | Hospitals and sheets | 65-78 |
+| 5 | Column mapping | 79-106 |
+| 6 | Fields | 107-118 |
+| 7 | Claim identity and duplicates | 119-131 |
+| 8 | Money rules | 132-144 |
+| 9 | Cleaning engine and AI | 145-164 |
+| 10 | Runs, worker and change detection | 165-181 |
+| 11 | Question Sheets | 182-191 |
+| 12 | Reports and data | 192-199 |
+| 13 | Portal layout and UI | 200-206 |
+| 14 | How we work | 207-244 |
+| 15 | Superseded | moved to `claude/archive/decisions-superseded.md` |
+
+Line numbers are approximate (shift a little as the file is edited) — if in doubt, re-run the grep above.
 
 ---
 
@@ -65,7 +87,7 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 - **Bulk confirm:** Owner and Admin only; exact header matches only; at most 50 items per action; shows the list and count of affected items before applying; one audit entry per action; undoable as a group. (30-Oct)
 - **Individual confirmation:** Owner, Admin, and Users with the Hospitals edit tick. (27-Oct night; migration 20261030074527 applied)
 - **Mapping choices for a column:** a field, **Ignore**, or **+ Create new field**. Ignore counts as decided and must be saved as decided. Ignored columns are never read and never appear in a report. (27-Oct)
-- **Auto-Ignored, never shown for approval** (the portal calculates these itself): Length of Stay, Settlement Delay, Balance Amount, TDS %. **Discount is not ignored.** (30-Oct)
+- **Auto-Ignored, never shown for approval** (the portal calculates these itself): Length of Stay, Settlement Delay, Balance Amount. **Discount is not ignored.** (30-Oct; **TDS % removed from this list 1-Nov** — see the RATE/AMOUNT header rule below.)
 - **The 7 headers found approved inconsistently (30-Oct):**
 
 | Header | Decision |
@@ -73,12 +95,28 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 | SETTLEMENT DELAY | Ignore |
 | ROOM CATEGORY | room_category (fix the Badagara tab wrongly approved as room_no) |
 | UHID | new extra field "UHID" (hospital patient ID, not the IP number) |
-| TDS (amount column) | tds_amount_stated, with rules. TDS % column → Ignore |
+| TDS (amount column) | tds_amount_stated ("TDS Amount"), with rules. (The "TDS % column → Ignore" half of this row is superseded — see the plain-"TDS" bullet below.) |
 | REMARK (any remark column, including follow-up remarks) | one `remarks` field; values joined with "\|" and prefixed by the source column name |
 | DISCOUNT | discount_amount |
 | PAYMENT FOLLOW UP DATE | followup_date; data only, no rules, low priority |
 
-- **Plain "TDS" next to "TDS AMOUNT" (31-Oct):** in a hospital + scheme that also has a "TDS AMOUNT" header, a plain "TDS" header gets no stored decision from the old approvals (they disagreed). The value-based auto-Ignore (TDS rates) or the decision list handles it.
+- **HMS "MAIL SENT DATE" and "MAIL SUBJECT" (1-Nov, pilot-header decisions):** both **Ignore**. These were the last 2 undecided headers from the Stage 1b-ii live preview (`claude/archive/stage-history.md`).
+
+- **Five more pilot headers, final (1-Nov-2026):**
+
+| Header | Decision |
+|---|---|
+| DOD | discharge_date |
+| MEMBER NUMBER | Ignore |
+| POLICY HOLDER NAME | policy_holder_name |
+| MEMBER NAME | suggest policy_holder_name (needs confirmation — may differ from the policy holder; not auto-approved) |
+| HARDCOPY SENT Date | casesheet_sent_date |
+
+- **RATE vs AMOUNT TDS headers, general rule, final (1-Nov, replaces every earlier same-day TDS-header note above, including the auto-Ignore of "TDS %" at 30-Oct — the earlier claim that HMS's plain "TDS" holds a rupee amount was wrong and is undone):**
+  - **RATE headers** — "TDS", "TDS %", "TDS Percent", "TDS Percentage", "TDS Rate" — in **every** hospital, including HMS, always hold the TDS **rate** and map to the extra field `tds` (label "TDS %", type number). Purpose: so Anoop can see whether an insurer deducts a wrong rate. This is why "TDS %" is no longer auto-Ignored.
+  - **AMOUNT headers** — "TDS Amount", "TDS Amt" — always hold a **rupee amount** and map to `tds_amount_stated` ("TDS Amount"). Purpose: settlement comparison and the balance calculation.
+  - Confirmed for all 3 pilots: Badagara, Tree G and HMS's plain "TDS" header (HMS: PAID and PENDING tabs) all map to `tds`; their "TDS AMOUNT" header all map to `tds_amount_stated`. Checked live (read-only, 1-Nov): every "TDS"-containing `header_decisions` row for the 3 pilots already matches this rule — no live Column Mappings change needed.
+  - `tds`'s live aliases and `tds_amount_stated`'s label/aliases (`packages/rules/src/fields.ts` CORE_FIELDS updated to match) are written as migration `20261101150000_tds_rate_amount_headers.sql`, **not applied** — shown to Anoop for his OK.
 
 - **AI in mapping** sees headers, cell shapes and counts only, never patient names, phones or policy numbers. (27-Oct)
 
@@ -100,7 +138,8 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 - A claim normally appears in one tab only.
 - If the same claim appears again with the same values, it is a **duplicate**.
 - If the same claim appears again with different values, it is **flagged**.
-- **Two-part approval** (first part approved and paid, then a second approval and payment): the parts are **combined into one claim**. Exact combining method is set in Stage 2.
+- **Two-part approval** (first part approved and paid, then a second approval and payment): the parts are **combined into one claim**.
+- **Two-part combining method (1-Nov, keeps the 31-Oct "combine only after a person confirms" answer):** candidate pairs are detected when claim number + admission date + discharge date match, both rows Approved, the **same** Approved Amount, but a **different** UTR. They go on a decision list as "two parts of one approval?"; only combined after a person says yes. Once confirmed: Approved Amount stays the one matching value; UTR becomes a pipe-joined display string across the parts (`UTR111 | UTR222`, same convention as `remarks`); Settled Amount is the **sum** of the parts' settled amounts (never pipe-joined); `remarks` lists each part's own amount and payment date separately (for example `Part 1: ₹45,000 (10-Jan) | Part 2: ₹2,000 (20-Jan)`) so the breakdown is never lost behind the summed total. Each part's payment is still kept as its own payment row internally (its own UTR, amount, date) so Total TDS / Total Settled keep being computed by summing payments (section 8); the pipe-joined UTR and the remarks breakdown are display only.
 - **Same IP number with a different claim number** is a repeat treatment, not an error. Duplicate warning also when the same patient has the same admission date twice. (27-Oct)
 - A cleaned claim is never overwritten silently. Every change keeps its history. (30-Oct night)
 - **Claim number:** the insurer/TPA claim number. Only Under Treatment cases may have none. A case with admission and discharge dates always has one. (26-Oct)
@@ -133,12 +172,18 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 - **Rules are never hard-coded.** All rules are entered in the Rule Library. Add one by one or upload; edit; Delete = Inactive. Plain-words box: AI fills the rule form, a user checks and saves. Conflict check on save. (26-27-Oct)
 - **Rule trial before questions go out (30-Oct night):** before a hospital's first questions are sent, the rules run on that hospital's data and Anoop sees a summary (Errors and Warnings per rule) once. Each pilot hospital also gets a **check set of 5 claims** that Anoop knows are correct; the portal checks them after any mapping or rule change.
 - **Clean = zero Errors and zero Warnings.** Warnings are never ignored. A Warning clears when staff correct the value or confirm "value is correct" (recorded with who and when; never asked again). (26-Oct)
+- **Wrong-shape values, final (1-Nov-2026):** a value that does not match its column's field type or name (for example text in an amount column, or a formula result that does not look like the expected shape) is flagged as an Error or a Warning like any other issue. "Value is correct" clears it the same way as other Warnings — desk staff sometimes use formulas or otherwise write a value that looks wrong but is deliberate.
 - **"Clean once"** = one full run shows zero Errors and zero Warnings across all the hospital's tabs. (27-Oct)
 - **Day–month swap** is the only automatic date fix, and only when length of stay is over 15 days. (26-Oct)
 - **AI never** guesses a missing UTR, date, amount or claim number; never changes bill, approved or settled amounts; never approves, changes values, skips tabs, saves rules or sends messages. (26-30-Oct)
 - **AI may** suggest tab types, field mappings, standard names and status words; group and word questions; draft rules from plain words; draft summaries and reminder texts. (30-Oct)
 - Sheet text is untrusted input: no instructions found in cells are followed; exports escape cells starting with = + - @. (30-Oct)
 - **No manual cell editing in the portal** (for now). (27-Oct)
+
+- **TDS decimal rules, final (1-Nov — extends the same-day note above with the trailing-% and amount-rounding half):** both lane 1 deterministic cleaning, automatic, audit-tagged, original value kept, no Warning, no question to staff, no new rule (Anoop adds a Rule Library rule later if one is ever needed):
+  - **`tds` (rate) only:** at most 1 decimal, cut off (truncated, never rounded); a whole number written with `.0` becomes the whole number; a trailing `%` is accepted and stripped. Examples: `10.0` → `10`, `9.0` → `9`, `10.0%` → `10`, `8.8978978999` → `8.8`, `9.45674433456` → `9.4`. Audit-tagged `M-TDS-RATE-FORMAT`, original kept as `tds (as entered)`. Built in `packages/rules/src/clean.ts` (`cleanTdsRate`).
+  - **`tds_amount_stated` only:** rounded to the nearest whole rupee, no decimals (never truncated). Examples: `1234.4` → `1234`, `1234.5` → `1235`. Audit-tagged `M-TDS-AMOUNT-ROUND`, original kept as `tds_amount_stated (as entered)`. Built in `packages/rules/src/clean.ts` (`cleanTdsAmountStated`).
+  - Neither rule ever touches bill, approved, settled, co-pay, discount or any other amount field (existing rule: the portal never changes them; the ~₹1 settlement tolerance stays). Tested with the examples above (`packages/rules/test/clean.test.ts`).
 
 ## 10. Runs, worker and change detection
 
@@ -196,44 +241,31 @@ Last updated: 31-Oct-2026 (stage-level approval and prompt saving).
 - **Golden fixtures (31-Oct):** headers and value shapes of the 3 pilot sheets (no patient names, phones or policy numbers) are kept as test fixtures; built in 1b-ii.
 - **Playwright for UI checks (31-Oct):** dev-only; Claude checks screens itself instead of Anoop testing each one.
 - **Git: Claude makes the commits; Anoop runs `git push` himself** from the Mac Terminal. Claude tells him what each commit contains first. HTTPS remote only (`https://github.com/Oksy-Admin/oksy-portal.git`); the SSH remote is broken. (30-Oct night) **Push once at the end of each stage**, not after every sub-stage. (31-Oct)
+- **Stage work on its own branch (31-Oct, from Stage 2 onward):** Claude builds a stage's sub-stages on a branch (not on `main`), so Anoop can check the Vercel preview deployment before merging. Claude commits to the branch as usual and never pushes. When Anoop wants a preview, he pushes the branch himself; Vercel builds a preview from it. Anoop merges to `main` (then pushes `main`) once he approves the stage; that push is still the one production deploy per stage.
 - Small commits, one purpose each. One tool works on one file at a time.
 - **Schema changes:** take a backup, write the SQL as a migration in `supabase/migrations/`, show it to Anoop, apply to live only after his OK. (26-Oct)
 - **Secrets:** never print or commit API keys, service account JSON or `.env` values; checks show shape only (length, prefix, names). (27-Oct)
 - Before a stage is reported done: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
+- **Prompting and token-saving rules (31-Oct):** the usage limit must never be spent on nothing; every prompt and every Claude reply is built for maximum value per token. (Anoop, 31-Oct)
+  1. **Prompt shape (Anoop → Claude):** Goal in one line → files to read → what not to touch → "Done when" (checkable) → report format (done / blocked / decision needed). One prompt = one job.
+  2. **Prompt types we use:** contextual (the 5 session-start files); instruction-based (skills `/plan-stage`, `/build-substage`, `/close-substage`); constraint-based (scope-lock, file-scope guard); verification (tests, typecheck, Playwright, pgTAP: Claude proves its own work); role-based (fresh `design-reviewer` / `code-reviewer` agents); prompt chaining (one sub-stage's result feeds the next); zero-shot only for small questions; one-shot example (never more than 1–2) for formats and fixtures.
+  3. **Interview-first for new ideas:** for a new requirement or redesign Claude asks its (max 3–5) questions in one go, with reasons and a recommendation, before any plan or build.
+  4. **When a result is wrong, Anoop names the exact file / screen / value** that is wrong. Claude then fixes only that, with a one-line edit where possible, and does not re-explain or re-plan.
+  5. **Claude's replies:** short; no recap of steps, no repeating the question, no long code or long outputs in chat (write to `claude/reports/last-report.md` instead); one status line per sub-stage; tables only for real comparisons.
+  6. **Claude's work:** read only the files the sub-stage names; use targeted `grep` / line ranges instead of whole large files; run only the checks that are due (full set at sub-stage close); batch independent tool calls; never re-read a file just edited; do not re-open decided questions.
+  7. **Session hygiene:** `/clear` after every closed sub-stage; start each session from `handoff.md` only plus what the task needs; keep `CLAUDE.md`, `handoff.md` and `decisions.md` lean (they are read every session), moving old detail to the "Superseded" table.
+  8. **Model routing:** Opus for `/plan-stage`, design review and code review; Sonnet for `/build-substage` and routine fixes; extra thinking only for hard planning or a stubborn bug.
+  9. **Stop on repeat failure:** if the same check fails twice with the same cause, Claude stops and reports the cause and a recommendation instead of trying a third time (each retry costs tokens).
 
 - **Old tables retired (31-Oct):** `hospital_aliases` (replaced by `other_names`), `golden_tests`, `discount2_decisions` (the plan first called it `discount`), `import_runs` are not created on live; code that names them is changed.
 - **Unused old tables kept (31-Oct):** `district_heads` and `open_checks` (0 rows, no current writer) are kept for now, not removed. Removal is reviewed later with Anoop's OK.
+- **Vercel Deploy Hook and the GitHub secret `VERCEL_DEPLOY_HOOK_URL` are set (confirmed by Anoop, 1-Nov-2026).** Not listed as an open task or in "Anoop must do now" again.
 - **One migration per sub-stage** when a stage needs several: 1c and 1d each get their own migration and their own OK. (31-Oct)
+- **Repo housekeeping (31-Oct):** the repo (`claude/`, `handoff.md`, `CLAUDE.md`, `AGENTS.md`) is the only source of truth; the Claude Project holds only instructions plus a stable handoff pointer, never a mirror of working files — stop mirroring reports there. A GitHub Action (`.github/workflows/vercel-deploy-hook.yml`) calls the Vercel Deploy Hook on every push to `main` as a backup to Vercel's own Git auto-deploy, and Vercel's project-level "Skip deployments" / `git.deploymentEnabled` must stay `true` (it was found `false` in `apps/web/vercel.json`, silently blocking auto-deploys — fixed). `claude/my-tasks.md` is read first by `/plan-stage` and `/build-substage`; an open "Before each stage/sub-stage starts" item for the sub-stage blocks the start. Every `/close-substage` report opens with an "Anoop must do now" block built from live checks (Supabase MCP, Vercel MCP, `my-tasks.md`). Stage-plan evidence from now on is one status-table line plus detail in `claude/reports/`, never appended to `stage-plan.md` itself. Replies to Anoop in the terminal stay English (section 14 above); day-to-day chat replies may be in Malayalam.
+- **Setup list and "Active" status (31-Oct):** `claude/setup-checklist.md` is the one list of every repo/process setup (stage-level approval, skills, hooks, permissions, MCP servers, agents, scope-lock, etc.), each rated Must keep / Worthful / Can skip with a usage-cost and frequency note. A setup counts as **"Active"** only when `scripts/check-setup.sh` can actually confirm it (greps the repo, no Claude, no network); a setup that can't be grep-checked is tracked in the list but is never called "Active" on that basis alone. `/close-substage` runs this script every time; any FAIL goes in the "Anoop must do now" block.
+- **Health monitoring moves off a nightly Claude check (31-Oct):** the earlier idea of a nightly Claude-run health check is dropped in favour of a plain (non-Claude) GitHub Action that emails Anoop **only on failure** — covering the Vercel deploy status and, once it exists, the 6 AM worker run. This is built after the hosted worker exists (Stage 3), not now. "explain-usage" (a usage/cost summary) is explicitly **not** added to the `/close-substage` checkpoint — `scripts/check-setup.sh` plus the advisors check cover what that checkpoint needs.
+- **Model routing is agent-only, not skill-only (31-Oct, checked against the current Claude Code docs via Context7):** a subagent definition (`.claude/agents/*.md`) supports a `model` field (`opus`/`sonnet`/`haiku`/`inherit`) — `design-reviewer` and `code-reviewer` are now both set to `opus`. A `SKILL.md` (`/plan-stage`, `/build-substage`, `/close-substage`) has no `model` field in its frontmatter — a skill runs inline in whatever model the session is already using, so model routing for those three stays a human choice (pick Opus or Sonnet for the session before typing the command), not something the skill file can set. Project-level MCP servers in `.mcp.json` can include OAuth-based remote servers (not only plain token-free ones like Supabase/Context7) — but no Vercel MCP entry was added here: Vercel MCP already works in this session through the account's own connection, not through `.mcp.json`, and guessing its exact server URL/OAuth settings risks a broken or stuck entry. Anoop can add one properly later with `claude mcp add` from the terminal if a project-committed one is ever wanted.
 
 ## 15. Superseded (do not use)
 
-| Old decision | Replaced by |
-|---|---|
-| Pilot = HMS only (26-Oct) | 3 pilots (section 4) |
-| Hospital other names in a `hospital_aliases` table | `other_names` column (section 4) |
-| "Congratulations, your sheet is clean" message / checkbox | Status line (section 11) |
-| 7-page portal (v2 section 2) | 4 main menus (section 13) |
-| Runs at 6 AM and 6 PM | 6 AM only (section 10) |
-| Run now at 5 levels (30-Oct evening) | 3 levels now; scheme levels later (section 10) |
-| Stage plan 0–8 (v2 section 12) and Stage Playbook | New stage plan in `stage-plan.md` |
-| First monthly report by 10-Nov-2026; critical path first | No build deadline (section 1) |
-| Mapping approval per hospital + scheme + header layout; headers strict between months | Policy B + D (section 5) |
-| Only Owner and Admin confirm mappings (migration 0027) | Owner, Admin, Users with Hospitals edit tick (section 5) |
-| Replies to Anoop in Malayalam (26-Oct) | Replies in English, report also in `claude/reports/last-report.md` (section 14) |
-| Room No and Room Category set to Ignore | ROOM CATEGORY → room_category (section 5) |
-| Follow-up Remarks as its own column (v2 section 7) | All remark columns → one `remarks` field (section 5) |
-| Two remark columns = "duplicate header" error | One `remarks` field (section 5) |
-| Query Details as a clean-data column | Not needed (section 6) |
-| Settlement Delay from discharge **or hardcopy** date (v2 section 7) | From discharge date only (section 8) |
-| Dark cyberpunk UI concept | Light theme (section 13) |
-| Global header approval with auto-approve (proposal v1) | Policy B + D (section 5) |
-| Separate "Decision Inbox" page | "Needs your decision" list on Home (section 13) |
-| Change log page deferred to Stage 6 | Change log required; verify in Stage 1 (stage-plan) |
-| Vercel git deployments off | Git deployments ON |
-| AI spending limit USD 20 | About USD 25 / INR 2,000 (section 10) |
-| Anoop does git commit and push himself | Claude commits, Anoop pushes (section 14) |
-| "Do not delete the untracked Docs/ folder" | Rule removed; `docs/` held only copies and is deleted (30-Oct night) |
-| Old stage reports kept | Deleted; only the new file set is kept (30-Oct night) |
-| Phase 1 critical path = Stages 2, 3, 4, 5, 7 | New stage plan (`stage-plan.md`) |
-| Each sub-stage approved by Anoop before the next starts (27-Oct) | Stage-level approval (section 14, 31-Oct) |
-| Push after each sub-stage | Push once per stage (section 14, 31-Oct) |
+Moved to `claude/archive/decisions-superseded.md` (31-Oct-2026 housekeeping) to keep this file short. Old decisions that no longer apply; never act on them.

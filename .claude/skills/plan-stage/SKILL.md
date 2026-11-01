@@ -5,7 +5,7 @@ description: Plan a whole stage (all its sub-stages) in one report for Anoop's s
 
 # Plan a whole stage
 
-1. Read `handoff.md`, `claude/decisions.md`, the stage's section of `claude/stage-plan.md`, and only the parts of `claude/requirements.md` the stage needs. Do not re-read files already in context.
+1. Read `handoff.md`, then `claude/my-tasks.md`. If an item under "Before each stage/sub-stage starts" is open for this stage, STOP and tell Anoop; do not plan. Otherwise read only the `claude/decisions.md` sections the stage needs (use its section index), the stage's section of `claude/stage-plan.md`, and only the parts of `claude/requirements.md` the stage needs. Do not re-read files already in context.
 2. Look at the existing code and migrations the stage touches (search, read only what is needed). Improve, do not rebuild.
 3. Write the plan into the stage's section of `claude/stage-plan.md`: sub-stages in build order, for each one: what changes, files/tables touched, migrations (name + one-line purpose), tests, done-criteria, prompt budget (target: 1 prompt per sub-stage + 1 fix reserve).
 4. **Design review (mandatory):** run the `design-reviewer` agent on the draft plan. Apply every "Must" finding to the plan; list "Should" findings for Anoop with a recommendation.

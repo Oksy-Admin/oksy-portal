@@ -3,20 +3,25 @@
 //   pnpm --filter @oksy/worker snapshot-analyse
 import { cleanRow, detectDateOrder, isEmptyRow, parseDate } from "@oksy/rules";
 import { dbFromEnv } from "../src/db.ts";
-import { doctorAliasesFrom, HMS_CODE, HMS_HEADERS, hmsProfile } from "../src/hms-profile.ts";
+import { HMS_CODE, HMS_HEADERS } from "../src/hospital-headers.ts";
+import { buildHospitalProfile, type DictionaryRow, type HospitalFacts } from "../src/profile.ts";
 import { reconcile } from "../src/reconcile.ts";
-import { layoutOf, legendFrom, sourceRows, type RawTab } from "../src/sheet-data.ts";
+import { layoutOf, legendLabelsFrom, sourceRows, type RawTab } from "../src/sheet-data.ts";
 
 process.loadEnvFile(new URL("../../../apps/web/.env.local", import.meta.url).pathname);
 const db = dbFromEnv();
+const SCHEME = "PRIVATE";
 const [snap] = await db.select<{ id: string; raw: RawTab[]; taken_at: string }>(`snapshots?hospital_code=eq.${HMS_CODE}&order=taken_at.desc&limit=1&select=id,raw,taken_at`);
 if (!snap) throw new Error("no snapshot");
 const kind = Object.fromEntries((await db.select<{ tab_name: string; kind: string }>(`sheet_tabs?select=tab_name,kind`)).map((t) => [t.tab_name, t.kind]));
-const qs = await db.select<{ id: string; question_text: string; status: string }>(`questions?hospital_code=eq.${HMS_CODE}&question_type=eq.M&scope=eq.HOSPITAL&select=id,question_text,status`);
-const conf = new Set((await db.select<{ question_id: string }>(`answers?outcome=eq.CONFIRMED&question_id=in.(${qs.map((q) => q.id).join(",")})&select=question_id`)).map((a) => a.question_id));
-const legend = legendFrom(snap.raw.find((t) => kind[t.name] === "LEGEND"));
-const profile = hmsProfile(legend, doctorAliasesFrom(qs.map((q) => ({ ...q, confirmed: conf.has(q.id) }))));
-console.log(`snapshot ${snap.taken_at}; legend: ${JSON.stringify(legend)}; doctor aliases: ${Object.keys(profile.doctorAliases).length}`);
+const legendLabels = legendLabelsFrom(snap.raw.find((t) => kind[t.name] === "LEGEND"));
+const [factsRow] = await db.select<HospitalFacts>(`hospital_profile_facts?hospital_code=eq.${HMS_CODE}&select=tab_stage_facts,tpa_cell_may_hold_insurer,paid_meaning_open_tabs,pod_start_date`);
+const facts: HospitalFacts = factsRow ?? { tab_stage_facts: {}, tpa_cell_may_hold_insurer: false, paid_meaning_open_tabs: [], pod_start_date: null };
+const dictRows = await db.select<DictionaryRow>(
+  `dictionary_entries?status=eq.CONFIRMED&scheme=eq.${SCHEME}&or=(hospital_code.eq.${HMS_CODE},hospital_code.is.null)&select=kind,scheme,hospital_code,spelling_key,standard_value,status`,
+);
+const profile = buildHospitalProfile(HMS_CODE, SCHEME, facts, dictRows);
+console.log(`snapshot ${snap.taken_at}; legend labels: ${JSON.stringify(legendLabels)}; doctor aliases: ${Object.keys(profile.doctorAliases).length}`);
 const data = snap.raw.filter((t) => kind[t.name] === "DATA");
 const layouts = data.map((t) => layoutOf(t, HMS_HEADERS));
 const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);

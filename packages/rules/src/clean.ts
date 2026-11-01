@@ -5,6 +5,7 @@
 // PROPOSED rules are recorded in shadow only (D-043, D-066). Money fields are always
 // computed (R-T01 10% default is a parameter, D-066).
 import type { CanonicalField } from "./mapping.ts";
+import { evaluateRules, type EngineContext, type EngineIssue, type EngineRule } from "./engine.ts";
 import { computeMoney, Money, type MoneyResult, type TdsChoice } from "./money.ts";
 import { selectRules, resolveTdsRate, type RuleVersion, type RuleContext, type Selection } from "./selection.ts";
 import {
@@ -42,12 +43,20 @@ export interface HospitalProfile {
   colourLegend: Record<string, ColourMeaning>;
   /** nameKey(spelling) -> confirmed standard doctor name (G3, staff answer). */
   doctorAliases: Record<string, string>;
+  /** nameKey(spelling) -> confirmed standard insurer name (Stage 2b dictionary, one list per scheme). */
+  insurerAliases: Record<string, string>;
+  /** nameKey(spelling) -> confirmed standard TPA name (Stage 2b dictionary, one list per scheme). */
+  tpaAliases: Record<string, string>;
+  /** nameKey(spelling) -> confirmed standard department name (Stage 2b dictionary, one list per scheme). */
+  departmentAliases: Record<string, string>;
   /** Confirmed: a TPA cell holding an insurer name means no separate TPA (HMS 25-Oct). */
   tpaCellMayHoldInsurer: boolean;
-  /** Known insurer name keys, to recognise an insurer in the TPA cell. */
+  /** Known insurer name keys (Stage 2b: the scheme's confirmed insurer dictionary), to recognise an insurer in the TPA cell. */
   insurerKeys: string[];
   /** Tabs whose paid cell meaning (gross or net) is still an open question: no Discount 2. */
   paidMeaningOpenTabs: string[];
+  /** POD Number rules (R-K06) run only from this date on; null = the rule never fires (decisions.md section 8). */
+  podStartDate: string | null;
 }
 
 export interface SourceRow {
@@ -94,6 +103,8 @@ export interface CleanClaim {
   patient_name: string | null;
   patient_ip_no: string | null;
   policy_or_card_no: string | null;
+  phone_number: string | null;
+  policy_holder_name: string | null;
   preauth_or_claim_no: string | null;
   admission_date: string | null;
   discharge_date: string | null;
@@ -105,33 +116,48 @@ export interface CleanClaim {
   claimed_amount: string | null;
   approved_amount: string | null;
   copay_amount: string | null;
+  /** Deduction (C) = Bill - Approved - Co-pay (column-dictionary section 4). Always computed; never read from the sheet. */
   deduction_amount: string | null;
+  /** The hospital's own "Discount" column (decisions section 8); compared with deduction_amount by rule R-F01. */
+  discount_amount: string | null;
   casesheet_sent_date: string | null;
+  /** POD Number (column-dictionary.md section 1); rules apply from the hospital's POD Start Date. */
+  courier_no: string | null;
   followup_log: string | null;
   claim_status: Stage;
   status_source: "column" | "colour" | "remarks" | "tab" | "unknown";
   rejection_reason: string | null;
   cancellation_reason: string | null;
+  /** Total Settled (C): sum of the claim's payments. */
   settled_amount: string | null;
   settlement_date: string | null;
   utr_no: string[];
   remarks: string | null;
   los_days: number | null;
+  date_swap_applied: boolean;
   tds_rate_used: string | null;
   tds_rate_source: "DEFAULT" | "RULE" | "CONFIRMED" | null;
   tds_rule_id: string | null;
-  gross_amount: string | null;
+  /** Total TDS (C): sum of the hospital's stated TDS per payment (never derived from a rate). */
   tds_amount: string | null;
-  discount_1_amount: string | null;
-  discount_1_pct: string | null;
-  discount_2_amount: string | null;
-  discount_2_pct: string | null;
-  discount_2_confirmed: boolean | null;
-  tds_path: "TDS_ON_PAID" | "TDS_ON_APPROVED" | "NEITHER" | null;
-  discount_2_resolution: "OPEN" | "NOT_APPLICABLE" | null;
+  /** For comparison only (R-F03): Approved x the normal rate. Never written as a fact. */
+  expected_tds_amount: string | null;
+  /** Expected settlement (C) = Approved - Total TDS. */
+  expected_settlement_amount: string | null;
+  /** Balance Amount (C) = Approved - Total TDS - Total Settled. Zero allowed; negative is an Error (R-F06). */
+  balance_amount: string | null;
   overdue_flag: boolean | null;
   pending_days: number | null;
   aging_bucket: "61-90" | "91-180" | "180+" | null;
+  // Retired Stage 2a (decisions section 9: money rules rewritten); the columns stay, unused.
+  gross_amount: null;
+  discount_1_amount: null;
+  discount_1_pct: null;
+  discount_2_amount: null;
+  discount_2_pct: null;
+  discount_2_confirmed: null;
+  tds_path: null;
+  discount_2_resolution: null;
 }
 
 export interface CleanRow {
@@ -161,6 +187,42 @@ function fmt(m: InstanceType<typeof Money> | null, dp = 2): string | null {
 
 function issue(ruleId: string, severity: Issue["severity"], tier: Issue["tier"], shadow: boolean, field: string, detail: string): Issue {
   return { ruleId, severity, tier, shadow, field, detail };
+}
+
+/**
+ * TDS rate (extra field `tds`, a percent; decisions.md section 9, 1-Nov): at most 1 decimal,
+ * cut off, never rounded; a whole number written with .0 becomes the whole number. A
+ * trailing "%" is accepted and stripped. Anything that is not a plain number (with an
+ * optional trailing %) is left as it is (null = no change).
+ */
+export function cleanTdsRate(raw: string): string | null {
+  const trimmed = raw.trim();
+  const stripped = trimmed.endsWith("%") ? trimmed.slice(0, -1).trim() : trimmed;
+  const m = /^-?\d+(?:\.\d+)?$/.exec(stripped);
+  if (!m) return null;
+  const dot = m[0].indexOf(".");
+  let cleaned = m[0];
+  if (dot !== -1) {
+    const intPart = m[0].slice(0, dot);
+    const firstDecimal = m[0][dot + 1]!;
+    cleaned = firstDecimal === "0" ? intPart : `${intPart}.${firstDecimal}`;
+  }
+  return cleaned === trimmed ? null : cleaned;
+}
+
+/**
+ * `tds_amount_stated` only (decisions.md section 9, 1-Nov): rounded to the nearest whole
+ * rupee, no decimals (never truncated). Never applied to bill, approved, settled, co-pay,
+ * discount or any other amount. Anything that is not a plain number is left as it is (null =
+ * no change).
+ */
+export function cleanTdsAmountStated(raw: string): string | null {
+  const trimmed = raw.trim();
+  const m = /^-?\d+(?:\.\d+)?$/.exec(trimmed);
+  if (!m) return null;
+  const n = Number(m[0]);
+  const cleaned = String(Math.sign(n) * Math.round(Math.abs(n)));
+  return cleaned === trimmed ? null : cleaned;
 }
 
 /** A row with no patient, claim no or admission date is a separator, total or banner (R-C01). */
@@ -226,6 +288,14 @@ export interface CleanOptions {
   dateOrder: DateOrder | "MIXED";
   tds?: TdsChoice;
   ruleVersions?: RuleVersion[];
+  /**
+   * Two-part approval (decisions.md section 7, 1-Nov): a confirmed second part's own payments,
+   * merged in so Total Settled / Total TDS / Balance are computed over both parts together.
+   * Only ever set by packages/rules/src/two-part.ts, after a person has confirmed the match.
+   */
+  extraPayments?: Array<{ amount: string | null; date: string | null; utr: string | null; tdsStated: string | null }>;
+  /** Two-part approval: the "Part 1 ... | Part 2 ..." breakdown, appended after the row's own remarks. */
+  remarksSuffix?: string | null;
 }
 
 export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): CleanRow {
@@ -255,23 +325,24 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     return { ...base, rowClass: "NON_DATA_ROW", recordKey: null, keyType: null, claim: null, nullReasons, flags, issues: [issue("R-C01", "I", "A", false, "", "Separator, total, banner or repeated header row")], changes, sourceAmounts };
   }
 
+  // TDS rate (extra field `tds`): lane 1, automatic, audit-tagged; the original text is kept.
+  // `tds_amount_stated` and every bill/approved/settled amount are untouched (decisions.md
+  // section 9, 1-Nov).
+  if (extra.tds !== undefined) {
+    const cleaned = cleanTdsRate(extra.tds);
+    if (cleaned !== null) {
+      changes.push({ field: "tds", oldValue: extra.tds, newValue: cleaned, ruleId: "M-TDS-RATE-FORMAT", tier: "B" });
+      extra["tds (as entered)"] = extra.tds;
+      extra.tds = cleaned;
+    }
+  }
+
   let sel: Selection | null = null;
 
-  const isRuleActive = (ruleId: string, defaultShadow = false): { enabled: boolean; shadow: boolean } => {
-    if (!sel) {
-      return { enabled: true, shadow: defaultShadow };
-    }
-    const inActive = sel.checks.some((c) => c.ruleId === ruleId);
-    if (inActive) return { enabled: true, shadow: false };
-    const inShadow = sel.shadowChecks.some((c) => c.ruleId === ruleId);
-    if (inShadow) return { enabled: true, shadow: true };
-    return { enabled: false, shadow: false };
-  };
-
-  const maybeIssue = (ruleId: string, severity: Issue["severity"], tier: Issue["tier"], defaultShadow: boolean, field: string, detail: string) => {
-    const status = isRuleActive(ruleId, defaultShadow);
-    if (!status.enabled) return;
-    issues.push(issue(ruleId, severity, tier, status.shadow, field, detail));
+  // Structural issues: reading-level, never switched off from the Rule Library (2a plan,
+  // "which rule wins" note). Business-condition issues are raised by the engine, below.
+  const structural = (ruleId: string, severity: Issue["severity"], field: string, detail: string) => {
+    issues.push(issue(ruleId, severity, "C", false, field, detail));
   };
 
   const order: DateOrder = o.dateOrder === "MIXED" ? "DMY" : o.dateOrder;
@@ -280,31 +351,32 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     const t = r.cells[f]?.text;
     if (reason && reason !== "INPUT_MISSING" && t && t.trim() !== "") extra[`${f} (as entered)`] = t;
   };
+  const dateAmbiguous: Partial<Record<CanonicalField, boolean>> = {};
   const date = (f: CanonicalField) => {
     const d = parseDate(r.cells[f], o.today, order);
     if (d.value === null) keepOriginal(f, d.reason);
     if (d.value === null && d.reason) nullReasons[f] = d.reason;
-    if (d.reason === "INPUT_INVALID") maybeIssue("R-N02", "E", "C", false, f, "Date cannot be read");
+    if (d.reason === "INPUT_INVALID") structural("R-N02", "E", f, "Date cannot be read");
     if (d.reason === "OUT_OF_WINDOW") {
       const future = d.value! > o.today;
-      maybeIssue(future ? "R-D04" : "R-D05", "E", "C", false, f, future ? "Date in the future" : "Date before 01-Jan-2019");
+      structural(future ? "R-D04" : "R-D05", "E", f, future ? "Date in the future" : "Date before 01-Jan-2019");
     }
-    if (d.ambiguous && o.dateOrder === "MIXED") maybeIssue("R-D06", "W", "C", true, f, "Day and month could be swapped (mixed sheet)");
+    if (d.ambiguous && o.dateOrder === "MIXED") dateAmbiguous[f] = true;
     return d.value;
   };
   const amount = (f: CanonicalField, parsed: ReturnType<typeof parseAmountCell>) => {
     if (parsed.value === null) keepOriginal(f, parsed.reason);
     if (parsed.value === null && parsed.reason && !isBlank(r.cells[f])) nullReasons[f] = parsed.reason;
     else if (parsed.value === null && parsed.reason) nullReasons[f] = "INPUT_MISSING";
-    if (parsed.needsInput) maybeIssue("R-N02", "E", "C", false, f, "Amount cannot be read (two amounts, words or shorthand)");
-    if (parsed.value !== null && parsed.value.startsWith("-")) maybeIssue("R-A05", "E", "C", false, f, "Negative amount");
+    if (parsed.needsInput) structural("R-N02", "E", f, "Amount cannot be read (two amounts, words or shorthand)");
+    if (parsed.value !== null && parsed.value.startsWith("-")) structural("R-N05", "E", f, "Negative amount");
     return parsed.value;
   };
   const ident = (f: CanonicalField, upper = false) => {
     const v = parseIdentifier(r.cells[f], { upper });
     if (v.value === null) keepOriginal(f, v.reason);
     if (v.value === null && v.reason) nullReasons[f] = v.reason;
-    if (v.reason === "SCI_NOTATION_LOST") maybeIssue("R-N02", "E", "C", false, f, "Number shown in scientific notation: digits lost");
+    if (v.reason === "SCI_NOTATION_LOST") structural("R-N02", "E", f, "Number shown in scientific notation: digits lost");
     return v.value;
   };
   const text = (f: CanonicalField) => {
@@ -316,13 +388,66 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
   // Identity and case
   const patient = text("patient_name");
   const claimNo = ident("preauth_or_claim_no", true);
-  const admission = date("admission_date");
-  const discharge = date("discharge_date");
+  const policyOrCardNo = ident("policy_or_card_no");
+  const phoneNumber = ident("phone_number");
+  const policyHolderName = text("policy_holder_name");
+  const courierNo = ident("courier_no");
+  let admission = date("admission_date");
+  let discharge = date("discharge_date");
   const casesheet = date("casesheet_sent_date");
   const paymentDate = date("payment_date");
 
+  // Day-month swap (decisions section 9): the only automatic date fix, and only when the stay
+  // is over 15 days (or negative) and the ambiguous date's day and month can be swapped. If
+  // that does not bring the stay to 15 days or less, R-D06 asks instead of guessing.
+  let dateSwapApplied = false;
+  let dateSwapUnresolved = false;
+  if (admission && discharge) {
+    const rawLos = daysBetween(admission, discharge);
+    if (rawLos > 15 || rawLos < 0) {
+      const swapDayMonth = (iso: string) => `${iso.slice(0, 5)}${iso.slice(8, 10)}-${iso.slice(5, 7)}`;
+      let resolved = false;
+      if (dateAmbiguous.discharge_date) {
+        const swapped = swapDayMonth(discharge);
+        const los2 = daysBetween(admission, swapped);
+        if (los2 >= 0 && los2 <= 15) {
+          changes.push({ field: "discharge_date", oldValue: discharge, newValue: swapped, ruleId: "R-D06", tier: "C" });
+          discharge = swapped;
+          resolved = true;
+        }
+      }
+      if (!resolved && dateAmbiguous.admission_date) {
+        const swapped = swapDayMonth(admission);
+        const los2 = daysBetween(swapped, discharge);
+        if (los2 >= 0 && los2 <= 15) {
+          changes.push({ field: "admission_date", oldValue: admission, newValue: swapped, ruleId: "R-D06", tier: "C" });
+          admission = swapped;
+          resolved = true;
+        }
+      }
+      if (resolved) dateSwapApplied = true;
+      else dateSwapUnresolved = true;
+    }
+  }
+
   let insurer = text("insurer_name");
+  if (insurer) {
+    const std = p.insurerAliases[nameKey(insurer)];
+    if (std && std !== insurer) {
+      changes.push({ field: "insurer_name", oldValue: insurer, newValue: std, ruleId: "M-ALIAS-INSURER", tier: "B" });
+      extra["insurer_name (as entered)"] = insurer;
+      insurer = std;
+    }
+  }
   let tpa = text("tpa_name");
+  if (tpa) {
+    const std = p.tpaAliases[nameKey(tpa)];
+    if (std && std !== tpa) {
+      changes.push({ field: "tpa_name", oldValue: tpa, newValue: std, ruleId: "M-ALIAS-TPA", tier: "B" });
+      extra["tpa_name (as entered)"] = tpa;
+      tpa = std;
+    }
+  }
   if (p.tpaCellMayHoldInsurer && tpa && p.insurerKeys.some((k) => nameKey(tpa!).includes(k))) {
     if (!insurer) {
       changes.push({ field: "insurer_name", oldValue: null, newValue: tpa, ruleId: "HMS-TPA-IS-INSURER", tier: "B" });
@@ -356,15 +481,20 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
       },
     };
     sel = selectRules(o.ruleVersions, ruleContext);
-    for (let i = issues.length - 1; i >= 0; i--) {
-      const iss = issues[i]!;
-      const st = isRuleActive(iss.ruleId, iss.shadow);
-      if (!st.enabled) {
-        issues.splice(i, 1);
-      } else {
-        iss.shadow = st.shadow;
-      }
+  }
+
+  let department = text("department");
+  if (department) {
+    const std = p.departmentAliases[nameKey(department)];
+    if (std && std !== department) {
+      changes.push({ field: "department", oldValue: department, newValue: std, ruleId: "M-ALIAS-DEPARTMENT", tier: "B" });
+      extra["department (as entered)"] = department;
+      department = std;
     }
+  }
+  const treatment = text("treatment_or_surgery");
+  for (const f of ["department", "treatment_or_surgery", "doctor_name"] as const) {
+    if (r.cells[f] === undefined) nullReasons[f] = "NOT_RECORDED_IN_SOURCE"; // the sheet has no such column
   }
 
   const bill = amount("bill_amount", amounts.bill);
@@ -372,9 +502,19 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
   const approved = amount("approved_amount", amounts.approved);
   const copay = amount("copay_amount", amounts.copay);
   const settledCell = amount("payment_amount", amounts.settled);
-  const deduction = amount("deduction_amount", parseAmountCell(r.cells.deduction_amount));
-  const tdsStated = parseAmountCell(r.cells.tds_amount_stated).value;
-  if (r.cells.discount_amount && !isBlank(r.cells.discount_amount)) extra["DISCOUNT (desk column)"] = r.cells.discount_amount.text ?? "";
+  const discountStated = amount("discount_amount", parseAmountCell(r.cells.discount_amount));
+  let tdsStated = amount("tds_amount_stated", parseAmountCell(r.cells.tds_amount_stated));
+  // tds_amount_stated only: rounded to the nearest whole rupee (decisions.md section 9,
+  // 1-Nov). Lane 1, automatic, audit-tagged; the original is kept. Every other amount field
+  // (bill, approved, settled, co-pay, discount) is untouched.
+  if (tdsStated !== null) {
+    const rounded = cleanTdsAmountStated(tdsStated);
+    if (rounded !== null) {
+      changes.push({ field: "tds_amount_stated", oldValue: tdsStated, newValue: rounded, ruleId: "M-TDS-AMOUNT-ROUND", tier: "B" });
+      extra["tds_amount_stated (as entered)"] = tdsStated;
+      tdsStated = rounded;
+    }
+  }
 
   // Payments (D-047; HMS 25-Oct: one row holds a part payment with both UTRs; a pair is one payment)
   const utrGroups = splitUtrs(r.cells.payment_utr?.text ?? null);
@@ -386,9 +526,19 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     payments.push({ paymentNo: 1, paymentDate, utrNo: utrs, amountReceived: settledCell, tdsAmountStated: tdsStated, flags: pf });
     if (utrGroups.length > 1) flags.push("AMOUNT_SPLIT_UNKNOWN");
   }
-  for (const u of utrs) {
+  // Two-part approval (decisions.md section 7, 1-Nov): a confirmed second part's own payments,
+  // added as their own payment rows (never merged into one, each keeps its own UTR).
+  const extraUtrs: string[] = [];
+  for (const p of o.extraPayments ?? []) {
+    const u = p.utr ? p.utr.split("|") : [];
+    extraUtrs.push(...u);
+    payments.push({ paymentNo: payments.length + 1, paymentDate: p.date, utrNo: u, amountReceived: p.amount, tdsAmountStated: p.tdsStated, flags: [] });
+  }
+  const allUtrs = [...utrs, ...extraUtrs];
+  let utrShapeInvalid = false;
+  for (const u of allUtrs) {
     if (u.length < 8 || u.length > 25 || /[^A-Z0-9]/.test(u)) {
-      maybeIssue("R-U01", "W", "C", false, "utr_no", "UTR looks implausible");
+      utrShapeInvalid = true;
       break;
     }
   }
@@ -396,6 +546,8 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
   // Status: confirmed tab, then the status column (confirmed words), then the confirmed colour.
   let stage: Stage | null = null;
   let source: CleanClaim["status_source"] = "unknown";
+  let statusSourcesDisagree = false;
+  let statusColourUnconfirmed = false;
   const tabStage = p.tabStage[r.tab];
   if (tabStage) {
     stage = tabStage;
@@ -403,7 +555,7 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
   }
   const word = r.cells.status_text?.text ? p.statusWords[nameKey(r.cells.status_text.text)] : undefined;
   if (word && word !== "NOT_WRITTEN") {
-    if (stage && stage !== word) maybeIssue("R-X01", "W", "C", false, "claim_status", "Status column and tab disagree");
+    if (stage && stage !== word) statusSourcesDisagree = true;
     if (!stage) {
       stage = word;
       source = "column";
@@ -414,152 +566,188 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
   if (r.rowColour) {
     const meaning = p.colourLegend[r.rowColour];
     if (!meaning) {
-      if (!stage) maybeIssue("R-S07", "E", "C", false, "claim_status", "Row colour has no confirmed meaning");
+      if (!stage) statusColourUnconfirmed = true;
     } else {
       const c = stageFromColour(meaning, approved !== null);
-      if (c && stage && c !== stage) {
-        maybeIssue("R-X01", "W", "C", false, "claim_status", "Row colour and status disagree");
-      } else if (c && !stage) {
+      if (c && stage && c !== stage) statusSourcesDisagree = true;
+      else if (c && !stage) {
         stage = c;
         source = "colour";
-      } else if (!c && !stage) {
-        maybeIssue("R-S06", "E", "C", false, "claim_status", "Red row: rejected or cancelled not known");
       }
+      // c === null (REJECTED_OR_CANCELLED colour, reason not yet known): stage stays unset
+      // and falls through to UNKNOWN below, raised by R-S06 (one issue, not two).
     }
   }
-  if (!stage) {
-    stage = "UNKNOWN";
-    if (!issues.some((i) => i.field === "claim_status")) maybeIssue("R-S06", "E", "C", false, "claim_status", "Status unknown");
-  }
+  if (!stage) stage = "UNKNOWN";
 
-  // Money (file 01 section 7): always computed, TDS default R-T01 unless a more specific rule.
+  // Money (decisions.md section 8, rewritten Stage 2a): TDS default R-T01 unless a more
+  // specific rule; Total TDS and TDS itself are never derived, only what the hospital stated.
   const chosenTds: TdsChoice = o.tds ?? (sel ? resolveTdsRate(sel) ?? DEFAULT_TDS : DEFAULT_TDS);
   const money: MoneyResult = computeMoney({
     bill,
     approved,
     copay,
-    payments: payments.map((x) => ({ amount: x.amountReceived, date: x.paymentDate, utr: x.utrNo.join("|") || null })),
-    tds: chosenTds,
+    discountStated,
+    payments: payments.map((x) => ({ amount: x.amountReceived, date: x.paymentDate, utr: x.utrNo.join("|") || null, tdsStated: x.tdsAmountStated })),
+    tdsRate: chosenTds,
   });
   const paidMeaningOpen = p.paidMeaningOpenTabs.includes(r.tab);
   if (paidMeaningOpen) flags.push("PAID_MEANING_OPEN");
-  if (bill && approved && copay && new Money(bill).minus(approved).equals(copay) && !new Money(copay).isZero()) {
-    flags.push("COPAY_INCLUDES_DISCOUNT1");
-    maybeIssue("R-H01", "I", "B", true, "copay_amount", "CO-PAY equals Bill - Approved: copay and Discount 1 combined (D-061)");
+  for (const [field, f] of [
+    ["deduction_amount", money.deduction],
+    ["settled_amount", money.totalSettled],
+    ["tds_amount", money.totalTds],
+    ["expected_tds_amount", money.expectedTdsAmount],
+    ["expected_settlement_amount", money.expectedSettlement],
+    ["balance_amount", money.balance],
+  ] as const) {
+    if (f.value === null && f.reason) nullReasons[field] = f.reason;
   }
-  for (const f of ["discount1", "gross", "tds", "discount2"] as const) {
-    if (money[f].value === null && money[f].reason) nullReasons[f === "discount1" ? "discount_1_amount" : f === "discount2" ? "discount_2_amount" : `${f}_amount`] = money[f].reason!;
+  // The "paid" cell's meaning (gross or net) is still an open question for this tab: Total
+  // Settled may not really be "after TDS" yet, so the figures built on it are held back too.
+  if (paidMeaningOpen) for (const f of ["expected_settlement_amount", "balance_amount"] as const) nullReasons[f] = "OPEN_QUESTION";
+
+  // Derived booleans for the rule engine (flat AND/OR conditions only; compound situations
+  // are worked out once here, as data the Rule Library can still switch its rule off for).
+  const isUnderTreatment = stage === "UNDER_TREATMENT";
+  const isApproved = stage === "APPROVED";
+  const isSettled = stage === "SETTLED";
+  const isRejected = stage === "REJECTED";
+  const isCancelled = stage === "CANCELLED";
+  const hasUtr = allUtrs.length > 0;
+  const totalSettledVal = money.totalSettled.value;
+  const losDays = admission && discharge ? daysBetween(admission, discharge) : null;
+
+  const ctx: EngineContext = {
+    today: o.today,
+    values: {
+      admission_date: admission,
+      discharge_date: discharge,
+      casesheet_sent_date: casesheet,
+      payment_date: paymentDate,
+      bill_amount: bill,
+      claimed_amount: claimed,
+      approved_amount: approved,
+      copay_amount: copay,
+      discount_amount: discountStated,
+      deduction_amount: fmt(money.deduction.value),
+      total_settled: fmt(money.totalSettled.value),
+      total_tds: fmt(money.totalTds.value),
+      expected_tds_amount: fmt(money.expectedTdsAmount.value),
+      expected_settlement: fmt(money.expectedSettlement.value),
+      balance_amount: fmt(money.balance.value),
+      los_days: losDays,
+      claim_status: stage,
+      patient_name: patient,
+      preauth_or_claim_no: claimNo,
+      policy_or_card_no: policyOrCardNo,
+      phone_number: phoneNumber,
+      policy_holder_name: policyHolderName,
+      courier_no: courierNo,
+      pod_start_date: p.podStartDate,
+      department,
+      treatment_or_surgery: treatment,
+      doctor_name: doctor,
+      is_under_treatment: isUnderTreatment,
+      is_approved: isApproved,
+      is_settled: isSettled,
+      is_approved_or_settled: isApproved || isSettled,
+      is_rejected_or_cancelled: isRejected || isCancelled,
+      has_utr: hasUtr,
+      settlement_date_or_amount_missing: !paymentDate || totalSettledVal === null,
+      settlement_data_present: totalSettledVal !== null || hasUtr,
+      amounts_present: approved !== null || totalSettledVal !== null,
+      reason_missing_for_rejected_or_cancelled: (isRejected && isBlank(r.cells.rejection_reason)) || (isCancelled && isBlank(r.cells.cancellation_reason)),
+      date_swap_unresolved: dateSwapUnresolved,
+      status_colour_unconfirmed: statusColourUnconfirmed,
+      status_sources_disagree: statusSourcesDisagree,
+      utr_shape_invalid: utrShapeInvalid,
+    },
+  };
+
+  if (sel) {
+    const toEngineRule = (r2: RuleVersion): EngineRule | null =>
+      r2.checkDefinition && r2.severity
+        ? { ruleId: r2.ruleId, version: r2.version, severity: r2.severity, checkDefinition: r2.checkDefinition, action: r2.action ?? "ASK_STAFF", staffMessage: r2.staffMessage ?? null }
+        : null;
+    const activeHits: EngineIssue[] = evaluateRules(sel.checks.map(toEngineRule).filter((x): x is EngineRule => x !== null), ctx);
+    const shadowHits: EngineIssue[] = evaluateRules(sel.shadowChecks.map(toEngineRule).filter((x): x is EngineRule => x !== null), ctx);
+    for (const h of activeHits) issues.push({ ruleId: h.ruleId, severity: h.severity, tier: "C", shadow: false, field: h.field, detail: h.message });
+    for (const h of shadowHits) issues.push({ ruleId: h.ruleId, severity: h.severity, tier: "C", shadow: true, field: h.field, detail: h.message });
   }
 
-  // ACTIVE rules (file 02 section 4)
-  if (!patient) maybeIssue("R-N01", "E", "C", false, "patient_name", "Patient name empty");
-  if (!admission && !nullReasons.admission_date?.startsWith("OUT")) maybeIssue("R-N02", "E", "C", false, "admission_date", "Admission date missing");
-  if (admission && discharge && discharge < admission) maybeIssue("R-D01", "E", "C", false, "discharge_date", "Discharge earlier than admission");
-  if (paymentDate && ((admission && paymentDate < admission) || (casesheet && paymentDate < casesheet)))
-    maybeIssue("R-D03", "E", "C", false, "payment_date", "Settlement earlier than case sheet or admission");
-  if (approved && claimed && new Money(approved).greaterThan(claimed)) maybeIssue("R-A01", "E", "C", false, "approved_amount", "Approved above claimed");
-  if (claimed && bill && new Money(claimed).greaterThan(bill)) maybeIssue("R-A02", "W", "C", false, "claimed_amount", "Claimed above bill");
-  const settledSum = money.settled.value;
-  if (settledSum && approved && settledSum.greaterThan(approved)) maybeIssue("R-A03", "E", "C", false, "settled_amount", "Settled above approved");
-  if ((stage === "APPROVED" || stage === "SETTLED") && (approved === null || new Money(approved).isZero()))
-    maybeIssue("R-A05", "E", "C", false, "approved_amount", "Approved amount missing for an approved or settled claim");
-  if (stage === "SETTLED") {
-    if (utrs.length === 0) maybeIssue("R-S01", "E", "C", false, "utr_no", "Settled but no UTR");
-    if (!paymentDate || settledSum === null) maybeIssue("R-S02", "E", "C", false, "settlement_date", "Settled but no settlement date or amount");
-  }
-  if (stage !== "SETTLED" && stage !== "UNKNOWN" && (settledSum !== null || utrs.length > 0))
-    maybeIssue("R-S03", "W", "C", false, "claim_status", "Settlement data present but status not SETTLED");
-  if (stage === "APPROVED" && approved === null) maybeIssue("R-S04", "E", "C", false, "approved_amount", "Approved but no approved amount");
-  if ((stage === "REJECTED" || stage === "CANCELLED") && (approved !== null || settledSum !== null))
-    maybeIssue("R-S05", "W", "C", false, "approved_amount", "Rejected or cancelled but amounts present");
-
-  // PROPOSED rules: shadow only (D-043, D-066)
-  if (bill && approved && new Money(approved).greaterThan(bill)) maybeIssue("R-A07", "E", "C", true, "approved_amount", "Approved above bill");
-  else if (money.flags.includes("DISCOUNT1_NEGATIVE")) maybeIssue("R-A08", "E", "C", true, "copay_amount", "Approved + copay above bill");
-  if (money.flags.includes("DISCOUNT2_BELOW_TOLERANCE") && !issues.some((i) => i.ruleId === "R-A03"))
-    maybeIssue("R-A09", "E", "C", true, "settled_amount", "Discount 2 below minus INR 2");
-  if (money.flags.includes("TDS_PATH_ON_APPROVED") || money.flags.includes("TDS_PATH_NEITHER"))
-    maybeIssue("R-A12", "W", "C", true, "settled_amount", "Paid amount fits TDS on approved, or neither path");
-  if (!claimNo && stage !== "UNDER_TREATMENT") maybeIssue("R-N03", "E", "C", true, "preauth_or_claim_no", "Claim no missing");
-  for (const f of ["department", "treatment_or_surgery", "doctor_name"] as const) {
-    if (r.cells[f] === undefined) nullReasons[f] = "NOT_RECORDED_IN_SOURCE"; // the sheet has no such column
-    if (isBlank(r.cells[f])) maybeIssue("R-N04", "W", "C", true, f, "Department, procedure or doctor missing");
-  }
-  if (admission && discharge) {
-    const los = daysBetween(admission, discharge);
-    if (los > 15 || los < 0) maybeIssue("R-D06", "W", "C", true, "discharge_date", "Stay above 15 days or negative: swap check");
-  }
-  if ((stage === "REJECTED" && isBlank(r.cells.rejection_reason)) || (stage === "CANCELLED" && isBlank(r.cells.cancellation_reason)))
-    maybeIssue("R-S10", "E", "C", true, "claim_status", "Reason missing for rejected or cancelled");
-
-  // Overdue (R-S09, computed, status unchanged)
-  let overdue: boolean | null = null;
-  let pendingDays: number | null = null;
-  let bucket: CleanClaim["aging_bucket"] = null;
-  if (stage === "APPROVED" && discharge) {
-    pendingDays = daysBetween(discharge, o.today);
-    overdue = pendingDays > 60;
-    bucket = pendingDays > 180 ? "180+" : pendingDays > 90 ? "91-180" : pendingDays > 60 ? "61-90" : null;
-  }
+  if (!admission && !nullReasons.admission_date?.startsWith("OUT")) structural("R-N02", "E", "admission_date", "Admission date missing");
 
   let { key, type } = recordKeyFor(p, claimNo, patient, admission, discharge);
   if (!key) {
     // Never dropped: kept under its row reference until staff give a claim no or name + date.
-    maybeIssue("R-N02", "E", "C", false, "record_key", "No claim no, or no patient name and admission date");
+    structural("R-N02", "E", "record_key", "No claim no, or no patient name and admission date");
     key = `${p.hospitalCode}|${p.scheme}|ROW:${r.tab}#${r.row}`;
     type = "FALLBACK";
   }
 
-  const activeBlocking = issues.some((i) => !i.shadow && (i.severity === "E" || i.tier === "C" || i.tier === "D") && i.severity !== "I");
+  const activeBlocking = issues.some((i) => !i.shadow && i.severity === "E");
   const rowClass: RowClass = activeBlocking ? "NEEDS_STAFF_INPUT" : changes.length > 0 ? "AUTO_FIXED" : "CLEAN";
 
-  const d2Open = money.discount2.value !== null && money.discount2.value.greaterThan(0);
   const claim: CleanClaim = {
     insurer_name: insurer,
     tpa_name: tpa,
     patient_name: patient,
     patient_ip_no: ident("patient_ip_no"),
-    policy_or_card_no: ident("policy_or_card_no"),
+    policy_or_card_no: policyOrCardNo,
+    phone_number: phoneNumber,
+    policy_holder_name: policyHolderName,
     preauth_or_claim_no: claimNo,
     admission_date: admission,
     discharge_date: discharge,
-    treatment_or_surgery: text("treatment_or_surgery"),
-    department: text("department"),
+    treatment_or_surgery: treatment,
+    department,
     doctor_name: doctor,
     room_no: ident("room_no"),
     bill_amount: bill,
     claimed_amount: claimed,
     approved_amount: approved,
     copay_amount: copay,
-    deduction_amount: deduction,
+    deduction_amount: fmt(money.deduction.value),
+    discount_amount: discountStated,
     casesheet_sent_date: casesheet,
+    courier_no: courierNo,
     followup_log: r.cells.followup_log?.text?.trim() || null,
     claim_status: stage,
     status_source: source,
     rejection_reason: r.cells.rejection_reason?.text?.trim() || null,
     cancellation_reason: r.cells.cancellation_reason?.text?.trim() || null,
-    settled_amount: fmt(money.settled.value),
+    settled_amount: fmt(money.totalSettled.value),
     settlement_date: money.settlementDate,
-    utr_no: utrs,
-    remarks: r.cells.remarks?.text?.trim() || null,
-    los_days: admission && discharge ? daysBetween(admission, discharge) : null,
+    utr_no: allUtrs,
+    remarks: [r.cells.remarks?.text?.trim() || null, o.remarksSuffix ?? null].filter(Boolean).join(" | ") || null,
+    los_days: losDays,
+    date_swap_applied: dateSwapApplied,
     tds_rate_used: money.tdsRateSource ? chosenTds.rate : null,
     tds_rate_source: money.tdsRateSource,
     tds_rule_id: money.tdsRateSource ? chosenTds.ruleId : null,
-    gross_amount: paidMeaningOpen ? null : fmt(money.gross.value),
-    tds_amount: paidMeaningOpen ? null : fmt(money.tds.value),
-    discount_1_amount: fmt(money.discount1.value),
-    discount_1_pct: fmt(money.discount1Pct.value),
-    discount_2_amount: paidMeaningOpen ? null : fmt(money.discount2.value),
-    discount_2_pct: paidMeaningOpen ? null : fmt(money.discount2Pct.value),
-    discount_2_confirmed: paidMeaningOpen ? null : money.settled.value === null ? null : money.discount2Confirmed,
-    tds_path: money.settled.value === null || paidMeaningOpen ? null : money.tdsPath.path,
-    discount_2_resolution: paidMeaningOpen || money.discount2.value === null ? null : d2Open ? "OPEN" : "NOT_APPLICABLE",
-    overdue_flag: overdue,
-    pending_days: pendingDays,
-    aging_bucket: bucket,
+    tds_amount: fmt(money.totalTds.value),
+    expected_tds_amount: fmt(money.expectedTdsAmount.value),
+    expected_settlement_amount: paidMeaningOpen ? null : fmt(money.expectedSettlement.value),
+    balance_amount: paidMeaningOpen ? null : fmt(money.balance.value),
+    overdue_flag: isApproved && discharge ? daysBetween(discharge, o.today) > 60 : null,
+    pending_days: isApproved && discharge ? daysBetween(discharge, o.today) : null,
+    aging_bucket:
+      isApproved && discharge
+        ? ((): CleanClaim["aging_bucket"] => {
+            const pd = daysBetween(discharge, o.today);
+            return pd > 180 ? "180+" : pd > 90 ? "91-180" : pd > 60 ? "61-90" : null;
+          })()
+        : null,
+    gross_amount: null,
+    discount_1_amount: null,
+    discount_1_pct: null,
+    discount_2_amount: null,
+    discount_2_pct: null,
+    discount_2_confirmed: null,
+    tds_path: null,
+    discount_2_resolution: null,
   };
-  if (paidMeaningOpen) for (const f of ["gross_amount", "tds_amount", "discount_2_amount"]) nullReasons[f] = "OPEN_QUESTION";
 
   return { ...base, payments, rowClass, recordKey: key, keyType: type, claim, nullReasons, flags, issues, changes, sourceAmounts };
 }

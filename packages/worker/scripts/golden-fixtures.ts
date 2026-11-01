@@ -7,7 +7,7 @@ import { writeFileSync } from "node:fs";
 import { createReadPath, readClientsFromEnv, type TabPolicy } from "@oksy/google";
 import { headerKey, valueShape, VALUE_SHAPES, type ValueShape } from "@oksy/rules";
 import { dbFromEnv } from "../src/db.ts";
-import { HMS_HEADERS, HMS_SHEET } from "../src/hms-profile.ts";
+import { HMS_HEADERS, HMS_SHEET } from "../src/hospital-headers.ts";
 import { layoutOf, toRawTabs } from "../src/sheet-data.ts";
 
 process.loadEnvFile(new URL("../../../apps/web/.env.local", import.meta.url).pathname);

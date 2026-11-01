@@ -156,7 +156,9 @@ export const CORE_FIELDS: Record<CanonicalField, { label: string; data_type: Fie
   },
   payment_amount: { label: "Settled Amount", data_type: "amount", aliases: ["Paid Amount", "Amount Received", "Settled Amount", "Received Amount", "Paid Amt"] },
   payment_utr: { label: "UTR", data_type: "text", aliases: ["UTR", "UTR No", "UTR Number", "NEFT Ref", "NEFT No", "Transaction No"] },
-  tds_amount_stated: { label: "TDS", data_type: "amount", aliases: ["TDS", "TDS Amount"] },
+  // The plain "TDS" header is never an alias here: it always holds the rate, the extra field
+  // `tds` (decisions.md section 5, 1-Nov) — not one of the 35 core fields.
+  tds_amount_stated: { label: "TDS Amount", data_type: "amount", aliases: ["TDS Amount", "TDS Amt"] },
   remarks: { label: "Remarks", data_type: "text", aliases: ["Remark", "Remarks", "Claim Remark", "Follow Up Remarks"] },
 };
 

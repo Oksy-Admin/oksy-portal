@@ -39,7 +39,18 @@ async function HospitalPage({ params }: { params: Promise<{ code: string }> }) {
       <p style={{ margin: 0 }}>
         <Link href="/hospitals">‹ Hospitals</Link>
       </p>
-      <PageHead title={h.hospital_name} subtitle={`${h.hospital_code} · ${h.district ?? "district not given"}`} actions={<Pill value={h.status} />} />
+      <PageHead
+        title={h.hospital_name}
+        subtitle={`${h.hospital_code} · ${h.district ?? "district not given"}`}
+        actions={
+          <>
+            <Link className="btn secondary" href={`/hospitals/${code}/trial`}>
+              Rule trial
+            </Link>
+            <Pill value={h.status} />
+          </>
+        }
+      />
       {h.missing_from_register_since && (
         <div className="notice warn">
           <strong>Not in the latest register.</strong>

@@ -7,6 +7,8 @@
 import { createReadPath, makeLogger, readClientsFromEnv, SheetNotReadableError, type GoogleEvent } from "@oksy/google";
 import { suggestFromEnv } from "./ai-mapping.ts";
 import { DbError, dbFromEnv, type Db } from "./db.ts";
+import { claimNextRuleTest, runOneRuleTest } from "./rule-test-runner.ts";
+import { claimNextRuleTrial, runOneRuleTrial } from "./rule-trial-runner.ts";
 import { RunStopped, runSheetJob, type Job } from "./sheet-run.ts";
 
 export const MAX_ATTEMPTS = 3;
@@ -85,6 +87,22 @@ async function main() {
       if (job) {
         const result = await runOne(db, job);
         console.info(`job ${job.id.slice(0, 8)} ${job.sheet_key.split("|")[0]} ${job.mode}: ${result}`);
+        continue;
+      }
+      // A sheet run always comes first (it is the real daily work); a Rule Library "test
+      // before save" only runs when nothing else is queued (stage-plan 2d).
+      const ruleTest = await claimNextRuleTest(db);
+      if (ruleTest) {
+        const result = await runOneRuleTest(db, ruleTest);
+        console.info(`rule test ${ruleTest.id.slice(0, 8)} ${ruleTest.draft.ruleId}: ${result}`);
+        continue;
+      }
+      // Rule trial (stage-plan 2e): same reasoning, lowest priority -- a one-off diagnostic
+      // run over already-stored claims, never the real daily work.
+      const ruleTrial = await claimNextRuleTrial(db);
+      if (ruleTrial) {
+        const result = await runOneRuleTrial(db, ruleTrial);
+        console.info(`rule trial ${ruleTrial.id.slice(0, 8)} ${ruleTrial.hospitalCode}: ${result}`);
         continue;
       }
     } catch (e) {

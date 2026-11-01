@@ -1,6 +1,7 @@
 // Rule selection (file 04 section 10.2, D-014, D-015, D-034, D-043, D-050).
 // Pure code: the caller loads rule versions from the database and passes them in.
 import { Money, type TdsChoice } from "./money.ts";
+import type { CheckDefinition, RuleAction } from "./engine.ts";
 
 export type RuleStatus = "PROPOSED" | "PREVIEWED" | "APPROVED" | "ACTIVE" | "RETIRED" | "DRAFT" | "REFERENCE";
 export type DateBasis = "ADMISSION" | "DISCHARGE" | "SETTLEMENT";
@@ -19,6 +20,10 @@ export interface RuleVersion {
   dateBasis?: DateBasis | null; // which row date the window is tested on
   parameterName?: string | null;
   parameterValue?: string | null; // decimal as text, never a JS number
+  severity?: "E" | "W" | null;
+  checkDefinition?: CheckDefinition | null; // Stage 2a: the check itself, as data (engine.ts)
+  action?: RuleAction | null;
+  staffMessage?: string | null;
 }
 
 /** The row's own values, never the sheet's (file 04 section 10.2, step 1). */
@@ -38,7 +43,7 @@ export interface ChosenParameter {
 }
 
 export interface ConfigError {
-  kind: "EQUAL_SPECIFICITY_CONFLICT" | "TWO_ACTIVE_VERSIONS";
+  kind: "EQUAL_SPECIFICITY_CONFLICT";
   parameterName?: string;
   ruleIds: string[];
 }
@@ -109,16 +114,46 @@ function chooseParameters(rules: RuleVersion[], errors: ConfigError[]): Map<stri
   return chosen;
 }
 
+/**
+ * Which rule wins when two matching versions share a rule ID (design review Must, 31-Oct):
+ * the more specific scope (hospital / scheme / insurer) replaces the general one. An exact
+ * tie is a setup error (D-015: never resolved by picking one silently); none of that id runs.
+ */
+function chooseChecks(rules: RuleVersion[], errors: ConfigError[]): RuleVersion[] {
+  const byId = new Map<string, RuleVersion[]>();
+  for (const r of rules) {
+    if (r.type !== "CHECK") continue;
+    byId.set(r.ruleId, [...(byId.get(r.ruleId) ?? []), r]);
+  }
+  const chosen: RuleVersion[] = [];
+  for (const [id, rs] of byId) {
+    if (rs.length === 1) {
+      chosen.push(rs[0]!);
+      continue;
+    }
+    const top = Math.max(...rs.map(specificity));
+    const best = rs.filter((r) => specificity(r) === top);
+    if (best.length > 1) {
+      errors.push({ kind: "EQUAL_SPECIFICITY_CONFLICT", ruleIds: [id] });
+      continue;
+    }
+    chosen.push(best[0]!);
+  }
+  return chosen;
+}
+
+/** Whether one rule version's scope and valid dates match a claim (Stage 2d "test before
+ * save" job: reuses the exact scope logic the real engine selection uses, so a test result
+ * can never disagree with what a real run would do). */
+export function ruleInScope(r: RuleVersion, c: RuleContext): boolean {
+  return filtersMatch(r, c) && inWindow(r, c) === "IN";
+}
+
 export function selectRules(all: RuleVersion[], c: RuleContext): Selection {
   const configErrors: ConfigError[] = [];
   const skippedNoDate: RuleVersion[] = [];
   const active: RuleVersion[] = [];
   const shadow: RuleVersion[] = [];
-
-  const activeIds = all.filter((r) => r.status === "ACTIVE").map((r) => r.ruleId);
-  for (const id of new Set(activeIds.filter((id, i) => activeIds.indexOf(id) !== i))) {
-    configErrors.push({ kind: "TWO_ACTIVE_VERSIONS", ruleIds: [id] });
-  }
 
   for (const r of all) {
     if (r.status === "RETIRED" || r.status === "DRAFT" || r.status === "REFERENCE" || !filtersMatch(r, c)) continue;
@@ -129,8 +164,8 @@ export function selectRules(all: RuleVersion[], c: RuleContext): Selection {
   }
 
   return {
-    checks: active.filter((r) => r.type === "CHECK"),
-    shadowChecks: shadow.filter((r) => r.type === "CHECK"),
+    checks: chooseChecks(active, configErrors),
+    shadowChecks: chooseChecks(shadow, []),
     parameters: chooseParameters(active, configErrors),
     shadowParameters: chooseParameters(shadow, []),
     skippedNoDate,
