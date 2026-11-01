@@ -53,7 +53,7 @@ Starting point (code and live, read 31-Oct): rule tables exist (`rules`, `rule_v
 | 3 | 2c – claim checks: cross-row rules, two-part approval, "value is correct" | 2 | `issue_confirmations` + two-part link on claims |
 | 4 | 2d – Rule Library page: form, upload, conflict check, test before save, plain-words box | 2 | `save_rule_version` function (conflict check, history, audit) |
 | 5 | 2e – rule trial and check sets | 2 | `rule_trials`, `check_set_claims` |
-| 6 | 2f – pilot trial on live, Anoop approves the 3 summaries, Stage 2 close (code-reviewer) | 2 | none expected |
+| 6 | 2f – pilot trial on live, Anoop approves the 3 summaries, Stage 2 close (code-reviewer) – **IN PROGRESS 1-Nov-2026, prompt 1 of 2: pilot header decisions recorded, branch checks green; waiting on Anoop's live run + approvals** | 2 | none expected |
 | – | Reserve for fixes (2a first: it is the tightest) | 2 | – |
 
 **2a – Rule engine: rules as data** (2 prompts; 1 migration)
