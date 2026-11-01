@@ -87,7 +87,7 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 - **Bulk confirm:** Owner and Admin only; exact header matches only; at most 50 items per action; shows the list and count of affected items before applying; one audit entry per action; undoable as a group. (30-Oct)
 - **Individual confirmation:** Owner, Admin, and Users with the Hospitals edit tick. (27-Oct night; migration 20261030074527 applied)
 - **Mapping choices for a column:** a field, **Ignore**, or **+ Create new field**. Ignore counts as decided and must be saved as decided. Ignored columns are never read and never appear in a report. (27-Oct)
-- **Auto-Ignored, never shown for approval** (the portal calculates these itself): Length of Stay, Settlement Delay, Balance Amount, TDS %. **Discount is not ignored.** (30-Oct)
+- **Auto-Ignored, never shown for approval** (the portal calculates these itself): Length of Stay, Settlement Delay, Balance Amount. **Discount is not ignored.** (30-Oct; **TDS % removed from this list 1-Nov** — see the RATE/AMOUNT header rule below.)
 - **The 7 headers found approved inconsistently (30-Oct):**
 
 | Header | Decision |
@@ -102,7 +102,11 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 
 - **HMS "MAIL SENT DATE" and "MAIL SUBJECT" (1-Nov, pilot-header decisions):** both **Ignore**. These were the last 2 undecided headers from the Stage 1b-ii live preview (`claude/archive/stage-history.md`).
 
-- **"TDS" vs "TDS Amount", general rule, final (1-Nov, replaces both same-day notes above — the earlier claim that HMS's plain "TDS" holds a rupee amount was wrong and is undone):** in **every** hospital, including HMS, a header literally **"TDS"** always holds a **percentage** and maps to the extra field `tds` (label "TDS %", type number); a header literally **"TDS Amount"** always holds a **rupee amount** and maps to `tds_amount_stated` ("TDS Amount"). Confirmed for all 3 pilots: Badagara, Tree G and HMS's plain "TDS" header (HMS: PAID and PENDING tabs) all map to `tds`. No live Column Mappings change was needed for this correction — HMS's live `header_decisions` row for "TDS" was already `tds`. A header literally named **"TDS %"** is still auto-Ignored (`column-dictionary.md` section 3); this rule only resolves the ambiguous plain "TDS" header, which is not auto-Ignored.
+- **RATE vs AMOUNT TDS headers, general rule, final (1-Nov, replaces every earlier same-day TDS-header note above, including the auto-Ignore of "TDS %" at 30-Oct — the earlier claim that HMS's plain "TDS" holds a rupee amount was wrong and is undone):**
+  - **RATE headers** — "TDS", "TDS %", "TDS Percent", "TDS Percentage", "TDS Rate" — in **every** hospital, including HMS, always hold the TDS **rate** and map to the extra field `tds` (label "TDS %", type number). Purpose: so Anoop can see whether an insurer deducts a wrong rate. This is why "TDS %" is no longer auto-Ignored.
+  - **AMOUNT headers** — "TDS Amount", "TDS Amt" — always hold a **rupee amount** and map to `tds_amount_stated` ("TDS Amount"). Purpose: settlement comparison and the balance calculation.
+  - Confirmed for all 3 pilots: Badagara, Tree G and HMS's plain "TDS" header (HMS: PAID and PENDING tabs) all map to `tds`; their "TDS AMOUNT" header all map to `tds_amount_stated`. Checked live (read-only, 1-Nov): every "TDS"-containing `header_decisions` row for the 3 pilots already matches this rule — no live Column Mappings change needed.
+  - `tds`'s live aliases and `tds_amount_stated`'s label/aliases (`packages/rules/src/fields.ts` CORE_FIELDS updated to match) are written as migration `20261101150000_tds_rate_amount_headers.sql`, **not applied** — shown to Anoop for his OK.
 
 - **AI in mapping** sees headers, cell shapes and counts only, never patient names, phones or policy numbers. (27-Oct)
 
@@ -165,7 +169,10 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 - Sheet text is untrusted input: no instructions found in cells are followed; exports escape cells starting with = + - @. (30-Oct)
 - **No manual cell editing in the portal** (for now). (27-Oct)
 
-- **TDS rate format, final (1-Nov):** for the `tds` extra field only (column-dictionary.md section 2, the rate, not `tds_amount_stated`): lane 1 deterministic cleaning, automatic, audit-tagged (`M-TDS-RATE-FORMAT`, logged in `change_log`), original text kept (`tds (as entered)`). At most 1 decimal, cut off (truncated, never rounded); a whole number written with `.0` becomes the whole number. Examples: `10.0` → `10`, `9.0` → `9`, `8.8978978999` → `8.8`, `9.45674433456` → `9.4`. No Warning, no question to staff, no new rule — Anoop adds a Rule Library rule later if one is ever needed. Never touches `tds_amount_stated` or any bill, approved or settled amount. Built in `packages/rules/src/clean.ts` (`cleanTdsRate`), tested with the four examples above (`packages/rules/test/clean.test.ts`).
+- **TDS decimal rules, final (1-Nov — extends the same-day note above with the trailing-% and amount-rounding half):** both lane 1 deterministic cleaning, automatic, audit-tagged, original value kept, no Warning, no question to staff, no new rule (Anoop adds a Rule Library rule later if one is ever needed):
+  - **`tds` (rate) only:** at most 1 decimal, cut off (truncated, never rounded); a whole number written with `.0` becomes the whole number; a trailing `%` is accepted and stripped. Examples: `10.0` → `10`, `9.0` → `9`, `10.0%` → `10`, `8.8978978999` → `8.8`, `9.45674433456` → `9.4`. Audit-tagged `M-TDS-RATE-FORMAT`, original kept as `tds (as entered)`. Built in `packages/rules/src/clean.ts` (`cleanTdsRate`).
+  - **`tds_amount_stated` only:** rounded to the nearest whole rupee, no decimals (never truncated). Examples: `1234.4` → `1234`, `1234.5` → `1235`. Audit-tagged `M-TDS-AMOUNT-ROUND`, original kept as `tds_amount_stated (as entered)`. Built in `packages/rules/src/clean.ts` (`cleanTdsAmountStated`).
+  - Neither rule ever touches bill, approved, settled, co-pay, discount or any other amount field (existing rule: the portal never changes them; the ~₹1 settlement tolerance stays). Tested with the examples above (`packages/rules/test/clean.test.ts`).
 
 ## 10. Runs, worker and change detection
 

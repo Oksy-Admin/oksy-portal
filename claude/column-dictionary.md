@@ -43,7 +43,7 @@ Key: **C** = calculated by the portal (never taken from the sheet). **Ignore** =
 | payment_date | Settlement Date | date | Per payment |
 | payment_amount | Settled Amount | amount | Per payment; amount received after TDS |
 | payment_utr | UTR | text | Per payment; never guessed |
-| tds_amount_stated | TDS Amount | amount | TDS amount as written by staff; rules apply. Reached by a header literally named "TDS AMOUNT" — never by a plain "TDS" header, in any hospital (confirmed 1-Nov; see `tds`, section 2) |
+| tds_amount_stated | TDS Amount | amount | TDS amount as written by staff; rounded to the nearest whole rupee (lane 1, 1-Nov); rules apply. AMOUNT headers only — "TDS Amount", "TDS Amt" — in every hospital; never a plain "TDS"/RATE header (confirmed 1-Nov; see `tds`, section 2) |
 | remarks | Remarks | text | Takes **every** remark column (including follow-up remarks); values joined with " \| " and prefixed by the source column name (prefix to be built in Stage 1b) |
 
 ## 2. Added fields (stored in `extra_fields`)
@@ -52,13 +52,13 @@ Key: **C** = calculated by the portal (never taken from the sheet). **Ignore** =
 |---|---|---|---|
 | balance_status | Balance Status | text | Not decided / Waived off / Grievance. Added 30-Oct. Mapping test waits for a safe source column; never map BALANCE AMOUNT here |
 | uhid | UHID | text | Hospital patient ID (not the IP number). To be added in Stage 1b |
-| tds | TDS % | number | A TDS **rate**, not an amount. A plain "TDS" header always maps here, in every hospital (including HMS) — confirmed 1-Nov |
+| tds | TDS % | number | A TDS **rate**, not an amount; at most 1 decimal, cut off, a trailing "%" stripped (lane 1, 1-Nov). RATE headers only — "TDS", "TDS %", "TDS Percent", "TDS Percentage", "TDS Rate" — always map here, in every hospital (including HMS) — confirmed 1-Nov. Purpose: see whether an insurer deducts a wrong rate |
 
 The live list also has 3 older custom fields (added 27-Oct); they are reviewed in Stage 1b.
 
 ## 3. Auto-Ignored columns (portal calculates its own)
 
-Never shown for approval: **Length of Stay**, **Settlement Delay**, **Balance Amount**, and any header literally named **TDS %**. (A plain "TDS" header is not auto-Ignored — section 1/2 above says where it maps.)
+Never shown for approval: **Length of Stay**, **Settlement Delay**, **Balance Amount**. (**"TDS %" removed 1-Nov** — every TDS-rate header now maps to `tds` instead, section 2 above, so Anoop can see the rate. No header is auto-Ignored on the TDS family any more.)
 
 ## 4. Calculated by the portal
 
