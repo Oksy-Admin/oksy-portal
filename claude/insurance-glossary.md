@@ -9,6 +9,9 @@ Terms as Oksy uses them in the portal. Confirmed by Anoop Das (27-Oct and 30-Oct
 - **KASP Dialysis:** treated as its own sub-scheme; repeat dialysis sessions are not duplicates.
 - **MEDISEP:** Medical Insurance scheme for Kerala Government employees and pensioners. Insurer Oriental Insurance; TPAs Vidal and FHPL at the same time. Later.
 - **TMS:** the government system from which Oksy downloaded historical claim data up to 2025.
+- **TMS 1:** the older version of TMS. Gave all case details for a claim.
+- **TMS 2:** the newer version of TMS, replacing TMS 1. Lacks admission/discharge dates; these are looked up from the hospital Google Sheet by case number. A TMS 2 portal download covers one hospital.
+- **Dialysis cycle:** a set of repeat dialysis sessions under one case number (KASP Dialysis). Session count per cycle has changed over time (one claim per session before, then 12, now 6).
 
 ## Parties
 
@@ -17,10 +20,14 @@ Terms as Oksy uses them in the portal. Confirmed by Anoop Das (27-Oct and 30-Oct
 - **Hospital:** the provider that treats the patient and files the claim.
 - **Patient:** the insured person who is treated.
 - **Policy Holder:** the person who holds the policy (can differ from the patient).
+- **DPC (District Project Coordinator):** the KASP/MEDISEP role that shares case data by Excel, covering one hospital or about five hospitals combined. DPC files are system generated and most trusted.
 
 ## Claim and money terms
 
 - **Claim Number:** the insurer/TPA claim number. One claim, one number.
+- **Case number (KASP/MEDISEP):** the unique key for a KASP or MEDISEP claim, used instead of a claim number for these schemes (Private keeps its own claim-number rule). Generated at pre-auth; stays the same through settlement and any later grievance. 15+ digits; always kept as text, never numeric.
+- **Pre-auth:** the approval request made before treatment, for KASP/MEDISEP. The case number is generated at this stage; every case has one, including a rejected pre-auth.
+- **Enhancement:** a request to raise the pre-authorised/approved amount during treatment, under the same case number.
 - **Same claim:** same claim number + same admission date + same discharge date.
 - **Duplicate:** the same claim appearing again with the same values.
 - **Two-part approval:** one claim approved and paid in two parts (first part, then second); combined into one claim.
@@ -43,6 +50,7 @@ Terms as Oksy uses them in the portal. Confirmed by Anoop Das (27-Oct and 30-Oct
 ## Documents and dates
 
 - **Admission Date / Discharge Date:** the dates the patient was admitted and discharged.
+- **Bioauth:** biometric authentication of the patient, done at admission and at discharge (KASP/MEDISEP).
 - **Length of Stay (LOS):** days between admission and discharge. Calculated by the portal.
 - **Hardcopy:** a copy of the case sheet sent by courier; required by some insurers only (Hardcopy Required: Yes/No).
 - **Hardcopy Sent Date:** the date the case sheet was couriered.

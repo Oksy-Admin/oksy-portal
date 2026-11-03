@@ -1,7 +1,7 @@
 # Oksy Data Cleanse – Confirmed Decisions
 
 Owner and decision-maker: Anoop Das (anoop@oksy.in).
-Last updated: 1-Nov-2026 (later-stage decisions: reference lists, doctors, Excel import, AI scope).
+Last updated: 3-Nov-2026 (KASP/MEDISEP case number, TDS, TMS 1/TMS 2, source trust, full history).
 
 **How to use this file**
 - Check here before asking Anoop anything. A decision listed here is never asked again.
@@ -29,6 +29,7 @@ Last updated: 1-Nov-2026 (later-stage decisions: reference lists, doctors, Excel
 | 14 | How we work | 207-244 |
 | 15 | Superseded | moved to `claude/archive/decisions-superseded.md` |
 | 16 | Later-stage decisions (1-Nov) | 270-299 |
+| 17 | KASP and MEDISEP (3-Nov) | 300-317 |
 
 Line numbers are approximate (shift a little as the file is edited) — if in doubt, re-run the grep above.
 
@@ -297,6 +298,21 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 - Added 1-Nov (13-27): procedure-to-department match; settlement PDF/Excel reading (UTR, amount, claim no matched with evidence, person confirms); natural-language data questions (read only); payment follow-up priority and letter drafts; appeal letter drafts; Owner business insights per hospital/insurer/TPA (rejections, discounts, deductions, TDS, co-pay, delays, balances, trends); daily Malayalam brief via Telegram bot; staff "do not make these mistakes" guide; rule-conflict explanations; unusual-amount detection; short-settlement finder; insurer/TPA behaviour profiles with draft rules; sheet layout change watcher; learning loop from confirm/reject; claim-wise next-action queue.
 - Not now: reading approval/rejection letters, reject/delay prediction, audit/tamper watch.
 - Limits unchanged: AI never guesses UTR/date/amount/claim number, never changes bill/approved/settled amounts, never saves a rule, never messages a hospital. Telegram goes to the Owner only, counts and amounts only (no patient names, phones or policy numbers), bot token kept as a secret. AI cost stays within the monthly cap.
+
+## 17. KASP and MEDISEP (3-Nov-2026)
+
+- **Case number is the unique key:** for KASP and MEDISEP, the case number is the only unique key (Private Health Insurance keeps its own claim-number rule — section 7). Anoop calls it "case number" in these schemes. A dialysis claim is one case number.
+- **Lifecycle:** the case number is generated at pre-auth and stays the same through settlement and any later grievance; a later change updates the same record, it does not create a new one. Every KASP/MEDISEP case has a case number, including a rejected pre-auth.
+- **Always text, never numeric:** the case number is 15+ digits and must always be kept as text — in sheet reading, Excel/CSV uploads, and in the database — because numeric format turns the last digits into zeros.
+- **TDS (KASP/MEDISEP):** TDS is 10% of the approval amount, for paid claims only. It is calculated in the statement/report, labelled as calculated, and is never written into cleaned claim data.
+- **What KASP Google Sheets cover:** KASP Google Sheets hold details only up to discharge. Approval, settlement, payment and status come only from TMS or from Excel files shared by District Project Coordinators (DPC).
+- **TMS 1 vs TMS 2:** TMS 2 is the newer version of TMS 1. TMS 1 gave all case details; TMS 2 lacks admission/discharge dates, which must be looked up from the hospital Google Sheet by case number.
+- **RF Amount:** RF Amount in TMS reports is ignored.
+- **Dialysis sheet columns 1-12:** these are the dates of each dialysis session. They are used only to count sessions — 6 per claim now, 12 earlier, one claim per session before that. They are not shown in the final report, which shows admission and discharge dates only.
+- **Source trust:** TMS 2 portal files and DPC files are system generated and are the most trusted source. Google Sheet values (patient name, dates, case number) are typed by several desk staff and may be wrong.
+- **File coverage:** a TMS 2 portal download covers one hospital; a DPC file covers one hospital or about five hospitals combined.
+- **Full history kept:** the portal keeps all previously cleaned data — TMS 1 master Excel, OKSY report portal, TMS 2, Google Sheets — plus daily live claims, in the database, each record tagged with its source, for business insights.
+- **Open (not decided — do not build against these yet):** where the TMS 1 master Excel is kept; the date of the TMS 1-to-TMS 2 switch; the exact case-number digit count; the tolerance between pre-auth date and admission date; who uploads TMS 2/DPC files and how often.
 
 ## 15. Superseded (do not use)
 
