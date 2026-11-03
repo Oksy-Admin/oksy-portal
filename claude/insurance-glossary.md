@@ -20,12 +20,12 @@ Terms as Oksy uses them in the portal. Confirmed by Anoop Das (27-Oct and 30-Oct
 - **Hospital:** the provider that treats the patient and files the claim.
 - **Patient:** the insured person who is treated.
 - **Policy Holder:** the person who holds the policy (can differ from the patient).
-- **DPC (District Project Coordinator):** the KASP/MEDISEP role that shares case data by Excel, covering one hospital or about five hospitals combined. DPC files are system generated and most trusted.
+- **DPC (District Project Coordinator):** the KASP-only role that shares case data by Excel, covering one hospital or about five hospitals combined. DPC files are system generated and most trusted. Not a MEDISEP source.
 
 ## Claim and money terms
 
 - **Claim Number:** the insurer/TPA claim number. One claim, one number.
-- **Case number (KASP/MEDISEP):** the unique key for a KASP or MEDISEP claim, used instead of a claim number for these schemes (Private keeps its own claim-number rule). Generated at pre-auth; stays the same through settlement and any later grievance. 15+ digits; always kept as text, never numeric.
+- **Case number (KASP/MEDISEP):** the unique key for a KASP or MEDISEP claim, used instead of a claim number for these schemes (Private keeps its own claim-number rule). Generated at pre-auth; stays the same through settlement and any later grievance. 15+ digits. The always-text rule (never numeric) applies to KASP only; MEDISEP case numbers need no text-only handling.
 - **Pre-auth:** the approval request made before treatment, for KASP/MEDISEP. The case number is generated at this stage; every case has one, including a rejected pre-auth.
 - **Enhancement:** a request to raise the pre-authorised/approved amount during treatment, under the same case number.
 - **Same claim:** same claim number + same admission date + same discharge date.
@@ -50,7 +50,7 @@ Terms as Oksy uses them in the portal. Confirmed by Anoop Das (27-Oct and 30-Oct
 ## Documents and dates
 
 - **Admission Date / Discharge Date:** the dates the patient was admitted and discharged.
-- **Bioauth:** biometric authentication of the patient, done at admission and at discharge (KASP/MEDISEP).
+- **Bioauth:** biometric authentication of the patient, done at admission and at discharge (KASP only; MEDISEP has no bioauth).
 - **Length of Stay (LOS):** days between admission and discharge. Calculated by the portal.
 - **Hardcopy:** a copy of the case sheet sent by courier; required by some insurers only (Hardcopy Required: Yes/No).
 - **Hardcopy Sent Date:** the date the case sheet was couriered.

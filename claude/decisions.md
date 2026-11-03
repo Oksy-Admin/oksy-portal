@@ -314,6 +314,14 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 - **Full history kept:** the portal keeps all previously cleaned data — TMS 1 master Excel, OKSY report portal, TMS 2, Google Sheets — plus daily live claims, in the database, each record tagged with its source, for business insights.
 - **Open (not decided — do not build against these yet):** where the TMS 1 master Excel is kept; the date of the TMS 1-to-TMS 2 switch; the exact case-number digit count; the tolerance between pre-auth date and admission date; who uploads TMS 2/DPC files and how often.
 
+**MEDISEP specifics (4-Nov-2026)**
+
+- **No bioauth, no DPC:** MEDISEP has no bioauth. DPC files are not a MEDISEP source — DPC is KASP only. The always-text case-number rule (section 17 above) applies to KASP only; MEDISEP case numbers need no text-only handling.
+- **MEDISEP Portal Report is the main source:** the MEDISEP Portal Report covers about 99% of MEDISEP data. Only columns missing from the Portal Report are mapped from the hospital Google Sheet: bill amount, co-pay, doctor, room category, ICU/room days, remarks, hardcopy courier date, POD, refund, dispute, DGRC. All other hospital Google Sheet columns are Ignored for MEDISEP. Portal Report values are not re-checked by money rules.
+- **MEDISEP ID and bank columns:** MEDISEP ID maps to `policy_or_card_no`. Portal Report columns Account name, Bank, Account number, IFSC, Account branch and PAN are Ignored and never stored.
+- **Matching:** MEDISEP records are matched by case number.
+- **Open (MEDISEP, not decided — do not build against these yet):** where/who/how often the Portal Report is downloaded; Phase 2 start (proposed 1-Feb-2026, by admission date); the meaning of the REFUND/DISPUTE/DGRC columns; sheet-vs-portal name/date cross-check (proposed Warning only).
+
 ## 15. Superseded (do not use)
 
 Moved to `claude/archive/decisions-superseded.md` (31-Oct-2026 housekeeping) to keep this file short. Old decisions that no longer apply; never act on them.
