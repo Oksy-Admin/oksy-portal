@@ -1,6 +1,11 @@
 // Normalisation (file 02 section 3). Pure code: no database, no Google. A value that cannot
 // be read safely becomes NULL with a reason, never a guess (hard rule 6). Amounts stay
 // decimal strings; they never pass through JavaScript arithmetic (hard rule 7).
+import Decimal from "decimal.js";
+
+// Own Decimal settings (same pattern as money.ts) so no other code can change the rounding
+// used when a sheet amount is read.
+const AmountDecimal = Decimal.clone({ precision: 40, rounding: Decimal.ROUND_HALF_UP });
 
 /** One source cell as the engine needs it (built from the Sheets API by the worker). */
 export interface SourceCell {
@@ -20,6 +25,15 @@ export interface Parsed<T> {
   reason: NullCode | null;
   /** The cell needs a person (tier C): ambiguous, two amounts, "45k" and the like. */
   needsInput?: boolean;
+}
+
+export interface ParsedAmount extends Parsed<string> {
+  /**
+   * The value before 2dp half-up rounding (10-Nov decision, decisions.md section 8). Set only
+   * when rounding changed the value by 0.0001 or more, so the caller can log it as an auto-fix
+   * (M-AMOUNT-ROUND-2DP); pure float noise below that stays silent and this is left unset.
+   */
+  roundedFrom?: string;
 }
 
 const BLANK_WORDS = /^(na|n\/a|nil|null|none|-+|–|—|\.|0?\s*-\s*0?|pending|not available|nill)$/i;
@@ -48,15 +62,36 @@ function numberToDecimalString(n: number): string | null {
 }
 
 /**
+ * Rounds a plain decimal string to 2dp, half-up, with Decimal (never JS float math, hard
+ * rule 7) — 10-Nov decision, decisions.md section 8. A value already at 2dp or fewer is
+ * returned unchanged. `roundedFrom` is set only when the rounding moved the value by 0.0001
+ * or more (M-AMOUNT-ROUND-2DP); float noise below that (e.g. Google Sheets' 21833.100000000002
+ * for a cell showing 21833.1) is rounded silently.
+ */
+function round2dp(raw: string): { value: string; roundedFrom: string | null } {
+  const dot = raw.indexOf(".");
+  if (dot === -1 || raw.length - dot - 1 <= 2) return { value: raw, roundedFrom: null };
+  const exact = new AmountDecimal(raw);
+  let rounded = exact.toFixed(2);
+  if (rounded === "-0.00") rounded = "0.00";
+  const diff = exact.minus(rounded).abs();
+  return { value: rounded, roundedFrom: diff.gte("0.0001") ? raw : null };
+}
+
+/**
  * INR amount (file 02 section 3, Amounts): strips ₹, Rs, Rs., INR, /-, commas (lakh style
  * too). NIL, -, NA = NULL (not zero). "45k", "1.2 L", "50000 + 12000" = NULL and needs input.
+ * Every amount is rounded to 2dp, half-up, at this parse boundary (10-Nov decision).
  */
-export function parseAmountCell(cell: SourceCell | undefined | null): Parsed<string> {
+export function parseAmountCell(cell: SourceCell | undefined | null): ParsedAmount {
   if (isBlank(cell)) return { value: null, reason: "INPUT_MISSING" };
   const text = cell!.text!.trim();
   if (typeof cell!.number === "number") {
     const s = numberToDecimalString(cell!.number);
-    if (s !== null) return { value: s, reason: null };
+    if (s !== null) {
+      const { value, roundedFrom } = round2dp(s);
+      return roundedFrom ? { value, reason: null, roundedFrom } : { value, reason: null };
+    }
   }
   if (BLANK_WORDS.test(text)) return { value: null, reason: "NOT_A_VALUE" };
   const cleaned = text
@@ -64,7 +99,9 @@ export function parseAmountCell(cell: SourceCell | undefined | null): Parsed<str
     .replace(/\/-\s*$/, "")
     .replace(/[,\s]/g, "");
   if (/^-?\d+(\.\d+)?$/.test(cleaned)) {
-    return { value: cleaned.replace(/^(-?)0+(?=\d)/, "$1"), reason: null };
+    const normalised = cleaned.replace(/^(-?)0+(?=\d)/, "$1");
+    const { value, roundedFrom } = round2dp(normalised);
+    return roundedFrom ? { value, reason: null, roundedFrom } : { value, reason: null };
   }
   return { value: null, reason: "INPUT_INVALID", needsInput: true };
 }

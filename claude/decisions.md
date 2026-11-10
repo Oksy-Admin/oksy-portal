@@ -162,6 +162,7 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 - A claim can have several payments, each with its own UTR. (27-Oct)
 - **Settlement Delay** is counted from the discharge date only (not the hardcopy date). (27-Oct)
 - **Hardcopy** is required only by some insurers (Hardcopy Required: Yes/No in the insurer list). **POD Start Date** is set per hospital; no POD flags before it. (27-Oct)
+- **Every sheet amount is rounded to 2dp, half-up, at read** (10-Nov; replaces the earlier Option 2 tolerance idea — reconcile keeps exact equality, no tolerance). Done with Decimal (`ROUND_HALF_UP`), never JavaScript float math, at the parse boundary (`parseAmountCell`) and, independently, on the reconcile source side — so a Google Sheets float such as 21833.100000000002 for a cell showing 21833.1 no longer stops a WRITE job (Badagara, claim CIR/2027/181321/1066065, SEP 2026 row 92, `claude/reports/last-report.md`). A rounding of 0.0001 or more is logged as an auto-fix, reason code `M-AMOUNT-ROUND-2DP` (same pattern as `M-TDS-AMOUNT-ROUND`); pure float noise below that stays silent. AI still never guesses or otherwise changes a bill, approved or settled amount beyond this rounding.
 
 ## 9. Cleaning engine and AI
 

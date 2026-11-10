@@ -39,7 +39,9 @@ function looseAmount(text: string | null | undefined): InstanceType<typeof Money
   if (!text) return null;
   const s = text.replace(/[^\d.-]/g, "");
   if (!/^-?\d+(\.\d+)?$/.test(s)) return null;
-  return new Money(s);
+  // Rounded to 2dp half-up (decisions.md section 8, 10-Nov), same as the cleaner's parse
+  // boundary, so source and cleaned compare like with like.
+  return new Money(s).toDecimalPlaces(2);
 }
 
 export function reconcile(tabs: RawTab[], layouts: TabLayout[], rows: CleanRow[]): Reconciliation {
@@ -72,7 +74,10 @@ export function reconcile(tabs: RawTab[], layouts: TabLayout[], rows: CleanRow[]
         const r = byTabRow.get(`${tab.name}#${i + 1}`);
         if (!r || r.rowClass === "NON_DATA_ROW") continue; // totals and banners are not claims
         const raw = tab.rows[i]?.[col];
-        const src = typeof raw?.[1] === "number" ? new Money(String(raw[1])) : looseAmount(raw?.[0]);
+        // Rounded to 2dp half-up, like the numeric path in looseAmount: Google Sheets can
+        // return a float such as 21833.100000000002 for a cell showing 21833.1 (Badagara,
+        // claude/reports/last-report.md) — that is noise, not a real difference.
+        const src = typeof raw?.[1] === "number" ? new Money(String(raw[1])).toDecimalPlaces(2) : looseAmount(raw?.[0]);
         const out = r.sourceAmounts[key];
         if (src) source = source.plus(src);
         if (out !== null) cleaned = cleaned.plus(out);

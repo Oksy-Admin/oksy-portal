@@ -27,6 +27,31 @@ describe("amounts", () => {
   it("0 stays 0", () => {
     expect(parseAmountCell(t("0", 0)).value).toBe("0");
   });
+
+  // 10-Nov decision (decisions.md section 8): every amount is rounded to 2dp, half-up, with
+  // Decimal — never JS float math. Badagara (claude/reports/last-report.md): Google Sheets
+  // returned 21833.100000000002 for a cell showing 21833.1 and stopped a WRITE job.
+  it("rounds to 2dp half-up and tags the change when it moves the value by 0.0001 or more", () => {
+    expect(parseAmountCell(t("12000.104", 12000.104))).toMatchObject({ value: "12000.10", roundedFrom: "12000.104" });
+    expect(parseAmountCell(t("12000.106", 12000.106))).toMatchObject({ value: "12000.11", roundedFrom: "12000.106" });
+    expect(parseAmountCell(t("0.005", 0.005))).toMatchObject({ value: "0.01", roundedFrom: "0.005" });
+    expect(parseAmountCell(t("-12000.104", -12000.104))).toMatchObject({ value: "-12000.10", roundedFrom: "-12000.104" });
+  });
+
+  it("stays silent for pure float noise below 0.0001", () => {
+    expect(parseAmountCell(t("12000.100005", 12000.100005))).toEqual({ value: "12000.10", reason: null });
+    expect(parseAmountCell(t("21833.1", 21833.100000000002))).toEqual({ value: "21833.10", reason: null });
+  });
+
+  it("rounds a text cell the same way as a numeric one", () => {
+    expect(parseAmountCell(t("21,833.100000000002"))).toMatchObject({ value: "21833.10" });
+    expect(parseAmountCell(t("12000.106"))).toMatchObject({ value: "12000.11", roundedFrom: "12000.106" });
+  });
+
+  it("empty and null stay null, not rounded to zero", () => {
+    expect(parseAmountCell(t(null))).toEqual({ value: null, reason: "INPUT_MISSING" });
+    expect(parseAmountCell(undefined)).toEqual({ value: null, reason: "INPUT_MISSING" });
+  });
 });
 
 describe("dates", () => {

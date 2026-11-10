@@ -364,3 +364,19 @@ describe("tds_amount_stated rounding (decisions.md section 9, 1-Nov)", () => {
   });
 });
 
+describe("amount rounding to 2dp half-up (decisions.md section 8, 10-Nov)", () => {
+  it("cleanRow rounds a bill amount read with float noise, tags the change, and keeps the original", () => {
+    const r = cleanRow(profile, row({}, { bill_amount: c("120000.104") }), opts);
+    expect(r.claim?.bill_amount).toBe("120000.10");
+    expect(r.extra["bill_amount (as entered)"]).toBe("120000.104");
+    expect(r.changes).toContainEqual({ field: "bill_amount", oldValue: "120000.104", newValue: "120000.10", ruleId: "M-AMOUNT-ROUND-2DP", tier: "B" });
+  });
+
+  it("cleanRow leaves an already-2dp amount untouched, with no change logged", () => {
+    const r = cleanRow(profile, row({}, { bill_amount: c("120000") }), opts);
+    expect(r.claim?.bill_amount).toBe("120000");
+    expect(r.extra["bill_amount (as entered)"]).toBeUndefined();
+    expect(r.changes.some((ch) => ch.field === "bill_amount")).toBe(false);
+  });
+});
+

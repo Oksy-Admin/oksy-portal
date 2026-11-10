@@ -370,6 +370,12 @@ export function cleanRow(p: HospitalProfile, r: SourceRow, o: CleanOptions): Cle
     else if (parsed.value === null && parsed.reason) nullReasons[f] = "INPUT_MISSING";
     if (parsed.needsInput) structural("R-N02", "E", f, "Amount cannot be read (two amounts, words or shorthand)");
     if (parsed.value !== null && parsed.value.startsWith("-")) structural("R-N05", "E", f, "Negative amount");
+    // Every amount is rounded to 2dp half-up at the parse boundary (decisions.md section 8,
+    // 10-Nov); logged only when it moved the value by 0.0001 or more, same as M-TDS-AMOUNT-ROUND.
+    if (parsed.roundedFrom) {
+      changes.push({ field: f, oldValue: parsed.roundedFrom, newValue: parsed.value, ruleId: "M-AMOUNT-ROUND-2DP", tier: "B" });
+      extra[`${f} (as entered)`] = parsed.roundedFrom;
+    }
     return parsed.value;
   };
   const ident = (f: CanonicalField, upper = false) => {
