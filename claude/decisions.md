@@ -1,7 +1,7 @@
 # Oksy Data Cleanse – Confirmed Decisions
 
 Owner and decision-maker: Anoop Das (anoop@oksy.in).
-Last updated: 10-Nov-2026 (dictionary CONFIRM/STANDALONE/HOLD decisions from the 250-entry review).
+Last updated: 10-Nov-2026 (part 2 — doctor-name standard format, dictionary approval design, NORKA pair/default-department/standalone-TPA build choices, and the 10-Nov browser-run result).
 
 **How to use this file**
 - Check here before asking Anoop anything. A decision listed here is never asked again.
@@ -31,6 +31,7 @@ Last updated: 10-Nov-2026 (dictionary CONFIRM/STANDALONE/HOLD decisions from the
 | 16 | Later-stage decisions (1-Nov) | 270-299 |
 | 17 | KASP and MEDISEP (3-Nov) | 300-317 |
 | 18 | Dictionary decisions (10-Nov) | 328-end |
+| 19 | Dictionary decisions (10-Nov, part 2) | see section |
 
 Line numbers are approximate (shift a little as the file is edited) — if in doubt, re-run the grep above.
 
@@ -341,3 +342,17 @@ From Anoop's row-by-row review of the 158 SUGGESTED Insurer/TPA/Department dicti
 - **HOLD rows with "Unknown":** ask desk staff in the hospital's Question Sheet (Stage 4); if they cannot answer, take the value from the directory file. Left SUGGESTED until Stage 4 exists.
 - **`India_Healthcare_Directory_updated.xlsx` vs the original `India_Healthcare_Directory.xlsx` (compared 10-Nov):** the "updated" file dropped the "Other Names / Aliases", "Status (Active/Hidden)" and "Notes / To verify" columns on all three sheets (Medical Departments, TPAs, Insurance Companies), and the TPAs sheet also dropped "IRDAI Registration No." and "Validity Shown in Source". The Insurance Companies sheet's "Hardcopy Required (Yes/No)" column, blank in the original, is now "NO" for every one of the 39 insurers — this looks like a placeholder fill, not a real per-insurer decision (my-tasks.md's "Fill Hardcopy Required per insurer" task is still open and unconfirmed as of 10-Nov). The "Standardized ... Name" columns (the ones CONFIRM rows actually use) are identical between the two files. Until Anoop confirms the "NO" fill is real, treat `Hardcopy Required` on every insurer as still undecided and keep using the original file for aliases/notes/registration data.
 - **CONFIRM rows not yet applied (10-Nov):** `decide_dictionary_entry()` / `bulk_confirm_dictionary()` are SECURITY DEFINER functions gated on `private.has_tick('hospitals_add_edit')`, which resolves through `auth.uid()` — only set inside a real signed-in web-app session. Confirmed blocked (10-Nov): the Supabase SQL connection available to Claude cannot even execute `private.current_app_role()` ("permission denied for function"), and a direct `decide_dictionary_entry()` call was separately refused by the auto-mode write guard. So these decisions cannot be applied by script; they need Anoop signed in. Options in `claude/reports/last-report.md` (10-Nov); the backup taken before this review is `claude/reports/backup-dictionary-entries-2026-11-10.csv` (286 rows, all kinds, as of 10-Nov before any CONFIRM is applied).
+
+## 19. Dictionary decisions (10-Nov-2026, part 2)
+
+- **Doctor names — standard value format:** `"Dr. Full Name"` (title case, "Dr." prefix). The full name is taken **only** from another spelling of the same doctor in the **same hospital** that already contains it (e.g. HARIDAS → MV HARIDAS, PRASHOB → PRASHOB N). If no full-name spelling exists for that doctor in that hospital, or the match is ambiguous, **do not guess**: leave the entry SUGGESTED and list it for Anoop.
+- **Dictionary approval design** (to be built in a later stage, after a stage plan is approved — no build yet):
+  - **Tier 1 (auto-apply):** AI auto-applies when the spelling matches a directory standard name/alias, or is already confirmed in another hospital of the same scheme. Logged, with group undo, and a weekly sample list sent to Anoop.
+  - **Tier 2 (uncertain):** goes to the hospital staff's Question Sheet (Stage 4).
+  - **Tier 3 (junk):** single letters, numbers, etc. — auto-rejected and logged once.
+- **NORKA pair rule — build choice:** option 1, a small hard-coded pair map in `packages/rules` (NORKA Care → TPA Vidal + insurer New India Assurance; NORKA Care Plus → TPA Vidal + insurer United India).
+- **Hospital-level default department — build choice:** option 1, `hospital_profile_facts.default_department` (Tree G Eye Care → Ophthalmology).
+- **Standalone TPA cells (19 rows) — build choice:** option 1, confirm each as a TPA entry whose standard value is the matching insurer's standard name.
+  - Anoop agreed all three build choices above with "do what you recommend" on 10-Nov-2026. None are built yet — build only after the stage plan is approved. The `default_department` migration SQL still needs Anoop's OK before it goes live.
+- **10-Nov-2026 browser run result:** 118 of 119 CONFIRM rows (Department/Insurer/TPA) were confirmed on the Dictionary page. The 119th (CARDIO) was wrongly saved with standard value `'CARDIO'` and is being corrected separately (see `supabase/migrations/20261110170000_fix_department_cardio_standard_value.sql`, not yet applied to live).
+  - **Lesson learned:** the Dictionary page's confirm form pre-fills the standard-value field with the raw spelling, not the decided standard value — each confirm must have the standard value typed in deliberately, not accepted as pre-filled.
