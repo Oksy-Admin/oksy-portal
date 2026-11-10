@@ -28,6 +28,7 @@ Do these in order — each one unblocks the next.
    - What to do: confirm each suggested entry for Insurer, TPA, Doctor name and Department (word → standard value, once per word).
    - Why: 2b's own done-criteria; checked live 1-Nov: 250 entries are still SUGGESTED, 36 are already CONFIRMED.
    - If skipped: Stage 2 cannot close; 2f stays open.
+   - **10-Nov update:** Anoop reviewed 158 of these (Insurer/TPA/Department) in `claude/reference/dictionary-actions-2026-11-10.xlsx` — 119 CONFIRM, 19 STANDALONE, 20 HOLD (full decisions: `claude/decisions.md` section 18). The 119 CONFIRM rows are **not yet applied** — `decide_dictionary_entry()` needs a real signed-in Owner session and cannot be run from a script; options in `claude/reports/last-report.md`. Doctor-name entries (74) are untouched, still waiting on this same step.
 
 4. **KASP and MEDISEP sample sheet links, robot read access, and the staff rule discussion**
    - What to send: a Google Sheets link to one real (or sample) KASP claims sheet and one MEDISEP claims sheet.

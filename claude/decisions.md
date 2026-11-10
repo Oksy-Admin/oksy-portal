@@ -1,7 +1,7 @@
 # Oksy Data Cleanse – Confirmed Decisions
 
 Owner and decision-maker: Anoop Das (anoop@oksy.in).
-Last updated: 3-Nov-2026 (KASP/MEDISEP case number, TDS, TMS 1/TMS 2, source trust, full history).
+Last updated: 10-Nov-2026 (dictionary CONFIRM/STANDALONE/HOLD decisions from the 250-entry review).
 
 **How to use this file**
 - Check here before asking Anoop anything. A decision listed here is never asked again.
@@ -30,6 +30,7 @@ Last updated: 3-Nov-2026 (KASP/MEDISEP case number, TDS, TMS 1/TMS 2, source tru
 | 15 | Superseded | moved to `claude/archive/decisions-superseded.md` |
 | 16 | Later-stage decisions (1-Nov) | 270-299 |
 | 17 | KASP and MEDISEP (3-Nov) | 300-317 |
+| 18 | Dictionary decisions (10-Nov) | 328-end |
 
 Line numbers are approximate (shift a little as the file is edited) — if in doubt, re-run the grep above.
 
@@ -325,3 +326,18 @@ Line numbers are approximate (shift a little as the file is edited) — if in do
 ## 15. Superseded (do not use)
 
 Moved to `claude/archive/decisions-superseded.md` (31-Oct-2026 housekeeping) to keep this file short. Old decisions that no longer apply; never act on them.
+
+## 18. Dictionary decisions (10-Nov-2026)
+
+From Anoop's row-by-row review of the 158 SUGGESTED Insurer/TPA/Department dictionary entries (`claude/reference/dictionary-actions-2026-11-10.xlsx`: Action = CONFIRM / STANDALONE / HOLD per row).
+
+- **Directory is the standard-name source.** `claude/reference/India_Healthcare_Directory_updated.xlsx`'s "Standardized ... Name" columns are the standard values used in CONFIRM rows. Rows marked CONFIRM in the actions file are confirmed by Anoop.
+- **Department names kept as the hospital writes them, not converted to the directory's names:** Orthopaedics, General Medicine, Gynaecology stay as written (the directory would otherwise fold them into Orthopedic Surgery / Internal Medicine / Obstetrics and Gynecology). Added to the department list as their own standard values. GM = General Medicine, GS = General Surgery.
+- **Insurer column:** Medi Assist, Ericson, Vidal stay as insurance companies (added to the Insurer list), even though the directory lists all three as TPAs. The same names typed in the TPA column stay TPAs (the TPA list already has its own Medi Assist / Vidal rows with TPA legal-entity names).
+- **TPA column holding an insurer name = standalone: no TPA; the insurer is the name in that cell.** Same mechanism as `hospital_profile_facts.tpa_cell_may_hold_insurer` / `clean.ts`'s `HMS-TPA-IS-INSURER` rule (confirmed for HMS 25-Oct). See the STANDALONE blocker below — not yet applied.
+- **Raksha and East West stay in the TPA directory.** Their full legal names are not in the IRDAI sheet transcription: store as written ("Raksha", "East West"), mark "legal name to verify", never guess a legal suffix.
+- **NORKA pair rule:** NORKA Care = TPA Vidal + insurer New India Assurance. NORKA Care Plus = TPA Vidal + insurer United India. NORKA alone is a scheme, not an insurer — ask which product. Design not yet built (see Step 4 options, `claude/reports/last-report.md` 10-Nov).
+- **Tree G Eye Care (HOSPPVTP0002)** is an eye hospital: every claim there is department Ophthalmology. Hospital-level default, not a word mapping — design not yet built (see Step 4 options).
+- **HOLD rows with "Unknown":** ask desk staff in the hospital's Question Sheet (Stage 4); if they cannot answer, take the value from the directory file. Left SUGGESTED until Stage 4 exists.
+- **`India_Healthcare_Directory_updated.xlsx` vs the original `India_Healthcare_Directory.xlsx` (compared 10-Nov):** the "updated" file dropped the "Other Names / Aliases", "Status (Active/Hidden)" and "Notes / To verify" columns on all three sheets (Medical Departments, TPAs, Insurance Companies), and the TPAs sheet also dropped "IRDAI Registration No." and "Validity Shown in Source". The Insurance Companies sheet's "Hardcopy Required (Yes/No)" column, blank in the original, is now "NO" for every one of the 39 insurers — this looks like a placeholder fill, not a real per-insurer decision (my-tasks.md's "Fill Hardcopy Required per insurer" task is still open and unconfirmed as of 10-Nov). The "Standardized ... Name" columns (the ones CONFIRM rows actually use) are identical between the two files. Until Anoop confirms the "NO" fill is real, treat `Hardcopy Required` on every insurer as still undecided and keep using the original file for aliases/notes/registration data.
+- **CONFIRM rows not yet applied (10-Nov):** `decide_dictionary_entry()` / `bulk_confirm_dictionary()` are SECURITY DEFINER functions gated on `private.has_tick('hospitals_add_edit')`, which resolves through `auth.uid()` — only set inside a real signed-in web-app session. Confirmed blocked (10-Nov): the Supabase SQL connection available to Claude cannot even execute `private.current_app_role()` ("permission denied for function"), and a direct `decide_dictionary_entry()` call was separately refused by the auto-mode write guard. So these decisions cannot be applied by script; they need Anoop signed in. Options in `claude/reports/last-report.md` (10-Nov); the backup taken before this review is `claude/reports/backup-dictionary-entries-2026-11-10.csv` (286 rows, all kinds, as of 10-Nov before any CONFIRM is applied).
